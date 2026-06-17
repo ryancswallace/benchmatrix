@@ -18,6 +18,7 @@ from __future__ import annotations
 import copy
 import datetime as dt
 import enum
+import importlib
 import inspect
 import json
 import math
@@ -27,13 +28,34 @@ import warnings
 from collections.abc import Callable, Iterable, Mapping, MutableMapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import PurePath
-from typing import Protocol, TextIO, TypeVar
+from typing import Protocol, SupportsFloat, SupportsIndex, TextIO, TypeVar, cast
 
-import pytest
-
-from . import _schema
-from ._schema import JsonValue as _JsonValue
-from ._schema import MetricName
+from ._schema import (
+    DEFAULT_METRICS,
+    KEY_CASE_FRESH_INPUTS,
+    KEY_CASE_NAME,
+    KEY_IMPLEMENTATION_NAME,
+    KEY_METRIC_NAME,
+    KEY_PRODUCER,
+    KEY_SCHEMA_VERSION,
+    KEY_TAIL_LATENCY_NOTE,
+    KEY_TAIL_PERCENTILES,
+    KEY_THROUGHPUT_UNIT,
+    KEY_WORK_UNIT_NAME,
+    KEY_WORK_UNITS,
+    METRIC_BATCH_THROUGHPUT,
+    METRIC_SINGLE_CALL_LATENCY,
+    METRIC_TAIL_LATENCY,
+    PRODUCER,
+    SCHEMA_VERSION,
+    TAIL_PERCENTILES,
+    THROUGHPUT_UNIT_CALLS_PER_SECOND,
+    THROUGHPUT_UNIT_WORK_UNITS_PER_SECOND,
+    MetricName,
+)
+from ._schema import (
+    JsonValue as _JsonValue,
+)
 from .exceptions import MetadataSerializationError
 
 T = TypeVar("T")
@@ -67,6 +89,11 @@ def _empty_kwargs() -> dict[str, object]:
     return {}
 
 
+def _empty_metadata() -> dict[str, object]:
+    """Return empty case metadata."""
+    return {}
+
+
 class _BenchmarkFixture(Protocol):
     """Structural type for the pytest-benchmark fixture used internally."""
 
@@ -89,6 +116,14 @@ class _BenchmarkFixture(Protocol):
         iterations: int = _DEFAULT_PEDANTIC_ITERATIONS,
     ) -> T:
         """Benchmark ``target`` with pytest-benchmark pedantic mode."""
+        ...
+
+
+class _PytestModule(Protocol):
+    """Small surface of pytest used by the harness."""
+
+    def param(self, *values: object, id: str | None = None) -> object:
+        """Return a pytest parameter value."""
         ...
 
 
@@ -202,7 +237,7 @@ class BenchmarkCase:
     work_units: float | Callable[[], float] | None = None
     work_unit_name: str = "items"
     fresh_inputs: bool = False
-    metadata: Mapping[str, object] = field(default_factory=dict)
+    metadata: Mapping[str, object] = field(default_factory=_empty_metadata)
 
     def __post_init__(self) -> None:
         """Validate benchmark case fields after initialization."""
@@ -212,7 +247,7 @@ class BenchmarkCase:
         _validate_work_unit_name(self.work_unit_name)
 
         if self.work_units is not None and not callable(self.work_units):
-            _validate_work_units(self.work_units)
+            _ = _validate_work_units(self.work_units)
 
         coerced_metadata = _coerce_json_mapping(
             self.metadata,
@@ -355,7 +390,7 @@ def benchmark_single_call_latency(
         TypeError: If ``function`` is an async function.
     """
     resolved_config = _resolve_config(config)
-    metric_name = _schema.METRIC_SINGLE_CALL_LATENCY
+    metric_name = METRIC_SINGLE_CALL_LATENCY
     extra_info: dict[str, object] = _make_base_extra_info(
         metric_name,
         implementation_name,
@@ -363,7 +398,7 @@ def benchmark_single_call_latency(
         case,
     )
     final_extra_info = _set_extra_info(benchmark, extra_info)
-    _run_target(benchmark, function, case, config=resolved_config, force_pedantic=False)
+    _ = _run_target(benchmark, function, case, config=resolved_config, force_pedantic=False)
 
     record = BenchmarkInvocationRecord(
         metric_name=metric_name,
@@ -410,7 +445,7 @@ def benchmark_batch_throughput(
         ValueError: If ``case.work_units`` is not positive or finite.
     """
     resolved_config = _resolve_config(config)
-    metric_name = _schema.METRIC_BATCH_THROUGHPUT
+    metric_name = METRIC_BATCH_THROUGHPUT
     extra_info: dict[str, object] = _make_base_extra_info(
         metric_name,
         implementation_name,
@@ -420,14 +455,14 @@ def benchmark_batch_throughput(
     work_unit_count = case.work_unit_count()
 
     if work_unit_count is None:
-        extra_info[_schema.KEY_THROUGHPUT_UNIT] = _schema.THROUGHPUT_UNIT_CALLS_PER_SECOND
+        extra_info[KEY_THROUGHPUT_UNIT] = THROUGHPUT_UNIT_CALLS_PER_SECOND
     else:
-        extra_info[_schema.KEY_WORK_UNITS] = work_unit_count
-        extra_info[_schema.KEY_WORK_UNIT_NAME] = case.work_unit_name
-        extra_info[_schema.KEY_THROUGHPUT_UNIT] = _schema.THROUGHPUT_UNIT_WORK_UNITS_PER_SECOND
+        extra_info[KEY_WORK_UNITS] = work_unit_count
+        extra_info[KEY_WORK_UNIT_NAME] = case.work_unit_name
+        extra_info[KEY_THROUGHPUT_UNIT] = THROUGHPUT_UNIT_WORK_UNITS_PER_SECOND
 
     final_extra_info = _set_extra_info(benchmark, extra_info)
-    _run_target(benchmark, function, case, config=resolved_config, force_pedantic=False)
+    _ = _run_target(benchmark, function, case, config=resolved_config, force_pedantic=False)
 
     record = BenchmarkInvocationRecord(
         metric_name=metric_name,
@@ -482,7 +517,7 @@ def benchmark_tail_latency(
         harness emits a runtime warning for that configuration.
     """
     resolved_config = _resolve_config(config)
-    metric_name = _schema.METRIC_TAIL_LATENCY
+    metric_name = METRIC_TAIL_LATENCY
     _warn_for_tail_latency_iteration_semantics(case, resolved_config)
 
     extra_info: dict[str, object] = _make_base_extra_info(
@@ -491,15 +526,15 @@ def benchmark_tail_latency(
         case_name,
         case,
     )
-    extra_info[_schema.KEY_TAIL_LATENCY_NOTE] = (
+    extra_info[KEY_TAIL_LATENCY_NOTE] = (
         "Use pytest-benchmark JSON data to compute p50/p90/p95/p99. "
         "This is not production p95/p99 under load. If pedantic_iterations is "
         "greater than one, samples may represent per-round aggregate timings."
     )
-    extra_info[_schema.KEY_TAIL_PERCENTILES] = list(_schema.TAIL_PERCENTILES)
+    extra_info[KEY_TAIL_PERCENTILES] = list(TAIL_PERCENTILES)
 
     final_extra_info = _set_extra_info(benchmark, extra_info)
-    _run_target(benchmark, function, case, config=resolved_config, force_pedantic=True)
+    _ = _run_target(benchmark, function, case, config=resolved_config, force_pedantic=True)
 
     record = BenchmarkInvocationRecord(
         metric_name=metric_name,
@@ -546,7 +581,7 @@ def run_benchmark_metric(
     """
     resolved_config = _resolve_config(config)
 
-    if metric_name == _schema.METRIC_SINGLE_CALL_LATENCY:
+    if metric_name == METRIC_SINGLE_CALL_LATENCY:
         return benchmark_single_call_latency(
             benchmark,
             implementation_name,
@@ -557,7 +592,7 @@ def run_benchmark_metric(
             stream=stream,
         )
 
-    if metric_name == _schema.METRIC_BATCH_THROUGHPUT:
+    if metric_name == METRIC_BATCH_THROUGHPUT:
         return benchmark_batch_throughput(
             benchmark,
             implementation_name,
@@ -568,7 +603,7 @@ def run_benchmark_metric(
             stream=stream,
         )
 
-    if metric_name == _schema.METRIC_TAIL_LATENCY:
+    if metric_name == METRIC_TAIL_LATENCY:
         return benchmark_tail_latency(
             benchmark,
             implementation_name,
@@ -599,8 +634,9 @@ def make_benchmark_parameters(
     Returns:
         A list of values suitable for ``pytest.mark.parametrize``.
     """
-    resolved_metrics = _schema.DEFAULT_METRICS if metrics is None else tuple(metrics)
+    resolved_metrics = DEFAULT_METRICS if metrics is None else tuple(metrics)
     case_items = _case_items(cases)
+    pytest = _load_pytest()
     parameters: list[_BenchmarkParameter] = []
 
     for metric_name in resolved_metrics:
@@ -649,6 +685,12 @@ def _resolve_config(config: BenchmarkConfig | None) -> BenchmarkConfig:
     return BenchmarkConfig() if config is None else config
 
 
+def _load_pytest() -> _PytestModule:
+    """Import pytest at runtime."""
+    module = cast(object, importlib.import_module("pytest"))
+    return cast(_PytestModule, module)
+
+
 def _run_target(
     benchmark: _BenchmarkFixture,
     function: TargetFunction,
@@ -688,13 +730,12 @@ def _run_target(
 
 def _validate_target_function(function: TargetFunction) -> None:
     """Reject unsupported target-function shapes."""
-    call_method = getattr(function, "__call__", None)
-
-    if inspect.iscoroutinefunction(function) or inspect.iscoroutinefunction(call_method):
-        raise TypeError(
-            "benchkit supports only synchronous target functions; async "
-            "functions would benchmark coroutine creation rather than execution."
+    if inspect.iscoroutinefunction(function) or inspect.iscoroutinefunction(type(function).__call__):
+        message = (
+            "benchkit supports only synchronous target functions; async functions would benchmark coroutine creation "
+            + "rather than execution."
         )
+        raise TypeError(message)
 
 
 def _warn_if_pedantic_iterations_ignored(config: BenchmarkConfig) -> None:
@@ -702,10 +743,12 @@ def _warn_if_pedantic_iterations_ignored(config: BenchmarkConfig) -> None:
     if config.pedantic_iterations == _DEFAULT_PEDANTIC_ITERATIONS:
         return
 
+    message = (
+        "BenchmarkConfig.pedantic_iterations is ignored when BenchmarkCase.fresh_inputs is true because "
+        + "pytest-benchmark setup mode is used to keep input construction outside the timed function body."
+    )
     warnings.warn(
-        "BenchmarkConfig.pedantic_iterations is ignored when "
-        "BenchmarkCase.fresh_inputs is true because pytest-benchmark setup mode "
-        "is used to keep input construction outside the timed function body.",
+        message,
         RuntimeWarning,
         stacklevel=3,
     )
@@ -719,9 +762,12 @@ def _warn_for_tail_latency_iteration_semantics(
     if case.fresh_inputs or config.pedantic_iterations == _DEFAULT_PEDANTIC_ITERATIONS:
         return
 
+    message = (
+        "tail_latency with pedantic_iterations greater than one produces per-round aggregate timing samples, not clean "
+        + "one-call latency samples."
+    )
     warnings.warn(
-        "tail_latency with pedantic_iterations greater than one produces "
-        "per-round aggregate timing samples, not clean one-call latency samples.",
+        message,
         RuntimeWarning,
         stacklevel=3,
     )
@@ -729,6 +775,9 @@ def _warn_for_tail_latency_iteration_semantics(
 
 def _validate_work_units(value: object) -> float:
     """Validate and return a positive finite work-unit count."""
+    if not isinstance(value, str | bytes | bytearray | SupportsFloat | SupportsIndex):
+        raise ValueError("Benchmark work_units must be numeric.")
+
     try:
         numeric_value = float(value)
     except (TypeError, ValueError) as exc:
@@ -749,11 +798,11 @@ def _validate_work_unit_name(value: str) -> None:
         raise ValueError("Benchmark work_unit_name must not be empty.")
 
     if not _WORK_UNIT_NAME_PATTERN.fullmatch(value):
-        raise ValueError(
-            "Benchmark work_unit_name must start with a letter and contain only "
-            "letters, digits, underscores, or hyphens. Use base units such as "
-            "'items', 'rows', 'bytes', or 'tokens', not units like 'rows/s'."
+        message = (
+            "Benchmark work_unit_name must start with a letter and contain only letters, digits, underscores, or "
+            + "hyphens. Use base units such as 'items', 'rows', 'bytes', or 'tokens', not units like 'rows/s'."
         )
+        raise ValueError(message)
 
 
 def _make_base_extra_info(
@@ -764,12 +813,12 @@ def _make_base_extra_info(
 ) -> dict[str, object]:
     """Build raw metadata common to every benchmark metric."""
     extra_info: dict[str, object] = {
-        _schema.KEY_PRODUCER: _schema.PRODUCER,
-        _schema.KEY_SCHEMA_VERSION: _schema.SCHEMA_VERSION,
-        _schema.KEY_METRIC_NAME: metric_name,
-        _schema.KEY_IMPLEMENTATION_NAME: implementation_name,
-        _schema.KEY_CASE_NAME: case_name,
-        _schema.KEY_CASE_FRESH_INPUTS: case.fresh_inputs,
+        KEY_PRODUCER: PRODUCER,
+        KEY_SCHEMA_VERSION: SCHEMA_VERSION,
+        KEY_METRIC_NAME: metric_name,
+        KEY_IMPLEMENTATION_NAME: implementation_name,
+        KEY_CASE_NAME: case_name,
+        KEY_CASE_FRESH_INPUTS: case.fresh_inputs,
     }
 
     for key, value in case.metadata.items():
@@ -808,8 +857,8 @@ def _display_invocation_record(
     output = sys.stdout if stream is None else stream
     message = (
         f"[benchmark invoked] metric={record.metric_name} "
-        f"implementation={record.implementation_name} case={record.case_name}; "
-        "timing is available in pytest-benchmark output"
+        + f"implementation={record.implementation_name} case={record.case_name}; "
+        + "timing is available in pytest-benchmark output"
     )
     print(message, file=output, flush=True)
 
@@ -819,13 +868,14 @@ def _case_items(
 ) -> list[tuple[str, BenchmarkCase]]:
     """Normalize case inputs into named case pairs."""
     if isinstance(cases, Mapping):
-        return list(cases.items())
+        mapping = cast(Mapping[str, BenchmarkCase], cases)
+        return list(mapping.items())
 
     return [(case.name, case) for case in cases]
 
 
 def _coerce_json_mapping(
-    mapping: Mapping[object, object],
+    mapping: Mapping[str, object] | Mapping[object, object],
     *,
     path: str,
 ) -> _ExtraInfo:
@@ -863,13 +913,15 @@ def _coerce_json_value(value: object, *, path: str) -> _JsonValue:
         return value.isoformat()
 
     if isinstance(value, enum.Enum):
-        return _coerce_json_value(value.value, path=f"{path}.value")
+        enum_value = cast(object, value.value)
+        return _coerce_json_value(enum_value, path=f"{path}.value")
 
     if isinstance(value, list | tuple):
-        return [_coerce_json_value(item, path=f"{path}[{index}]") for index, item in enumerate(value)]
+        sequence = cast(Sequence[object], value)
+        return [_coerce_json_value(item, path=f"{path}[{index}]") for index, item in enumerate(sequence)]
 
     if isinstance(value, Mapping):
-        return _coerce_json_mapping(value, path=path)
+        return _coerce_json_mapping(cast(Mapping[object, object], value), path=path)
 
     numpy_scalar = _maybe_numpy_scalar_to_python(value, path=path)
     if numpy_scalar is not _NO_NUMPY_SCALAR:
@@ -889,10 +941,11 @@ def _maybe_numpy_scalar_to_python(value: object, *, path: str) -> object:
         return _NO_NUMPY_SCALAR
 
     if value_type.__name__ == "ndarray":
-        raise MetadataSerializationError(
+        message = (
             f"Metadata value at {path} is a NumPy array, not a NumPy scalar. "
-            "Convert arrays to JSON-safe lists explicitly."
+            + "Convert arrays to JSON-safe lists explicitly."
         )
+        raise MetadataSerializationError(message)
 
     item = getattr(value, "item", None)
     if not callable(item):
@@ -914,6 +967,6 @@ def _maybe_numpy_scalar_to_python(value: object, *, path: str) -> object:
 def _validate_strict_json(value: _JsonValue, *, path: str) -> None:
     """Validate that a coerced value can be serialized as strict JSON."""
     try:
-        json.dumps(value, allow_nan=False)
+        _ = json.dumps(value, allow_nan=False)
     except (TypeError, ValueError) as exc:
         raise MetadataSerializationError(f"Metadata at {path} could not be serialized as strict JSON.") from exc
