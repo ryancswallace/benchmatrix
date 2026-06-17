@@ -35,10 +35,23 @@ packages = ["src/benchkit"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+addopts = [
+    "--cov=benchkit",
+    "--cov-report=term-missing",
+    "--cov-fail-under=95",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["benchkit"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
 
 [tool.ruff]
 line-length = 120
-target-version = "py312"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]

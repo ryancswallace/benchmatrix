@@ -1,7 +1,9 @@
 {
     "cSpell.words": [
+        "addopts",
         "basedpyright",
         "benchkit",
+        "capsys",
         "charliermarsh",
         "davidanson",
         "debugpy",

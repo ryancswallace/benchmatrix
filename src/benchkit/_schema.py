@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, TypeAlias
 
-type MetricName = Literal[
+MetricName: TypeAlias = Literal[
     "single_call_latency",
     "batch_throughput",
     "tail_latency",
 ]
 
-type JsonPrimitive = str | int | float | bool | None
-type JsonValue = JsonPrimitive | list["JsonValue"] | dict[str, "JsonValue"]
+JsonPrimitive: TypeAlias = str | int | float | bool | None
+JsonValue: TypeAlias = JsonPrimitive | list["JsonValue"] | dict[str, "JsonValue"]
 
 PRODUCER = "benchkit"
 SCHEMA_VERSION = 1

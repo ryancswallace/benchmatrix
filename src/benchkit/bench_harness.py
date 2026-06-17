@@ -28,7 +28,7 @@ import warnings
 from collections.abc import Callable, Iterable, Mapping, MutableMapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import PurePath
-from typing import Protocol, SupportsFloat, SupportsIndex, TextIO, TypeVar, cast
+from typing import Protocol, SupportsFloat, SupportsIndex, TextIO, TypeAlias, TypeVar, cast
 
 from ._schema import (
     DEFAULT_METRICS,
@@ -60,15 +60,15 @@ from .exceptions import MetadataSerializationError
 
 T = TypeVar("T")
 
-type TargetFunction = Callable[..., object]
+TargetFunction: TypeAlias = Callable[..., object]
 """Synchronous function signature accepted by the benchmark harness.
 
 Target functions must perform the work being measured before returning. Async
 functions are rejected. Lazy return values are not forced by the harness.
 """
 
-type _BenchmarkParameter = object
-type _ExtraInfo = dict[str, _JsonValue]
+_BenchmarkParameter: TypeAlias = object
+_ExtraInfo: TypeAlias = dict[str, _JsonValue]
 
 _DEFAULT_PEDANTIC_ROUNDS = 100
 _DEFAULT_WARMUP_ROUNDS = 10
@@ -235,7 +235,7 @@ class BenchmarkCase:
     make_args: Callable[[], tuple[object, ...]] = _empty_args
     make_kwargs: Callable[[], dict[str, object]] = _empty_kwargs
     work_units: float | Callable[[], float] | None = None
-    work_unit_name: str = "items"
+    work_unit_name: str = _DEFAULT_WORK_UNIT_NAME
     fresh_inputs: bool = False
     metadata: Mapping[str, object] = field(default_factory=_empty_metadata)
 
@@ -285,7 +285,7 @@ class BenchmarkCase:
         name: str,
         *args: object,
         work_units: float | Callable[[], float] | None = None,
-        work_unit_name: str = "items",
+        work_unit_name: str = _DEFAULT_WORK_UNIT_NAME,
         fresh_inputs: bool = False,
         copier: Callable[[object], object] | None = None,
         metadata: Mapping[str, object] | None = None,
@@ -301,8 +301,12 @@ class BenchmarkCase:
             work_unit_name: Name of the logical work unit, such as ``"items"``,
                 ``"rows"``, ``"bytes"``, or ``"tokens"``. Use a base unit name
                 without spaces, slashes, or ``"/s"``.
-            fresh_inputs: Whether target invocations need fresh inputs.
-            copier: Optional copy function applied to each argument value.
+            fresh_inputs: Whether target invocations need fresh inputs. When
+                true and ``copier`` is omitted, a shallow copy is made for each
+                argument value.
+            copier: Optional copy function applied to each argument value. Use
+                ``deep_copy`` or a domain-specific copy function when shallow
+                copies are not fresh enough for the benchmarked workload.
             metadata: Optional strict-JSON-renderable case metadata.
             **kwargs: Keyword arguments for the target function.
 
@@ -310,19 +314,21 @@ class BenchmarkCase:
             A configured benchmark case.
         """
 
+        effective_copier = shallow_copy if fresh_inputs and copier is None else copier
+
         def make_args() -> tuple[object, ...]:
             """Return case positional arguments."""
-            if copier is None:
+            if effective_copier is None:
                 return args
 
-            return tuple(copier(arg) for arg in args)
+            return tuple(effective_copier(arg) for arg in args)
 
         def make_kwargs() -> dict[str, object]:
             """Return case keyword arguments."""
-            if copier is None:
+            if effective_copier is None:
                 return dict(kwargs)
 
-            return {key: copier(value) for key, value in kwargs.items()}
+            return {key: effective_copier(value) for key, value in kwargs.items()}
 
         return cls(
             name=name,
@@ -330,7 +336,7 @@ class BenchmarkCase:
             make_kwargs=make_kwargs,
             work_units=work_units,
             work_unit_name=work_unit_name,
-            fresh_inputs=fresh_inputs or copier is not None,
+            fresh_inputs=fresh_inputs or effective_copier is not None,
             metadata={} if metadata is None else dict(metadata),
         )
 

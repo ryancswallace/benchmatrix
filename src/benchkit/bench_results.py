@@ -8,7 +8,7 @@ import sys
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import SupportsFloat, SupportsIndex, TextIO, cast
+from typing import SupportsFloat, SupportsIndex, TextIO, TypeAlias, cast
 
 from ._schema import (
     DERIVED_LATENCY_MEAN,
@@ -55,7 +55,7 @@ from ._schema import (
 )
 from .exceptions import BenchmarkJsonError
 
-type _BenchmarkStats = Mapping[str, object]
+_BenchmarkStats: TypeAlias = Mapping[str, object]
 
 _NANOSECONDS_PER_SECOND = 1_000_000_000.0
 _MICROSECONDS_PER_SECOND = 1_000_000.0
