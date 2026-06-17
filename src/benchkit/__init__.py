@@ -1,5 +1,7 @@
 """Public API for the benchmark utility package."""
 
+from importlib.metadata import PackageNotFoundError, version
+
 from ._schema import MetricName
 from .bench_harness import (
     BenchmarkCase,
@@ -22,7 +24,13 @@ from .bench_results import (
 )
 from .exceptions import BenchkitError, BenchmarkJsonError, MetadataSerializationError
 
+try:
+    __version__ = version("benchkit")
+except PackageNotFoundError:
+    __version__ = "0.0.0+unknown"
+
 __all__ = [
+    "__version__",
     "BenchmarkCase",
     "BenchmarkConfig",
     "BenchmarkInvocationRecord",
