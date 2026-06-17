@@ -1,0 +1,27 @@
+{
+    "cSpell.words": [
+        "basedpyright",
+        "benchkit",
+        "charliermarsh",
+        "davidanson",
+        "debugpy",
+        "detachhead",
+        "elif",
+        "gruntfuggly",
+        "ipykernel",
+        "ipynb",
+        "mikestead",
+        "nhoizey",
+        "numpy",
+        "pycache",
+        "pytest",
+        "pythonpath",
+        "renderable",
+        "testpaths",
+        "toolsai",
+        "venv",
+        "vivaxy",
+        "yarnpkg"
+    ],
+    "python.analysis.typeCheckingMode": "off"
+}
