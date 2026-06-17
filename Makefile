@@ -57,11 +57,11 @@ format: bootstrap
 
 check: bootstrap
 	@status=0; \
-	echo "==> Ruff lint"; \
+	echo "==> Ruff linting"; \
 	uv run ruff check . || status=$$?; \
-	echo "==> Pytest"; \
+	echo "\n==> Pytest unit tests"; \
 	uv run pytest -q || status=$$?; \
-	echo "==> basedpyright"; \
+	echo "\n==> basedpyright type checks"; \
 	uv run basedpyright src/ tests/ || status=$$?; \
 	exit $$status
 
