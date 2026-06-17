@@ -5,17 +5,18 @@ export PATH := $(HOME)/.local/bin:$(HOME)/.cargo/bin:$(PATH)
 
 UV_INSTALL_URL ?= https://astral.sh/uv/install.sh
 
-.PHONY: help bootstrap ready install test lint format check clean
+.PHONY: help bootstrap ready install test typecheck lint format check clean
 
 help:
 	@echo "Available targets:"
-	@echo "  bootstrap	Install or upgrade pip and uv"
+	@echo "  bootstrap	Install uv if it is not already available"
 	@echo "  ready		Sync dependencies and verify the environment"
 	@echo "  install	Sync dependencies from uv.lock"
-	@echo "  test		Run tests"
-	@echo "  lint		Run Ruff checks"
-	@echo "  format		Format code with Ruff"
-	@echo "  check		Run lint and tests"
+	@echo "  test		Run unit tests"
+	@echo "  typecheck	Run basedpyright type checks"
+	@echo "  lint		Run Ruff linting checks"
+	@echo "  format		Format code and apply Ruff auto-fixes"
+	@echo "  check		Run lint, tests, and type checks"
 	@echo "  clean		Remove local cache files"
 
 bootstrap:
@@ -35,7 +36,7 @@ bootstrap:
 		uv --version; \
 	fi
 
-ready: install test
+ready: install check
 	@echo "Environment is ready."
 
 install: bootstrap
@@ -44,6 +45,9 @@ install: bootstrap
 test: bootstrap
 	uv run pytest -q
 
+typecheck: bootstrap
+	uv run basedpyright src/ tests/
+
 lint: bootstrap
 	uv run ruff check .
 
@@ -51,7 +55,15 @@ format: bootstrap
 	uv run ruff format .
 	uv run ruff check --fix .
 
-check: lint test
+check: bootstrap
+	@status=0; \
+	echo "==> Ruff lint"; \
+	uv run ruff check . || status=$$?; \
+	echo "==> Pytest"; \
+	uv run pytest -q || status=$$?; \
+	echo "==> basedpyright"; \
+	uv run basedpyright src/ tests/ || status=$$?; \
+	exit $$status
 
 clean:
 	find . -type d -name "__pycache__" -prune -exec rm -rf {} +

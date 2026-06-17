@@ -8,13 +8,13 @@ import sys
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TextIO, TypeAlias, cast
+from typing import TextIO, cast
 
 from . import _schema
 from ._schema import MetricName
 from .exceptions import BenchmarkJsonError
 
-_BenchmarkStats: TypeAlias = Mapping[str, object]
+type _BenchmarkStats = Mapping[str, object]
 
 _NANOSECONDS_PER_SECOND = 1_000_000_000.0
 _MICROSECONDS_PER_SECOND = 1_000_000.0
@@ -62,11 +62,9 @@ def load_benchmark_json(path: str | Path) -> list[ParsedBenchmarkRow]:
     try:
         payload = json.loads(path_obj.read_text(encoding="utf-8"))
     except OSError as exc:
-        raise BenchmarkJsonError(
-            f"Could not read benchmark JSON: {path_obj}") from exc
+        raise BenchmarkJsonError(f"Could not read benchmark JSON: {path_obj}") from exc
     except json.JSONDecodeError as exc:
-        raise BenchmarkJsonError(
-            f"Invalid JSON in benchmark file: {path_obj}") from exc
+        raise BenchmarkJsonError(f"Invalid JSON in benchmark file: {path_obj}") from exc
 
     payload_mapping = _require_mapping(payload, path="root")
     benchmarks = _require_list(
@@ -82,8 +80,7 @@ def load_benchmark_json(path: str | Path) -> list[ParsedBenchmarkRow]:
             entry.get(_schema.JSON_KEY_EXTRA_INFO),
             path=f"{entry_path}.{_schema.JSON_KEY_EXTRA_INFO}",
         )
-        _require_benchkit_schema(
-            extra_info, path=f"{entry_path}.{_schema.JSON_KEY_EXTRA_INFO}")
+        _require_benchkit_schema(extra_info, path=f"{entry_path}.{_schema.JSON_KEY_EXTRA_INFO}")
 
         stats = _require_mapping(
             entry.get(_schema.JSON_KEY_STATS),
@@ -92,11 +89,9 @@ def load_benchmark_json(path: str | Path) -> list[ParsedBenchmarkRow]:
 
         metric_name = _require_metric_name(
             extra_info.get(_schema.KEY_METRIC_NAME),
-            path=f"{entry_path}.{_schema.JSON_KEY_EXTRA_INFO}."
-            f"{_schema.KEY_METRIC_NAME}",
+            path=f"{entry_path}.{_schema.JSON_KEY_EXTRA_INFO}.{_schema.KEY_METRIC_NAME}",
         )
-        data = _extract_benchmark_data(
-            entry, stats, metric_name, path=entry_path)
+        data = _extract_benchmark_data(entry, stats, metric_name, path=entry_path)
 
         rows.append(
             ParsedBenchmarkRow(
@@ -109,13 +104,11 @@ def load_benchmark_json(path: str | Path) -> list[ParsedBenchmarkRow]:
                 metric_name=metric_name,
                 implementation_name=_require_string(
                     extra_info.get(_schema.KEY_IMPLEMENTATION_NAME),
-                    path=f"{entry_path}.{_schema.JSON_KEY_EXTRA_INFO}."
-                    f"{_schema.KEY_IMPLEMENTATION_NAME}",
+                    path=f"{entry_path}.{_schema.JSON_KEY_EXTRA_INFO}.{_schema.KEY_IMPLEMENTATION_NAME}",
                 ),
                 case_name=_require_string(
                     extra_info.get(_schema.KEY_CASE_NAME),
-                    path=f"{entry_path}.{_schema.JSON_KEY_EXTRA_INFO}."
-                    f"{_schema.KEY_CASE_NAME}",
+                    path=f"{entry_path}.{_schema.JSON_KEY_EXTRA_INFO}.{_schema.KEY_CASE_NAME}",
                 ),
                 stats=stats,
                 extra_info=extra_info,
@@ -151,11 +144,7 @@ def display_benchmark_row(
         stream: Output stream. Defaults to ``sys.stdout``.
     """
     output = sys.stdout if stream is None else stream
-    prefix = (
-        f"[{row.metric_name}] "
-        f"implementation={row.implementation_name} "
-        f"case={row.case_name}"
-    )
+    prefix = f"[{row.metric_name}] implementation={row.implementation_name} case={row.case_name}"
 
     if row.metric_name == _schema.METRIC_SINGLE_CALL_LATENCY:
         print(
@@ -205,18 +194,14 @@ def _require_benchkit_schema(
         path=f"{path}.{_schema.KEY_PRODUCER}",
     )
     if producer != _schema.PRODUCER:
-        raise BenchmarkJsonError(
-            f"Unsupported benchmark producer at {path}: {producer!r}."
-        )
+        raise BenchmarkJsonError(f"Unsupported benchmark producer at {path}: {producer!r}.")
 
     schema_version = _require_int(
         extra_info.get(_schema.KEY_SCHEMA_VERSION),
         path=f"{path}.{_schema.KEY_SCHEMA_VERSION}",
     )
     if schema_version != _schema.SCHEMA_VERSION:
-        raise BenchmarkJsonError(
-            f"Unsupported benchkit schema version at {path}: {schema_version!r}."
-        )
+        raise BenchmarkJsonError(f"Unsupported benchkit schema version at {path}: {schema_version!r}.")
 
 
 def _derive_stats(
@@ -296,8 +281,7 @@ def _derive_throughput_stats(
             _schema.DERIVED_THROUGHPUT_UNIT_LABEL: "calls/s",
         }
 
-    raise BenchmarkJsonError(
-        f"Unsupported throughput unit: {throughput_unit!r}")
+    raise BenchmarkJsonError(f"Unsupported throughput unit: {throughput_unit!r}")
 
 
 def _derive_tail_stats(data: Sequence[float]) -> _BenchmarkStats:
@@ -327,8 +311,7 @@ def _extract_benchmark_data(
     if raw_data is None:
         data: list[float] = []
     else:
-        data = _require_float_list(
-            raw_data, path=f"{path}.{_schema.JSON_KEY_DATA}")
+        data = _require_float_list(raw_data, path=f"{path}.{_schema.JSON_KEY_DATA}")
 
     if metric_name == _schema.METRIC_TAIL_LATENCY and not data:
         raise BenchmarkJsonError(
@@ -342,12 +325,10 @@ def _extract_benchmark_data(
 def _percentile(values: Sequence[float], quantile: float) -> float:
     """Return a linearly interpolated percentile."""
     if not 0.0 <= quantile <= 1.0:
-        raise BenchmarkJsonError(
-            "quantile must be between 0.0 and 1.0 inclusive.")
+        raise BenchmarkJsonError("quantile must be between 0.0 and 1.0 inclusive.")
 
     if not values:
-        raise BenchmarkJsonError(
-            "Cannot compute a percentile from an empty sequence.")
+        raise BenchmarkJsonError("Cannot compute a percentile from an empty sequence.")
 
     data = sorted(values)
 
@@ -402,16 +383,11 @@ def _format_rate(value: object) -> str:
 def _require_mapping(value: object, *, path: str) -> Mapping[str, object]:
     """Return a string-keyed mapping or raise a schema error."""
     if not isinstance(value, Mapping):
-        raise BenchmarkJsonError(
-            f"Expected mapping at {path}, got {type(value).__name__}."
-        )
+        raise BenchmarkJsonError(f"Expected mapping at {path}, got {type(value).__name__}.")
 
     for key in value:
         if not isinstance(key, str):
-            raise BenchmarkJsonError(
-                f"Expected string key in mapping at {path}, got "
-                f"{type(key).__name__}."
-            )
+            raise BenchmarkJsonError(f"Expected string key in mapping at {path}, got {type(key).__name__}.")
 
     return cast(Mapping[str, object], value)
 
@@ -419,9 +395,7 @@ def _require_mapping(value: object, *, path: str) -> Mapping[str, object]:
 def _require_list(value: object, *, path: str) -> list[object]:
     """Return a list or raise a schema error."""
     if not isinstance(value, list):
-        raise BenchmarkJsonError(
-            f"Expected list at {path}, got {type(value).__name__}."
-        )
+        raise BenchmarkJsonError(f"Expected list at {path}, got {type(value).__name__}.")
 
     return value
 
@@ -443,8 +417,7 @@ def _require_metric_name(value: object, *, path: str) -> MetricName:
         raise BenchmarkJsonError(f"Expected metric name string at {path}.")
 
     if value not in _schema.KNOWN_METRICS:
-        raise BenchmarkJsonError(
-            f"Unsupported benchkit metric at {path}: {value!r}.")
+        raise BenchmarkJsonError(f"Unsupported benchkit metric at {path}: {value!r}.")
 
     return cast(MetricName, value)
 
@@ -452,9 +425,7 @@ def _require_metric_name(value: object, *, path: str) -> MetricName:
 def _require_string(value: object, *, path: str) -> str:
     """Return a string or raise a schema error."""
     if not isinstance(value, str):
-        raise BenchmarkJsonError(
-            f"Expected string at {path}, got {type(value).__name__}."
-        )
+        raise BenchmarkJsonError(f"Expected string at {path}, got {type(value).__name__}.")
 
     return value
 
@@ -462,9 +433,7 @@ def _require_string(value: object, *, path: str) -> str:
 def _require_int(value: object, *, path: str) -> int:
     """Return an integer or raise a schema error."""
     if isinstance(value, bool) or not isinstance(value, int):
-        raise BenchmarkJsonError(
-            f"Expected integer at {path}, got {type(value).__name__}."
-        )
+        raise BenchmarkJsonError(f"Expected integer at {path}, got {type(value).__name__}.")
 
     return value
 

@@ -27,7 +27,7 @@ import warnings
 from collections.abc import Callable, Iterable, Mapping, MutableMapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import PurePath
-from typing import Protocol, TextIO, TypeAlias, TypeVar
+from typing import Protocol, TextIO, TypeVar
 
 import pytest
 
@@ -38,15 +38,15 @@ from .exceptions import MetadataSerializationError
 
 T = TypeVar("T")
 
-TargetFunction: TypeAlias = Callable[..., object]
+type TargetFunction = Callable[..., object]
 """Synchronous function signature accepted by the benchmark harness.
 
 Target functions must perform the work being measured before returning. Async
 functions are rejected. Lazy return values are not forced by the harness.
 """
 
-_BenchmarkParameter: TypeAlias = object
-_ExtraInfo: TypeAlias = dict[str, _JsonValue]
+type _BenchmarkParameter = object
+type _ExtraInfo = dict[str, _JsonValue]
 
 _DEFAULT_PEDANTIC_ROUNDS = 100
 _DEFAULT_WARMUP_ROUNDS = 10
@@ -420,15 +420,11 @@ def benchmark_batch_throughput(
     work_unit_count = case.work_unit_count()
 
     if work_unit_count is None:
-        extra_info[_schema.KEY_THROUGHPUT_UNIT] = (
-            _schema.THROUGHPUT_UNIT_CALLS_PER_SECOND
-        )
+        extra_info[_schema.KEY_THROUGHPUT_UNIT] = _schema.THROUGHPUT_UNIT_CALLS_PER_SECOND
     else:
         extra_info[_schema.KEY_WORK_UNITS] = work_unit_count
         extra_info[_schema.KEY_WORK_UNIT_NAME] = case.work_unit_name
-        extra_info[_schema.KEY_THROUGHPUT_UNIT] = (
-            _schema.THROUGHPUT_UNIT_WORK_UNITS_PER_SECOND
-        )
+        extra_info[_schema.KEY_THROUGHPUT_UNIT] = _schema.THROUGHPUT_UNIT_WORK_UNITS_PER_SECOND
 
     final_extra_info = _set_extra_info(benchmark, extra_info)
     _run_target(benchmark, function, case, config=resolved_config, force_pedantic=False)
@@ -838,9 +834,7 @@ def _coerce_json_mapping(
 
     for key, value in mapping.items():
         if not isinstance(key, str):
-            raise MetadataSerializationError(
-                f"Metadata key at {path} must be str, got {type(key).__name__}."
-            )
+            raise MetadataSerializationError(f"Metadata key at {path} must be str, got {type(key).__name__}.")
 
         output[key] = _coerce_json_value(value, path=f"{path}.{key}")
 
@@ -860,9 +854,7 @@ def _coerce_json_value(value: object, *, path: str) -> _JsonValue:
         if math.isfinite(value):
             return value
 
-        raise MetadataSerializationError(
-            f"Metadata value at {path} must be finite, got {value!r}."
-        )
+        raise MetadataSerializationError(f"Metadata value at {path} must be finite, got {value!r}.")
 
     if isinstance(value, PurePath):
         return str(value)
@@ -874,10 +866,7 @@ def _coerce_json_value(value: object, *, path: str) -> _JsonValue:
         return _coerce_json_value(value.value, path=f"{path}.value")
 
     if isinstance(value, list | tuple):
-        return [
-            _coerce_json_value(item, path=f"{path}[{index}]")
-            for index, item in enumerate(value)
-        ]
+        return [_coerce_json_value(item, path=f"{path}[{index}]") for index, item in enumerate(value)]
 
     if isinstance(value, Mapping):
         return _coerce_json_mapping(value, path=path)
@@ -887,8 +876,7 @@ def _coerce_json_value(value: object, *, path: str) -> _JsonValue:
         return _coerce_json_value(numpy_scalar, path=path)
 
     raise MetadataSerializationError(
-        f"Metadata value at {path} has unsupported type "
-        f"{type(value).__module__}.{type(value).__qualname__}."
+        f"Metadata value at {path} has unsupported type {type(value).__module__}.{type(value).__qualname__}."
     )
 
 
@@ -914,8 +902,7 @@ def _maybe_numpy_scalar_to_python(value: object, *, path: str) -> object:
         scalar = item()
     except Exception as exc:
         raise MetadataSerializationError(
-            f"Metadata value at {path} looks NumPy-like but could not be "
-            "converted to a Python scalar."
+            f"Metadata value at {path} looks NumPy-like but could not be converted to a Python scalar."
         ) from exc
 
     if scalar is value:
@@ -929,6 +916,4 @@ def _validate_strict_json(value: _JsonValue, *, path: str) -> None:
     try:
         json.dumps(value, allow_nan=False)
     except (TypeError, ValueError) as exc:
-        raise MetadataSerializationError(
-            f"Metadata at {path} could not be serialized as strict JSON."
-        ) from exc
+        raise MetadataSerializationError(f"Metadata at {path} could not be serialized as strict JSON.") from exc
