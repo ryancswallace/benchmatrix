@@ -1,0 +1,20 @@
+{
+  "benchmarks": [
+    {
+      "name": "tests/test_example.py::test_bench[tail-missing-data]",
+      "extra_info": {
+        "benchkit_producer": "benchkit",
+        "benchkit_schema_version": 1,
+        "metric_name": "tail_latency",
+        "implementation_name": "baseline",
+        "case_name": "tail",
+        "case_fresh_inputs": false
+      },
+      "stats": {
+        "mean": 1.0,
+        "median": 1.0,
+        "min": 1.0
+      }
+    }
+  ]
+}

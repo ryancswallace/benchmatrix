@@ -1,0 +1,9 @@
+{
+    "private": true,
+    "engines": {
+        "node": ">=22.18.0"
+    },
+    "devDependencies": {
+        "cspell": "^10.0.1"
+    }
+}

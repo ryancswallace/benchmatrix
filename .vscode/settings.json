@@ -1,32 +1,4 @@
 {
-    "cSpell.words": [
-        "addopts",
-        "basedpyright",
-        "benchkit",
-        "capsys",
-        "charliermarsh",
-        "davidanson",
-        "debugpy",
-        "detachhead",
-        "docstrings",
-        "elif",
-        "gruntfuggly",
-        "ipykernel",
-        "ipynb",
-        "mikestead",
-        "nhoizey",
-        "noqa",
-        "numpy",
-        "pycache",
-        "pytest",
-        "pythonpath",
-        "renderable",
-        "testpaths",
-        "toolsai",
-        "typetest",
-        "venv",
-        "vivaxy",
-        "yarnpkg"
-    ],
+    "cSpell.mergeCSpellSettings": false,
     "python.analysis.typeCheckingMode": "off"
 }

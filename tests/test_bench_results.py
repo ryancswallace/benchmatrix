@@ -19,6 +19,10 @@ from benchkit import (
     load_benchmark_json,
 )
 
+pytestmark = pytest.mark.unit
+
+FIXTURE_DIR = Path(__file__).parent / "fixtures" / "benchmark_results"
+
 
 def _extra_info(metric_name: str, **overrides: object) -> dict[str, object]:
     """Return a valid benchkit extra_info mapping."""
@@ -65,6 +69,22 @@ def _load_entry(tmp_path: Path, entry: dict[str, object]) -> ParsedBenchmarkRow:
     rows = load_benchmark_json(_write_payload(tmp_path, {"benchmarks": [entry]}))
     assert len(rows) == 1
     return rows[0]
+
+
+def test_load_benchmark_json_reads_representative_fixture() -> None:
+    rows = load_benchmark_json(FIXTURE_DIR / "mixed_metrics.json")
+
+    assert [row.metric_name for row in rows] == ["single_call_latency", "batch_throughput", "tail_latency"]
+    assert rows[0].derived == {"latency_mean": 0.001, "latency_median": 0.002, "latency_min": 0.0005}
+    assert rows[1].derived["throughput_mean"] == 4.0
+    assert rows[1].derived["throughput_median"] == 3.0
+    assert rows[1].derived["throughput_unit_label"] == "rows/s"
+    assert rows[2].derived["p95"] == pytest.approx(4.8)
+
+
+def test_load_benchmark_json_rejects_invalid_fixture() -> None:
+    with pytest.raises(BenchmarkJsonError, match="does not contain raw sample data"):
+        _ = load_benchmark_json(FIXTURE_DIR / "invalid_tail_missing_data.json")
 
 
 def test_load_benchmark_json_derives_latency_stats(tmp_path: Path) -> None:

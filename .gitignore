@@ -33,5 +33,13 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
+# Node / npm
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+
 # Notes
 TODO.md

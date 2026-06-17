@@ -1,0 +1,123 @@
+"""Integration tests for third-party runtime and packaging behavior."""
+
+from __future__ import annotations
+
+import io
+import os
+import subprocess
+import sys
+from collections.abc import Callable, Mapping, MutableMapping, Sequence
+from pathlib import Path
+from typing import Protocol, TypeVar
+
+import pytest
+
+from benchkit import BenchmarkCase, BenchmarkConfig, benchmark_batch_throughput
+
+pytestmark = pytest.mark.integration
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+T = TypeVar("T")
+
+
+class _BenchmarkFixture(Protocol):
+    """Small public surface needed from pytest-benchmark's fixture."""
+
+    extra_info: MutableMapping[str, object]
+
+    def __call__(self, target: Callable[..., T], *args: object, **kwargs: object) -> T:
+        """Benchmark a callable."""
+        ...
+
+    def pedantic(
+        self,
+        target: Callable[..., T],
+        *,
+        args: Sequence[object] | None = None,
+        kwargs: Mapping[str, object] | None = None,
+        setup: Callable[[], tuple[Sequence[object], Mapping[str, object]]] | None = None,
+        teardown: Callable[..., object] | None = None,
+        rounds: int = 100,
+        warmup_rounds: int = 10,
+        iterations: int = 1,
+    ) -> T:
+        """Benchmark a callable in pedantic mode."""
+        ...
+
+
+def _run_command(command: list[str], *, cwd: Path) -> subprocess.CompletedProcess[str]:
+    """Run a subprocess command and capture useful failure output."""
+    return subprocess.run(
+        command,
+        cwd=cwd,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+
+
+def _venv_python(venv_path: Path) -> Path:
+    """Return the Python executable inside a virtual environment."""
+    if os.name == "nt":
+        return venv_path / "Scripts" / "python.exe"
+
+    return venv_path / "bin" / "python"
+
+
+def test_harness_runs_with_real_pytest_benchmark_fixture(benchmark: _BenchmarkFixture) -> None:
+    case = BenchmarkCase.from_values("real", [1, 2, 3], work_units=3, work_unit_name="items", fresh_inputs=True)
+    stream = io.StringIO()
+
+    record = benchmark_batch_throughput(
+        benchmark,
+        "len",
+        len,
+        "real",
+        case,
+        config=BenchmarkConfig(pedantic_rounds=1, warmup_rounds=0, stream_progress=True),
+        stream=stream,
+    )
+
+    assert record.metric_name == "batch_throughput"
+    assert record.extra_info["metric_name"] == "batch_throughput"
+    assert record.extra_info["implementation_name"] == "len"
+    assert record.extra_info["case_name"] == "real"
+    assert record.extra_info["work_units"] == 3.0
+    assert benchmark.extra_info == record.extra_info
+    assert "[benchmark invoked] metric=batch_throughput implementation=len case=real" in stream.getvalue()
+
+
+@pytest.mark.slow
+def test_built_wheel_can_be_imported_from_clean_virtualenv(tmp_path: Path) -> None:
+    dist_dir = tmp_path / "dist"
+    venv_dir = tmp_path / "venv"
+
+    _ = _run_command(
+        [sys.executable, "-m", "build", "--wheel", "--outdir", str(dist_dir)],
+        cwd=_PROJECT_ROOT,
+    )
+    wheels = sorted(dist_dir.glob("benchkit-*.whl"))
+    assert len(wheels) == 1
+
+    _ = _run_command([sys.executable, "-m", "venv", str(venv_dir)], cwd=_PROJECT_ROOT)
+    python = _venv_python(venv_dir)
+    _ = _run_command([str(python), "-m", "pip", "install", "--no-deps", str(wheels[0])], cwd=_PROJECT_ROOT)
+    import_script = (
+        "import benchkit; "
+        + "print(benchkit.__version__); "
+        + "print(benchkit.BenchmarkCase('case').name); "
+        + "print('pytest' in __import__('sys').modules)"
+    )
+    result = _run_command(
+        [
+            str(python),
+            "-c",
+            import_script,
+        ],
+        cwd=_PROJECT_ROOT,
+    )
+
+    version, case_name, pytest_imported = result.stdout.strip().splitlines()
+    assert version == "0.1.0"
+    assert case_name == "case"
+    assert pytest_imported == "False"

@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import pytest
+
 import benchkit
+
+pytestmark = pytest.mark.unit
 
 
 def test_public_api_exports_expected_names() -> None:

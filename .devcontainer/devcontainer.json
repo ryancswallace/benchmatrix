@@ -3,6 +3,12 @@
     "build": {
         "dockerfile": "Dockerfile"
     },
+    "features": {
+        "ghcr.io/devcontainers/features/node:2": {
+            "version": "24",
+            "npmVersion": "latest"
+        }
+    },
     "containerEnv": {
         "UV_LINK_MODE": "copy"
     },

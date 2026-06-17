@@ -31,6 +31,8 @@ from benchkit import (
 
 T = TypeVar("T")
 
+pytestmark = pytest.mark.unit
+
 
 class _MetadataKind(enum.Enum):
     """Sample enum for metadata coercion tests."""
@@ -324,6 +326,7 @@ def test_case_metadata_is_coerced_to_strict_json_values() -> None:
     _ = json.dumps(case.metadata, allow_nan=False)
 
 
+@pytest.mark.numpy
 def test_case_metadata_supports_numpy_scalars() -> None:
     numpy = cast(_NumpyModule, cast(object, pytest.importorskip("numpy")))
 
@@ -339,6 +342,7 @@ def test_case_metadata_supports_numpy_scalars() -> None:
     assert case.metadata == {"int": 3, "float": 1.5, "bool": True}
 
 
+@pytest.mark.numpy
 def test_case_metadata_rejects_numpy_arrays() -> None:
     numpy = cast(_NumpyModule, cast(object, pytest.importorskip("numpy")))
 

@@ -13,6 +13,7 @@ dependencies = [
 dev = [
     "basedpyright>=1.39.8",
     "build>=1.5.0",
+    "hypothesis>=6.148.0",
     "numpy>=2.2.6",
     "pre-commit>=4.6.0",
     "pytest",
@@ -39,6 +40,13 @@ addopts = [
     "--cov=benchkit",
     "--cov-report=term-missing",
     "--cov-fail-under=95",
+]
+markers = [
+    "integration: tests that exercise installed packages or third-party runtime integrations",
+    "numpy: tests that require NumPy",
+    "property: property-based tests powered by Hypothesis",
+    "slow: tests that do packaging, subprocess, or otherwise slower work",
+    "unit: fast isolated tests for local package behavior",
 ]
 
 [tool.coverage.run]
