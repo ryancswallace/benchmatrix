@@ -14,7 +14,7 @@ from typing import Protocol, TypeVar, cast
 
 import pytest
 
-from benchkit import (
+from benchmatrix import (
     BenchmarkCase,
     BenchmarkConfig,
     BenchmarkInvocationRecord,
@@ -383,8 +383,8 @@ def test_benchmark_single_call_latency_records_metadata_and_streams_progress() -
     assert isinstance(record, BenchmarkInvocationRecord)
     assert record.metric_name == "single_call_latency"
     assert record.extra_info == benchmark.extra_info
-    assert record.extra_info["benchkit_producer"] == "benchkit"
-    assert record.extra_info["benchkit_schema_version"] == 1
+    assert record.extra_info["benchmatrix_producer"] == "benchmatrix"
+    assert record.extra_info["benchmatrix_schema_version"] == 1
     assert record.extra_info["metric_name"] == "single_call_latency"
     assert record.extra_info["implementation_name"] == "impl"
     assert record.extra_info["case_name"] == "case-id"

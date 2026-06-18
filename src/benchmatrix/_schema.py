@@ -1,4 +1,4 @@
-"""Private schema for benchkit metadata embedded in pytest-benchmark output."""
+"""Private schema for benchmatrix metadata embedded in pytest-benchmark output."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ MetricName: TypeAlias = Literal[
 JsonPrimitive: TypeAlias = str | int | float | bool | None
 JsonValue: TypeAlias = JsonPrimitive | list["JsonValue"] | dict[str, "JsonValue"]
 
-PRODUCER = "benchkit"
+PRODUCER = "benchmatrix"
 SCHEMA_VERSION = 1
 
 METRIC_SINGLE_CALL_LATENCY: MetricName = "single_call_latency"
@@ -28,8 +28,8 @@ DEFAULT_METRICS: tuple[MetricName, ...] = (
 
 KNOWN_METRICS: frozenset[str] = frozenset(DEFAULT_METRICS)
 
-KEY_PRODUCER = "benchkit_producer"
-KEY_SCHEMA_VERSION = "benchkit_schema_version"
+KEY_PRODUCER = "benchmatrix_producer"
+KEY_SCHEMA_VERSION = "benchmatrix_schema_version"
 KEY_METRIC_NAME = "metric_name"
 KEY_IMPLEMENTATION_NAME = "implementation_name"
 KEY_CASE_NAME = "case_name"

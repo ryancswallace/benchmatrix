@@ -10,7 +10,7 @@ from typing import cast
 
 import pytest
 
-from benchkit import (
+from benchmatrix import (
     BenchmarkJsonError,
     MetricName,
     ParsedBenchmarkRow,
@@ -25,10 +25,10 @@ FIXTURE_DIR = Path(__file__).parent / "fixtures" / "benchmark_results"
 
 
 def _extra_info(metric_name: str, **overrides: object) -> dict[str, object]:
-    """Return a valid benchkit extra_info mapping."""
+    """Return a valid benchmatrix extra_info mapping."""
     extra_info: dict[str, object] = {
-        "benchkit_producer": "benchkit",
-        "benchkit_schema_version": 1,
+        "benchmatrix_producer": "benchmatrix",
+        "benchmatrix_schema_version": 1,
         "metric_name": metric_name,
         "implementation_name": "impl",
         "case_name": "small",
@@ -337,8 +337,8 @@ INVALID_PAYLOAD_CASES: list[tuple[object, str]] = [
                 _benchmark_entry(
                     "single_call_latency",
                     extra_info={
-                        "benchkit_producer": "other",
-                        "benchkit_schema_version": 1,
+                        "benchmatrix_producer": "other",
+                        "benchmatrix_schema_version": 1,
                         "metric_name": "single_call_latency",
                         "implementation_name": "impl",
                         "case_name": "case",
@@ -354,8 +354,8 @@ INVALID_PAYLOAD_CASES: list[tuple[object, str]] = [
                 _benchmark_entry(
                     "single_call_latency",
                     extra_info={
-                        "benchkit_producer": "benchkit",
-                        "benchkit_schema_version": 2,
+                        "benchmatrix_producer": "benchmatrix",
+                        "benchmatrix_schema_version": 2,
                         "metric_name": "single_call_latency",
                         "implementation_name": "impl",
                         "case_name": "case",
@@ -363,7 +363,7 @@ INVALID_PAYLOAD_CASES: list[tuple[object, str]] = [
                 )
             ]
         },
-        "Unsupported benchkit schema version",
+        "Unsupported benchmatrix schema version",
     ),
     (
         {
@@ -374,7 +374,7 @@ INVALID_PAYLOAD_CASES: list[tuple[object, str]] = [
                 )
             ]
         },
-        "Unsupported benchkit metric",
+        "Unsupported benchmatrix metric",
     ),
     (
         {

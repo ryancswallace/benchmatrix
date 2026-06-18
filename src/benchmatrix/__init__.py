@@ -24,10 +24,10 @@ from .bench_results import (
     display_benchmark_rows,
     load_benchmark_json,
 )
-from .exceptions import BenchkitError, BenchmarkJsonError, MetadataSerializationError
+from .exceptions import BenchmarkJsonError, BenchmatrixError, MetadataSerializationError
 
 try:
-    __version__ = version("benchkit")
+    __version__ = version("benchmatrix")
 except PackageNotFoundError:
     __version__ = "0.0.0+unknown"
 
@@ -38,7 +38,7 @@ __all__ = [
     "BenchmarkFixture",
     "BenchmarkInvocationRecord",
     "BenchmarkJsonError",
-    "BenchkitError",
+    "BenchmatrixError",
     "MetadataSerializationError",
     "MetricName",
     "ParsedBenchmarkRow",

@@ -3,8 +3,8 @@
     {
       "name": "tests/test_example.py::test_bench[single]",
       "extra_info": {
-        "benchkit_producer": "benchkit",
-        "benchkit_schema_version": 1,
+        "benchmatrix_producer": "benchmatrix",
+        "benchmatrix_schema_version": 1,
         "metric_name": "single_call_latency",
         "implementation_name": "baseline",
         "case_name": "tiny",
@@ -19,8 +19,8 @@
     {
       "name": "tests/test_example.py::test_bench[throughput]",
       "extra_info": {
-        "benchkit_producer": "benchkit",
-        "benchkit_schema_version": 1,
+        "benchmatrix_producer": "benchmatrix",
+        "benchmatrix_schema_version": 1,
         "metric_name": "batch_throughput",
         "implementation_name": "baseline",
         "case_name": "rows",
@@ -38,8 +38,8 @@
     {
       "name": "tests/test_example.py::test_bench[tail]",
       "extra_info": {
-        "benchkit_producer": "benchkit",
-        "benchkit_schema_version": 1,
+        "benchmatrix_producer": "benchmatrix",
+        "benchmatrix_schema_version": 1,
         "metric_name": "tail_latency",
         "implementation_name": "baseline",
         "case_name": "tail",

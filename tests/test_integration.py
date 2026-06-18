@@ -12,7 +12,7 @@ from typing import Protocol, TypeVar
 
 import pytest
 
-from benchkit import BenchmarkCase, BenchmarkConfig, benchmark_batch_throughput
+from benchmatrix import BenchmarkCase, BenchmarkConfig, benchmark_batch_throughput
 
 pytestmark = pytest.mark.integration
 
@@ -96,16 +96,16 @@ def test_built_wheel_can_be_imported_from_clean_virtualenv(tmp_path: Path) -> No
         [sys.executable, "-m", "build", "--wheel", "--outdir", str(dist_dir)],
         cwd=_PROJECT_ROOT,
     )
-    wheels = sorted(dist_dir.glob("benchkit-*.whl"))
+    wheels = sorted(dist_dir.glob("benchmatrix-*.whl"))
     assert len(wheels) == 1
 
     _ = _run_command([sys.executable, "-m", "venv", str(venv_dir)], cwd=_PROJECT_ROOT)
     python = _venv_python(venv_dir)
     _ = _run_command([str(python), "-m", "pip", "install", "--no-deps", str(wheels[0])], cwd=_PROJECT_ROOT)
     import_script = (
-        "import benchkit; "
-        + "print(benchkit.__version__); "
-        + "print(benchkit.BenchmarkCase('case').name); "
+        "import benchmatrix; "
+        + "print(benchmatrix.__version__); "
+        + "print(benchmatrix.BenchmarkCase('case').name); "
         + "print('pytest' in __import__('sys').modules)"
     )
     result = _run_command(

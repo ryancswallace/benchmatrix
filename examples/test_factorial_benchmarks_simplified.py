@@ -1,4 +1,4 @@
-"""Factorial pytest-benchmark matrix using benchkit's generated-test API.
+"""Factorial pytest-benchmark matrix using benchmatrix's generated-test API.
 
 Run from the repository root with:
 
@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from benchkit import BenchmarkCase, BenchmarkConfig, make_benchmark_test
+from benchmatrix import BenchmarkCase, BenchmarkConfig, make_benchmark_test
 
 
 def factorial_iterative(n: int) -> int:

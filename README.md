@@ -1,21 +1,21 @@
-# benchkit
+# benchmatrix
 
-`benchkit` is a small matrix and results layer for
+`benchmatrix` is a small matrix and results layer for
 [`pytest-benchmark`](https://pytest-benchmark.readthedocs.io/). It helps define
 repeatable benchmark suites across multiple implementations, input cases, and
 metric views, then parse the JSON produced by pytest-benchmark into structured,
 metric-aware results.
 
 pytest-benchmark remains the measurement engine. It performs calibration,
-timing, statistics, reporting, and JSON export. benchkit adds:
+timing, statistics, reporting, and JSON export. benchmatrix adds:
 
 * implementation-by-case-by-metric pytest parameter matrices;
 * strict JSON-safe metadata identifying each benchmark invocation;
 * conventions for single-call latency, logical-work throughput, and local
   latency-distribution comparisons;
-* parsing and concise display of benchkit-tagged pytest-benchmark JSON output.
+* parsing and concise display of benchmatrix-tagged pytest-benchmark JSON output.
 
-benchkit is intended for synchronous Python callables. It is not a replacement
+benchmatrix is intended for synchronous Python callables. It is not a replacement
 for pytest-benchmark, a load-testing tool, or a production latency monitor.
 In particular, its tail-latency metric summarizes local pytest-benchmark
 samples; it does not measure service p95/p99 latency under concurrent load.
@@ -26,7 +26,7 @@ Define implementations and cases, then assign the generated pytest function to
 a module-level `test_*` name:
 
 ```python
-from benchkit import BenchmarkCase, make_benchmark_test
+from benchmatrix import BenchmarkCase, make_benchmark_test
 
 implementations = {
     "builtin": sum,
@@ -50,10 +50,10 @@ Run it through pytest-benchmark and save machine-readable results:
 uv run pytest path/to/test_benchmarks.py --benchmark-json benchmark.json
 ```
 
-Parse benchkit-tagged rows separately:
+Parse benchmatrix-tagged rows separately:
 
 ```python
-from benchkit import display_benchmark_rows, load_benchmark_json
+from benchmatrix import display_benchmark_rows, load_benchmark_json
 
 display_benchmark_rows(load_benchmark_json("benchmark.json"))
 ```
@@ -75,7 +75,7 @@ Development uses Python 3.14 by default via `.python-version`. The package suppo
 ## Working locations
 
 * `notebooks/` for demos
-* `src/benchkit/` for the package implementation
+* `src/benchmatrix/` for the package implementation
 * `tests/` for tests
 * `data/` for provided dummy test data
 

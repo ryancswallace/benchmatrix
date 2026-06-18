@@ -1,6 +1,6 @@
-"""Parse and display benchkit-tagged pytest-benchmark JSON output.
+"""Parse and display benchmatrix-tagged pytest-benchmark JSON output.
 
-This module does not calculate timings itself. It validates benchkit metadata
+This module does not calculate timings itself. It validates benchmatrix metadata
 embedded in pytest-benchmark JSON and derives metric-specific views from the
 statistics and raw samples recorded by pytest-benchmark.
 """
@@ -69,11 +69,11 @@ _MILLISECONDS_PER_SECOND = 1_000.0
 
 @dataclass(frozen=True, slots=True)
 class ParsedBenchmarkRow:
-    """One benchkit-tagged row parsed from pytest-benchmark JSON output.
+    """One benchmatrix-tagged row parsed from pytest-benchmark JSON output.
 
     Attributes:
         benchmark_name: Name assigned by pytest-benchmark to this benchmark.
-        metric_name: Benchkit metric name from ``extra_info``.
+        metric_name: Benchmatrix metric name from ``extra_info``.
         implementation_name: Implementation name from ``extra_info``.
         case_name: Case name from ``extra_info``.
         stats: Raw pytest-benchmark timing statistics.
@@ -91,18 +91,18 @@ class ParsedBenchmarkRow:
 
 
 def load_benchmark_json(path: str | Path) -> list[ParsedBenchmarkRow]:
-    """Load benchkit-tagged pytest-benchmark JSON and derive metric views.
+    """Load benchmatrix-tagged pytest-benchmark JSON and derive metric views.
 
     Args:
         path: Path to a JSON file created with ``--benchmark-json``.
 
     Returns:
-        Benchkit-tagged rows with raw pytest-benchmark statistics and derived
-        metric-specific fields. Non-benchkit rows are rejected.
+        Benchmatrix-tagged rows with raw pytest-benchmark statistics and derived
+        metric-specific fields. Non-benchmatrix rows are rejected.
 
     Raises:
         BenchmarkJsonError: If the JSON does not have the expected
-            pytest-benchmark and benchkit structure.
+            pytest-benchmark and benchmatrix structure.
     """
     path_obj = Path(path)
 
@@ -127,7 +127,7 @@ def load_benchmark_json(path: str | Path) -> list[ParsedBenchmarkRow]:
             entry.get(JSON_KEY_EXTRA_INFO),
             path=f"{entry_path}.{JSON_KEY_EXTRA_INFO}",
         )
-        _require_benchkit_schema(extra_info, path=f"{entry_path}.{JSON_KEY_EXTRA_INFO}")
+        _require_benchmatrix_schema(extra_info, path=f"{entry_path}.{JSON_KEY_EXTRA_INFO}")
 
         stats = _require_mapping(
             entry.get(JSON_KEY_STATS),
@@ -237,12 +237,12 @@ def display_benchmark_row(
     )
 
 
-def _require_benchkit_schema(
+def _require_benchmatrix_schema(
     extra_info: Mapping[str, object],
     *,
     path: str,
 ) -> None:
-    """Validate benchkit producer and schema-version metadata."""
+    """Validate benchmatrix producer and schema-version metadata."""
     producer = _require_string(
         extra_info.get(KEY_PRODUCER),
         path=f"{path}.{KEY_PRODUCER}",
@@ -255,7 +255,7 @@ def _require_benchkit_schema(
         path=f"{path}.{KEY_SCHEMA_VERSION}",
     )
     if schema_version != SCHEMA_VERSION:
-        raise BenchmarkJsonError(f"Unsupported benchkit schema version at {path}: {schema_version!r}.")
+        raise BenchmarkJsonError(f"Unsupported benchmatrix schema version at {path}: {schema_version!r}.")
 
 
 def _derive_stats(
@@ -274,7 +274,7 @@ def _derive_stats(
     if metric_name == METRIC_TAIL_LATENCY:
         return _derive_tail_stats(data)
 
-    raise BenchmarkJsonError(f"Unsupported benchkit metric: {metric_name!r}")
+    raise BenchmarkJsonError(f"Unsupported benchmatrix metric: {metric_name!r}")
 
 
 def _derive_latency_stats(stats: Mapping[str, object]) -> _BenchmarkStats:
@@ -474,7 +474,7 @@ def _require_metric_name(value: object, *, path: str) -> MetricName:
         raise BenchmarkJsonError(f"Expected metric name string at {path}.")
 
     if value not in KNOWN_METRICS:
-        raise BenchmarkJsonError(f"Unsupported benchkit metric at {path}: {value!r}.")
+        raise BenchmarkJsonError(f"Unsupported benchmatrix metric at {path}: {value!r}.")
 
     return cast(MetricName, value)
 

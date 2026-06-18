@@ -11,7 +11,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from benchkit import BenchmarkCase, load_benchmark_json
+from benchmatrix import BenchmarkCase, load_benchmark_json
 
 _JSON_SCALARS = st.none() | st.booleans() | st.integers() | st.floats(allow_nan=False, allow_infinity=False) | st.text()
 _JSON_VALUES = st.recursive(
@@ -36,8 +36,8 @@ def _tail_payload(samples: list[float]) -> dict[str, object]:
             {
                 "name": "tests/test_properties.py::test_tail_latency",
                 "extra_info": {
-                    "benchkit_producer": "benchkit",
-                    "benchkit_schema_version": 1,
+                    "benchmatrix_producer": "benchmatrix",
+                    "benchmatrix_schema_version": 1,
                     "metric_name": "tail_latency",
                     "implementation_name": "impl",
                     "case_name": "case",

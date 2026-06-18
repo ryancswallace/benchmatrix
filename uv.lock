@@ -24,7 +24,7 @@ wheels = [
 ]
 
 [[package]]
-name = "benchkit"
+name = "benchmatrix"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

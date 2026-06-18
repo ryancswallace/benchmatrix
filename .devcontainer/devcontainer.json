@@ -1,5 +1,5 @@
 {
-    "name": "benchkit-dev",
+    "name": "benchmatrix-dev",
     "build": {
         "dockerfile": "Dockerfile"
     },

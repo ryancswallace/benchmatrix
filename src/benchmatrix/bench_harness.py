@@ -1,4 +1,4 @@
-"""Build pytest-benchmark matrices and attach benchkit metadata.
+"""Build pytest-benchmark matrices and attach benchmatrix metadata.
 
 pytest-benchmark remains the measurement engine and source of truth for
 calibration, timing, statistics, reporting, and JSON export. This module
@@ -62,7 +62,7 @@ from .exceptions import MetadataSerializationError
 T = TypeVar("T")
 
 TargetFunction: TypeAlias = Callable[..., object]
-"""Synchronous callable measured by pytest-benchmark through benchkit.
+"""Synchronous callable measured by pytest-benchmark through benchmatrix.
 
 Target functions must perform the work being measured before returning. Async
 functions are rejected. Lazy return values are not forced by the harness.
@@ -96,7 +96,7 @@ def _empty_metadata() -> dict[str, object]:
 
 
 class BenchmarkFixture(Protocol):
-    """pytest-benchmark fixture surface used by benchkit.
+    """pytest-benchmark fixture surface used by benchmatrix.
 
     Attributes:
         extra_info: Mutable metadata attached to pytest-benchmark output.
@@ -148,7 +148,7 @@ class _PytestMark(Protocol):
 
 @dataclass(frozen=True, slots=True)
 class BenchmarkConfig:
-    """Configuration passed from benchkit to pytest-benchmark.
+    """Configuration passed from benchmatrix to pytest-benchmark.
 
     Args:
         pedantic_rounds: Number of pedantic benchmark rounds to request.
@@ -374,7 +374,7 @@ class BenchmarkInvocationRecord:
         extra_info: Strict JSON-safe metadata attached to pytest-benchmark
             output. Values are limited to JSON primitives, lists, and
             string-keyed mappings after metadata coercion. The metadata includes
-            benchkit producer and schema-version markers.
+            benchmatrix producer and schema-version markers.
     """
 
     metric_name: MetricName
@@ -654,7 +654,7 @@ def make_benchmark_parameters(
         implementations: Mapping from implementation name to target function.
         cases: Mapping or iterable of benchmark input cases.
         metrics: Metrics to include in the parameter matrix. Defaults to all
-            supported benchkit metrics.
+            supported benchmatrix metrics.
 
     Returns:
         A list of values suitable for ``pytest.mark.parametrize``.
@@ -697,7 +697,7 @@ def make_benchmark_test(
         implementations: Mapping from implementation name to target function.
         cases: Mapping or iterable of benchmark input cases.
         metrics: Metrics to include in the parameter matrix. Defaults to all
-            supported benchkit metrics.
+            supported benchmatrix metrics.
         config: Benchmark harness configuration. Defaults to
             ``BenchmarkConfig()``.
 
@@ -809,8 +809,8 @@ def _validate_target_function(function: TargetFunction) -> None:
     """Reject unsupported target-function shapes."""
     if inspect.iscoroutinefunction(function) or inspect.iscoroutinefunction(type(function).__call__):
         message = (
-            "benchkit supports only synchronous target functions; async functions would benchmark coroutine creation "
-            + "rather than execution."
+            "benchmatrix supports only synchronous target functions; "
+            + "async functions would benchmark coroutine creation rather than execution."
         )
         raise TypeError(message)
 

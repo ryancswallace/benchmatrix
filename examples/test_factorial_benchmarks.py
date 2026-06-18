@@ -1,4 +1,4 @@
-"""Explicit benchkit matrix built on pytest-benchmark parametrization.
+"""Explicit benchmatrix matrix built on pytest-benchmark parametrization.
 
 Run from the repository root with:
 
@@ -12,7 +12,7 @@ from collections.abc import Callable
 
 import pytest
 
-from benchkit import (
+from benchmatrix import (
     BenchmarkCase,
     BenchmarkConfig,
     BenchmarkFixture,
@@ -66,7 +66,7 @@ def test_factorial_benchmark_matrix(
     case_name: str,
     case: BenchmarkCase,
 ) -> None:
-    """Run every supported benchkit metric for each implementation and case."""
+    """Run every supported benchmatrix metric for each implementation and case."""
     _ = run_benchmark_metric(
         benchmark,
         metric_name,

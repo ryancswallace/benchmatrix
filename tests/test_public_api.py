@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-import benchkit
+import benchmatrix
 
 pytestmark = pytest.mark.unit
 
@@ -17,7 +17,7 @@ def test_public_api_exports_expected_names() -> None:
         "BenchmarkFixture",
         "BenchmarkInvocationRecord",
         "BenchmarkJsonError",
-        "BenchkitError",
+        "BenchmatrixError",
         "MetadataSerializationError",
         "MetricName",
         "ParsedBenchmarkRow",
@@ -35,19 +35,19 @@ def test_public_api_exports_expected_names() -> None:
         "shallow_copy",
     }
 
-    assert set(benchkit.__all__) == expected_exports
+    assert set(benchmatrix.__all__) == expected_exports
 
-    for name in benchkit.__all__:
-        assert hasattr(benchkit, name)
+    for name in benchmatrix.__all__:
+        assert hasattr(benchmatrix, name)
 
 
 def test_package_version_is_resolved() -> None:
-    assert benchkit.__version__
-    assert "unknown" not in benchkit.__version__
+    assert benchmatrix.__version__
+    assert "unknown" not in benchmatrix.__version__
 
 
 def test_package_exceptions_share_base_class_and_value_error_behavior() -> None:
-    assert issubclass(benchkit.MetadataSerializationError, benchkit.BenchkitError)
-    assert issubclass(benchkit.MetadataSerializationError, ValueError)
-    assert issubclass(benchkit.BenchmarkJsonError, benchkit.BenchkitError)
-    assert issubclass(benchkit.BenchmarkJsonError, ValueError)
+    assert issubclass(benchmatrix.MetadataSerializationError, benchmatrix.BenchmatrixError)
+    assert issubclass(benchmatrix.MetadataSerializationError, ValueError)
+    assert issubclass(benchmatrix.BenchmarkJsonError, benchmatrix.BenchmatrixError)
+    assert issubclass(benchmatrix.BenchmarkJsonError, ValueError)
