@@ -1,8 +1,8 @@
-"""Package-specific exceptions for benchkit."""
+"""Errors raised by the benchkit pytest-benchmark integration layer."""
 
 
 class BenchkitError(Exception):
-    """Base class for benchkit exceptions."""
+    """Base class for benchkit matrix, metadata, and result errors."""
 
 
 class MetadataSerializationError(BenchkitError, ValueError):

@@ -1,4 +1,9 @@
-"""Utilities for reading and displaying pytest-benchmark JSON output."""
+"""Parse and display benchkit-tagged pytest-benchmark JSON output.
+
+This module does not calculate timings itself. It validates benchkit metadata
+embedded in pytest-benchmark JSON and derives metric-specific views from the
+statistics and raw samples recorded by pytest-benchmark.
+"""
 
 from __future__ import annotations
 
@@ -64,7 +69,7 @@ _MILLISECONDS_PER_SECOND = 1_000.0
 
 @dataclass(frozen=True, slots=True)
 class ParsedBenchmarkRow:
-    """Parsed result row from pytest-benchmark JSON output.
+    """One benchkit-tagged row parsed from pytest-benchmark JSON output.
 
     Attributes:
         benchmark_name: Name assigned by pytest-benchmark to this benchmark.
@@ -86,13 +91,14 @@ class ParsedBenchmarkRow:
 
 
 def load_benchmark_json(path: str | Path) -> list[ParsedBenchmarkRow]:
-    """Load pytest-benchmark JSON output and derive metric-specific fields.
+    """Load benchkit-tagged pytest-benchmark JSON and derive metric views.
 
     Args:
         path: Path to a JSON file created with ``--benchmark-json``.
 
     Returns:
-        Parsed benchmark rows with raw and derived statistics.
+        Benchkit-tagged rows with raw pytest-benchmark statistics and derived
+        metric-specific fields. Non-benchkit rows are rejected.
 
     Raises:
         BenchmarkJsonError: If the JSON does not have the expected
@@ -164,7 +170,7 @@ def display_benchmark_rows(
     rows: Iterable[ParsedBenchmarkRow],
     stream: TextIO | None = None,
 ) -> None:
-    """Print concise summaries parsed from pytest-benchmark JSON output.
+    """Print concise metric-aware summaries of parsed benchmark rows.
 
     Args:
         rows: Parsed benchmark rows.
@@ -178,7 +184,7 @@ def display_benchmark_row(
     row: ParsedBenchmarkRow,
     stream: TextIO | None = None,
 ) -> None:
-    """Print one parsed pytest-benchmark JSON benchmark row.
+    """Print one metric-aware summary of a parsed benchmark row.
 
     Args:
         row: Parsed benchmark row to display.

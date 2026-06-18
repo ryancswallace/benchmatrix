@@ -1,10 +1,11 @@
-"""Utilities for defining pytest-benchmark benchmark matrices.
+"""Build pytest-benchmark matrices and attach benchkit metadata.
 
-The module keeps pytest-benchmark as the source of truth for runtime
-measurements. Benchmark helpers attach strict JSON-safe metadata to
-``benchmark.extra_info`` and stream lightweight invocation progress records.
-Detailed timing statistics should be read from pytest-benchmark's terminal
-report, CSV output, saved runs, or JSON output.
+pytest-benchmark remains the measurement engine and source of truth for
+calibration, timing, statistics, reporting, and JSON export. This module
+orchestrates metric-by-implementation-by-case matrices, attaches strict
+JSON-safe metadata to ``benchmark.extra_info``, and streams lightweight
+invocation progress records. Detailed timing statistics should be read from
+pytest-benchmark's terminal report, CSV output, saved runs, or JSON output.
 
 Target functions must be synchronous callables that complete the work to be
 measured before returning. Async functions are not supported. Lazy return values
@@ -61,7 +62,7 @@ from .exceptions import MetadataSerializationError
 T = TypeVar("T")
 
 TargetFunction: TypeAlias = Callable[..., object]
-"""Synchronous function signature accepted by the benchmark harness.
+"""Synchronous callable measured by pytest-benchmark through benchkit.
 
 Target functions must perform the work being measured before returning. Async
 functions are rejected. Lazy return values are not forced by the harness.
@@ -95,7 +96,7 @@ def _empty_metadata() -> dict[str, object]:
 
 
 class BenchmarkFixture(Protocol):
-    """Structural type required from the pytest-benchmark fixture.
+    """pytest-benchmark fixture surface used by benchkit.
 
     Attributes:
         extra_info: Mutable metadata attached to pytest-benchmark output.
@@ -147,7 +148,7 @@ class _PytestMark(Protocol):
 
 @dataclass(frozen=True, slots=True)
 class BenchmarkConfig:
-    """Configuration for benchmark execution.
+    """Configuration passed from benchkit to pytest-benchmark.
 
     Args:
         pedantic_rounds: Number of pedantic benchmark rounds to request.
@@ -198,7 +199,7 @@ class BenchmarkConfig:
 
 @dataclass(frozen=True, slots=True)
 class BenchmarkCase:
-    """Input case for benchmarking a target function.
+    """Named input case and metadata for a pytest-benchmark matrix.
 
     Warning:
         If ``fresh_inputs`` is false, pytest-benchmark may call the target

@@ -1,7 +1,7 @@
 [project]
 name = "benchkit"
 version = "0.1.0"
-description = "Generic utilities for defining function latency benchmarking matrices."
+description = "A pytest-benchmark matrix, metadata, and JSON results layer."
 readme = "README.md"
 requires-python = ">=3.11,<3.15"
 dependencies = [

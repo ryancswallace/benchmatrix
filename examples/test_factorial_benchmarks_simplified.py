@@ -1,4 +1,4 @@
-"""Factorial benchmark matrix using benchkit's generated-test API.
+"""Factorial pytest-benchmark matrix using benchkit's generated-test API.
 
 Run from the repository root with:
 

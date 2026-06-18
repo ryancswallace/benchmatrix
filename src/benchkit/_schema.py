@@ -1,4 +1,4 @@
-"""Shared private schema constants for benchkit metadata and results."""
+"""Private schema for benchkit metadata embedded in pytest-benchmark output."""
 
 from __future__ import annotations
 

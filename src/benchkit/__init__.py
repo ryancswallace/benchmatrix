@@ -1,4 +1,4 @@
-"""Public API for the benchmark utility package."""
+"""Public pytest-benchmark matrix and JSON results API."""
 
 from importlib.metadata import PackageNotFoundError, version
 

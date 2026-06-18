@@ -1,4 +1,4 @@
-"""Example pytest-benchmark matrix for comparing factorial implementations.
+"""Explicit benchkit matrix built on pytest-benchmark parametrization.
 
 Run from the repository root with:
 

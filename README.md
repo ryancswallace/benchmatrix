@@ -1,5 +1,63 @@
 # benchkit
 
+`benchkit` is a small matrix and results layer for
+[`pytest-benchmark`](https://pytest-benchmark.readthedocs.io/). It helps define
+repeatable benchmark suites across multiple implementations, input cases, and
+metric views, then parse the JSON produced by pytest-benchmark into structured,
+metric-aware results.
+
+pytest-benchmark remains the measurement engine. It performs calibration,
+timing, statistics, reporting, and JSON export. benchkit adds:
+
+* implementation-by-case-by-metric pytest parameter matrices;
+* strict JSON-safe metadata identifying each benchmark invocation;
+* conventions for single-call latency, logical-work throughput, and local
+  latency-distribution comparisons;
+* parsing and concise display of benchkit-tagged pytest-benchmark JSON output.
+
+benchkit is intended for synchronous Python callables. It is not a replacement
+for pytest-benchmark, a load-testing tool, or a production latency monitor.
+In particular, its tail-latency metric summarizes local pytest-benchmark
+samples; it does not measure service p95/p99 latency under concurrent load.
+
+## Basic usage
+
+Define implementations and cases, then assign the generated pytest function to
+a module-level `test_*` name:
+
+```python
+from benchkit import BenchmarkCase, make_benchmark_test
+
+implementations = {
+    "builtin": sum,
+    "loop": lambda values: sum(value for value in values),
+}
+cases = [
+    BenchmarkCase.from_values(
+        "small",
+        list(range(100)),
+        work_units=100,
+        work_unit_name="items",
+    ),
+]
+
+test_sum_matrix = make_benchmark_test(implementations, cases)
+```
+
+Run it through pytest-benchmark and save machine-readable results:
+
+```bash
+uv run pytest path/to/test_benchmarks.py --benchmark-json benchmark.json
+```
+
+Parse benchkit-tagged rows separately:
+
+```python
+from benchkit import display_benchmark_rows, load_benchmark_json
+
+display_benchmark_rows(load_benchmark_json("benchmark.json"))
+```
+
 ## Development setup
 
 From the root of the repository, open a terminal and run:
@@ -63,21 +121,9 @@ Markers:
 
 Representative pytest-benchmark JSON fixtures live under `tests/fixtures/benchmark_results/`. Use these for parser contract tests when a scenario is easier to understand as a JSON artifact than as a large inline dictionary.
 
-## Benchmark matrix example
+## Examples
 
-For a complete benchmark matrix without writing a parametrized pytest function,
-assign the result of `make_benchmark_test` to a module-level `test_*` name:
-
-```python
-from benchkit import make_benchmark_test
-
-test_factorials = make_benchmark_test(
-    implementations,
-    cases,
-    config=config,
-)
-```
-
-See `examples/test_factorial_benchmarks_simplified.py` for a runnable comparison
-of iterative and recursive factorial implementations across every supported
-metric.
+`examples/test_factorial_benchmarks_simplified.py` shows the generated-test API.
+`examples/test_factorial_benchmarks.py` shows the equivalent explicit pytest
+parametrization. Both compare iterative and recursive factorial implementations
+across every supported metric.
