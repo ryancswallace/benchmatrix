@@ -58,6 +58,60 @@ from benchmatrix import display_benchmark_rows, load_benchmark_json
 display_benchmark_rows(load_benchmark_json("benchmark.json"))
 ```
 
+## Measurement semantics
+
+benchmatrix presents three views of timings produced by pytest-benchmark:
+
+* `single_call_latency` measures the elapsed time of one synchronous target
+  invocation. pytest-benchmark may execute many calibrated invocations to
+  estimate that value. Input construction is excluded unless it happens inside
+  the target function.
+* `batch_throughput` measures the same target invocation, then derives either
+  calls per second or logical work units per second. With `work_units=100` and
+  `work_unit_name="items"`, one completed target call represents 100 items of
+  work. This is derived single-process throughput, not concurrent load,
+  saturation throughput, or request throughput for a deployed service.
+* `tail_latency` uses pytest-benchmark pedantic rounds and derives
+  p50/p90/p95/p99 from the raw JSON samples. It is useful for comparing the
+  local timing distributions of implementations. It is not production tail
+  latency under traffic, contention, queueing, retries, or network load.
+
+The returned `BenchmarkInvocationRecord` contains identifying metadata, not
+timing results. Read timings from pytest-benchmark's terminal output, saved
+runs, or JSON output. `load_benchmark_json` turns benchmatrix-tagged JSON rows
+into metric-aware result objects.
+
+### Common traps
+
+* **Benchmarking lazy setup instead of completed work.** A target returning a
+  generator, coroutine, query plan, future, or other deferred object may only
+  measure object creation. Consume or resolve lazy results inside the target.
+  Async target functions are intentionally unsupported.
+* **Reusing mutated inputs.** By default, repeated invocations receive the same
+  argument objects. Use `fresh_inputs=True` when the target mutates its inputs.
+  The default fresh-input copier is shallow; use `deep_copy` or a
+  domain-specific copier when nested mutable state must be rebuilt.
+* **Confusing setup cost with operation cost.** Fresh-input factories and
+  copying run outside the timed target body. Put construction inside the target
+  when end-to-end construction cost is part of the operation being measured.
+* **Misstating work units.** `work_units` must describe the logical work
+  completed by one target call and must be comparable across implementations.
+  Incorrect counts produce precise-looking but incorrect throughput values.
+* **Using aggregate samples as one-call tail latency.** Keep
+  `pedantic_iterations=1` for `tail_latency`. Values above one represent
+  per-round aggregate timing samples rather than clean one-call samples.
+* **Comparing unlike environments.** Python version, build options, dependency
+  versions, CPU, power management, thermal state, and background activity can
+  materially affect results. Compare runs from controlled, similarly configured
+  environments and retain pytest-benchmark metadata with saved results.
+* **Treating small differences as conclusions.** Repeat runs, inspect the
+  distribution and outliers, and prefer stable differences over a single mean
+  value. Establish a representative baseline before using performance
+  thresholds.
+* **Ignoring correctness.** Verify implementations separately or assert their
+  outputs before relying on performance comparisons. A faster implementation
+  that performs less work is not an equivalent benchmark.
+
 ## Development setup
 
 From the root of the repository, open a terminal and run:

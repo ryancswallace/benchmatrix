@@ -413,6 +413,11 @@ def benchmark_single_call_latency(
 
     Raises:
         TypeError: If ``function`` is an async function.
+
+    Warning:
+        This measures completed target-function work only. Input construction,
+        lazy-result consumption, and other setup are excluded unless they occur
+        inside ``function``.
     """
     resolved_config = _resolve_config(config)
     metric_name = METRIC_SINGLE_CALL_LATENCY
@@ -468,6 +473,12 @@ def benchmark_batch_throughput(
     Raises:
         TypeError: If ``function`` is an async function.
         ValueError: If ``case.work_units`` is not positive or finite.
+
+    Warning:
+        Throughput is derived from one synchronous target invocation. It does
+        not model concurrency, saturation, queueing, or service request load.
+        ``case.work_units`` must accurately describe work completed by each
+        target call.
     """
     resolved_config = _resolve_config(config)
     metric_name = METRIC_BATCH_THROUGHPUT
