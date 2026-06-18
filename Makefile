@@ -7,6 +7,7 @@ export PATH := $(HOME)/.local/bin:$(HOME)/.cargo/bin:$(PATH)
 
 UV_INSTALL_URL ?= https://astral.sh/uv/install.sh
 NODE_MODULES_STAMP := node_modules/.package-lock.json
+SOURCE_PATHS := src/ tests/ examples/
 
 .PHONY: help bootstrap npm-install ready install test typecheck lint spellcheck format check clean precommit fresh-precommit
 
@@ -73,7 +74,7 @@ test: bootstrap
 	uv run pytest -q
 
 typecheck: bootstrap
-	uv run basedpyright src/ tests/
+	uv run basedpyright $(SOURCE_PATHS)
 
 lint: bootstrap
 	uv run ruff check .
@@ -93,21 +94,37 @@ check: bootstrap
 	uv run pytest -q || status=$$?; \
 	echo ""; \
 	echo "==> basedpyright type checks"; \
-	uv run basedpyright src/ tests/ || status=$$?; \
+	uv run basedpyright $(SOURCE_PATHS) || status=$$?; \
 	exit $$status
 
 ready:
-	@$(MAKE) install
-	@$(MAKE) check
-	@echo "Environment is ready."
+	@for step in install check; do \
+		if ! $(MAKE) $$step; then \
+			echo "Environment setup failed during $$step."; \
+			exit 1; \
+		fi; \
+	done; \
+	echo ""; \
+	echo "Environment is ready."
 
 precommit:
-	@$(MAKE) install
-	@$(MAKE) format
-	@$(MAKE) check
+	@for step in install format check; do \
+		if ! $(MAKE) $$step; then \
+			echo ""; \
+			echo "Precommit failed during $$step."; \
+			exit 1; \
+		fi; \
+	done; \
+	echo ""; \
+	echo "Precommit completed successfully."
 
 fresh-precommit:
-	@$(MAKE) clean
-	@$(MAKE) install
-	@$(MAKE) format
-	@$(MAKE) check
+	@for step in clean install format check; do \
+		if ! $(MAKE) $$step; then \
+			echo ""; \
+			echo "Fresh precommit failed during $$step."; \
+			exit 1; \
+		fi; \
+	done; \
+	echo ""; \
+	echo "Fresh precommit completed successfully."

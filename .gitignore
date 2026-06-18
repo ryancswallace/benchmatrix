@@ -43,3 +43,6 @@ pnpm-debug.log*
 
 # Notes
 TODO.md
+
+# Generated example benchmark output
+examples/benchmark_results/

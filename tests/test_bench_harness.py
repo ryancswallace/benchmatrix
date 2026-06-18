@@ -25,6 +25,7 @@ from benchkit import (
     benchmark_tail_latency,
     deep_copy,
     make_benchmark_parameters,
+    make_benchmark_test,
     run_benchmark_metric,
     shallow_copy,
 )
@@ -585,3 +586,30 @@ def test_make_benchmark_parameters_accepts_mapping_case_names() -> None:
     parameter = _parameter_set(parameters[0])
     assert parameter.values == ("tail_latency", "impl", _noop, "external-name", case)
     assert parameter.id == "tail_latency::impl::external-name"
+
+
+def test_make_benchmark_test_generates_executable_parametrized_test() -> None:
+    benchmark = _RecordingBenchmark()
+    case = BenchmarkCase.from_values("input", 3)
+    benchmark_test = make_benchmark_test(
+        {"identity": _identity},
+        {"case-id": case},
+        metrics=("tail_latency",),
+        config=BenchmarkConfig(pedantic_rounds=7, warmup_rounds=2, stream_progress=False),
+    )
+
+    benchmark_test(
+        benchmark,
+        "tail_latency",
+        "identity",
+        _identity,
+        "case-id",
+        case,
+    )
+
+    assert len(benchmark.pedantic_calls) == 1
+    assert benchmark.pedantic_calls[0].rounds == 7
+    assert benchmark.pedantic_calls[0].warmup_rounds == 2
+    assert benchmark.extra_info["metric_name"] == "tail_latency"
+    assert benchmark.extra_info["implementation_name"] == "identity"
+    assert benchmark.extra_info["case_name"] == "case-id"

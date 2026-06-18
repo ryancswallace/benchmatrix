@@ -6,6 +6,7 @@ from ._schema import MetricName
 from .bench_harness import (
     BenchmarkCase,
     BenchmarkConfig,
+    BenchmarkFixture,
     BenchmarkInvocationRecord,
     TargetFunction,
     benchmark_batch_throughput,
@@ -13,6 +14,7 @@ from .bench_harness import (
     benchmark_tail_latency,
     deep_copy,
     make_benchmark_parameters,
+    make_benchmark_test,
     run_benchmark_metric,
     shallow_copy,
 )
@@ -33,6 +35,7 @@ __all__ = [
     "__version__",
     "BenchmarkCase",
     "BenchmarkConfig",
+    "BenchmarkFixture",
     "BenchmarkInvocationRecord",
     "BenchmarkJsonError",
     "BenchkitError",
@@ -48,6 +51,7 @@ __all__ = [
     "display_benchmark_rows",
     "load_benchmark_json",
     "make_benchmark_parameters",
+    "make_benchmark_test",
     "run_benchmark_metric",
     "shallow_copy",
 ]

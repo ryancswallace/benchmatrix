@@ -60,3 +60,22 @@ Markers:
 * `numpy`: tests that require NumPy and are skipped if NumPy is unavailable.
 
 Representative pytest-benchmark JSON fixtures live under `tests/fixtures/benchmark_results/`. Use these for parser contract tests when a scenario is easier to understand as a JSON artifact than as a large inline dictionary.
+
+## Benchmark matrix example
+
+For a complete benchmark matrix without writing a parametrized pytest function,
+assign the result of `make_benchmark_test` to a module-level `test_*` name:
+
+```python
+from benchkit import make_benchmark_test
+
+test_factorials = make_benchmark_test(
+    implementations,
+    cases,
+    config=config,
+)
+```
+
+See `examples/test_factorial_benchmarks_simplified.py` for a runnable comparison
+of iterative and recursive factorial implementations across every supported
+metric.

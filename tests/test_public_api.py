@@ -14,6 +14,7 @@ def test_public_api_exports_expected_names() -> None:
         "__version__",
         "BenchmarkCase",
         "BenchmarkConfig",
+        "BenchmarkFixture",
         "BenchmarkInvocationRecord",
         "BenchmarkJsonError",
         "BenchkitError",
@@ -29,6 +30,7 @@ def test_public_api_exports_expected_names() -> None:
         "display_benchmark_rows",
         "load_benchmark_json",
         "make_benchmark_parameters",
+        "make_benchmark_test",
         "run_benchmark_metric",
         "shallow_copy",
     }

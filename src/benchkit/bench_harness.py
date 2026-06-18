@@ -94,8 +94,12 @@ def _empty_metadata() -> dict[str, object]:
     return {}
 
 
-class _BenchmarkFixture(Protocol):
-    """Structural type for the pytest-benchmark fixture used internally."""
+class BenchmarkFixture(Protocol):
+    """Structural type required from the pytest-benchmark fixture.
+
+    Attributes:
+        extra_info: Mutable metadata attached to pytest-benchmark output.
+    """
 
     extra_info: MutableMapping[str, object]
 
@@ -122,8 +126,22 @@ class _BenchmarkFixture(Protocol):
 class _PytestModule(Protocol):
     """Small surface of pytest used by the harness."""
 
+    mark: _PytestMark
+
     def param(self, *values: object, id: str | None = None) -> object:
         """Return a pytest parameter value."""
+        ...
+
+
+class _PytestMark(Protocol):
+    """Small surface of pytest.mark used by the harness."""
+
+    def parametrize(
+        self,
+        names: str | Sequence[str],
+        values: Iterable[object],
+    ) -> Callable[[Callable[..., None]], Callable[..., None]]:
+        """Parametrize a pytest test function."""
         ...
 
 
@@ -365,7 +383,7 @@ class BenchmarkInvocationRecord:
 
 
 def benchmark_single_call_latency(
-    benchmark: _BenchmarkFixture,
+    benchmark: BenchmarkFixture,
     implementation_name: str,
     function: TargetFunction,
     case_name: str,
@@ -417,7 +435,7 @@ def benchmark_single_call_latency(
 
 
 def benchmark_batch_throughput(
-    benchmark: _BenchmarkFixture,
+    benchmark: BenchmarkFixture,
     implementation_name: str,
     function: TargetFunction,
     case_name: str,
@@ -481,7 +499,7 @@ def benchmark_batch_throughput(
 
 
 def benchmark_tail_latency(
-    benchmark: _BenchmarkFixture,
+    benchmark: BenchmarkFixture,
     implementation_name: str,
     function: TargetFunction,
     case_name: str,
@@ -553,7 +571,7 @@ def benchmark_tail_latency(
 
 
 def run_benchmark_metric(
-    benchmark: _BenchmarkFixture,
+    benchmark: BenchmarkFixture,
     metric_name: MetricName,
     implementation_name: str,
     function: TargetFunction,
@@ -662,6 +680,58 @@ def make_benchmark_parameters(
     return parameters
 
 
+def make_benchmark_test(
+    implementations: Mapping[str, TargetFunction],
+    cases: Mapping[str, BenchmarkCase] | Iterable[BenchmarkCase],
+    *,
+    metrics: Iterable[MetricName] | None = None,
+    config: BenchmarkConfig | None = None,
+) -> Callable[..., None]:
+    """Create a pytest test function for a complete benchmark matrix.
+
+    Assign the returned function to a module-level name beginning with
+    ``test_`` so pytest collects it.
+
+    Args:
+        implementations: Mapping from implementation name to target function.
+        cases: Mapping or iterable of benchmark input cases.
+        metrics: Metrics to include in the parameter matrix. Defaults to all
+            supported benchkit metrics.
+        config: Benchmark harness configuration. Defaults to
+            ``BenchmarkConfig()``.
+
+    Returns:
+        A parametrized pytest test function ready for module-level assignment.
+    """
+    resolved_config = _resolve_config(config)
+    parameters = make_benchmark_parameters(implementations, cases, metrics=metrics)
+
+    def benchmark_test(
+        benchmark: BenchmarkFixture,
+        metric_name: MetricName,
+        implementation_name: str,
+        function: TargetFunction,
+        case_name: str,
+        case: BenchmarkCase,
+    ) -> None:
+        """Run one entry in the generated benchmark matrix."""
+        _ = run_benchmark_metric(
+            benchmark,
+            metric_name,
+            implementation_name,
+            function,
+            case_name,
+            case,
+            config=resolved_config,
+        )
+
+    pytest = _load_pytest()
+    return pytest.mark.parametrize(
+        ("metric_name", "implementation_name", "function", "case_name", "case"),
+        parameters,
+    )(benchmark_test)
+
+
 def shallow_copy(value: object) -> object:
     """Return a shallow copy of ``value``.
 
@@ -698,7 +768,7 @@ def _load_pytest() -> _PytestModule:
 
 
 def _run_target(
-    benchmark: _BenchmarkFixture,
+    benchmark: BenchmarkFixture,
     function: TargetFunction,
     case: BenchmarkCase,
     *,
@@ -834,7 +904,7 @@ def _make_base_extra_info(
 
 
 def _set_extra_info(
-    benchmark: _BenchmarkFixture,
+    benchmark: BenchmarkFixture,
     extra_info: Mapping[str, object],
 ) -> _ExtraInfo:
     """Validate, attach, and return strict JSON-safe benchmark metadata."""
