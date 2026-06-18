@@ -3,7 +3,7 @@ name = "benchkit"
 version = "0.1.0"
 description = "Generic utilities for defining function latency benchmarking matrices."
 readme = "README.md"
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.11,<3.15"
 dependencies = [
     "pytest",
     "pytest-benchmark",
@@ -59,7 +59,7 @@ skip_covered = true
 
 [tool.ruff]
 line-length = 120
-target-version = "py310"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]

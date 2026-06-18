@@ -12,6 +12,8 @@ The environment is ready if the command passes.
 
 Outside the devcontainer, install Node.js 22.18 or newer with npm; `make check` uses npm to run the CSpell spell checker.
 
+Development uses Python 3.14 by default via `.python-version`. The package supports Python 3.11 through 3.14.
+
 ## Working locations
 
 * `notebooks/` for demos

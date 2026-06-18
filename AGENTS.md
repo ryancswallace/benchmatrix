@@ -35,7 +35,7 @@ make check
 
 ## Code style
 
-- Python 3.10+
+- Python 3.11+
 - Type hints should pass basedpyright in normal mode.
 - Use Ruff for linting and formatting.
 - Public functions/classes use Google-style docstrings.
