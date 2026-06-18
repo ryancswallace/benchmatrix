@@ -6,6 +6,7 @@ import io
 import os
 import subprocess
 import sys
+import textwrap
 from collections.abc import Callable, Mapping, MutableMapping, Sequence
 from pathlib import Path
 from typing import Protocol, TypeVar
@@ -85,6 +86,55 @@ def test_harness_runs_with_real_pytest_benchmark_fixture(benchmark: _BenchmarkFi
     assert record.extra_info["work_units"] == 3.0
     assert benchmark.extra_info == record.extra_info
     assert "[benchmark invoked] metric=batch_throughput implementation=len case=real" in stream.getvalue()
+
+
+def test_make_benchmark_test_is_collected_by_real_pytest(tmp_path: Path) -> None:
+    benchmark_module = tmp_path / "test_generated_matrix.py"
+    _ = benchmark_module.write_text(
+        textwrap.dedent(
+            """
+            from benchmatrix import BenchmarkCase, make_benchmark_test
+
+
+            def identity(value: int) -> int:
+                return value
+
+
+            def doubled(value: int) -> int:
+                return value * 2
+
+
+            test_generated_matrix = make_benchmark_test(
+                {"identity": identity, "doubled": doubled},
+                [
+                    BenchmarkCase.from_values("small", 1),
+                    BenchmarkCase.from_values("large", 100),
+                ],
+                metrics=("single_call_latency", "batch_throughput"),
+            )
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    result = _run_command(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q", str(benchmark_module)],
+        cwd=tmp_path,
+    )
+
+    expected_ids = {
+        "single_call_latency::identity::small",
+        "single_call_latency::identity::large",
+        "single_call_latency::doubled::small",
+        "single_call_latency::doubled::large",
+        "batch_throughput::identity::small",
+        "batch_throughput::identity::large",
+        "batch_throughput::doubled::small",
+        "batch_throughput::doubled::large",
+    }
+    assert "8 tests collected" in result.stdout
+    for parameter_id in expected_ids:
+        assert f"test_generated_matrix[{parameter_id}]" in result.stdout
 
 
 @pytest.mark.slow
