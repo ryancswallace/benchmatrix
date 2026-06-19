@@ -181,3 +181,18 @@ Representative pytest-benchmark JSON fixtures live under `tests/fixtures/benchma
 `examples/test_factorial_benchmarks.py` shows the equivalent explicit pytest
 parametrization. Both compare iterative and recursive factorial implementations
 across every supported metric.
+
+## Project policies
+
+Contributions are welcome. See the [contribution guide](CONTRIBUTING.md) for
+development and pull request expectations.
+
+* [Changelog](CHANGELOG.md)
+* [Code of conduct](CODE_OF_CONDUCT.md)
+* [Release policy](RELEASING.md)
+* [Security policy](SECURITY.md)
+* [Citation metadata](CITATION.cff)
+
+## License
+
+benchmatrix is distributed under the [MIT License](LICENSE).
