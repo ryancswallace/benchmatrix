@@ -146,9 +146,11 @@ make hooks-install
 make install
 make hooks-install
 make test
+make test-matrix
 make lint
 make markdownlint
 make workflow-lint
+make docs
 make spellcheck
 make secrets
 make security
@@ -164,10 +166,21 @@ make precommit
 ```
 
 `make check` is the authoritative local validation command. It verifies the uv
-lockfile, Ruff linting and formatting, Markdown, GitHub Actions workflows,
-spelling, secrets, Bandit security checks, deptry dependency checks, pip-audit
-vulnerability checks, tests and coverage, basedpyright, distribution metadata,
-and CycloneDX SBOM generation.
+lockfile, Ruff linting and formatting, Markdown, documentation site, GitHub
+Actions workflows, spelling, secrets, Bandit security checks, deptry dependency
+checks, pip-audit vulnerability checks, tests and coverage, basedpyright,
+distribution metadata, and CycloneDX SBOM generation.
+
+`make test-matrix` runs the nox automation: tests on every supported Python
+version (3.11 through 3.14), Ruff, basedpyright, Bandit, deptry, and an isolated
+distribution build/install smoke test. Nox uses uv-backed environments and the
+locked project dependencies. Run an individual session with, for example,
+`uv run nox -s tests-3.11`, all quality sessions with
+`uv run nox --tags quality`, or the docs session with `uv run nox --tags docs`.
+
+`make docs` builds the MkDocs site in strict mode. The API reference section is
+generated from package docstrings during the build and is integrated under the
+Reference navigation.
 
 `make precommit` runs every configured hook against all tracked files. Secret
 scanning uses the reviewed `.secrets.baseline`; update that baseline only after

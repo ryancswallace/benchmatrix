@@ -31,11 +31,23 @@ make format
 make check
 ```
 
+For changes that may vary by interpreter or packaging environment, also run:
+
+```bash
+make test-matrix
+```
+
+This runs tests on Python 3.11 through 3.14 plus focused lint, type, dependency,
+security, and release-artifact smoke sessions.
+
+Documentation changes should pass `make docs`; API behavior changes should update
+docstrings so the generated API reference stays current.
+
 `make check` verifies the uv lockfile, Ruff formatting and linting, Markdown,
-GitHub Actions workflows, CSpell, secret scanning, Bandit, deptry, pip-audit,
-pytest and coverage, basedpyright, and built distributions, including CycloneDX
-SBOM generation. New behavior should include tests, and public APIs should
-include Google-style docstrings.
+the documentation site, GitHub Actions workflows, CSpell, secret scanning,
+Bandit, deptry, pip-audit, pytest and coverage, basedpyright, and built
+distributions, including CycloneDX SBOM generation. New behavior should include
+tests, and public APIs should include Google-style docstrings.
 
 The Git hooks run fast, file-oriented checks. Use `make precommit` to run every
 hook manually. Treat additions to `.secrets.baseline` as security-sensitive

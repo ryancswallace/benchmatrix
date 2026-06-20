@@ -19,21 +19,44 @@ Python version support may change in a minor release before 1.0 and in a major
 release after 1.0. Dropping a Python version will be documented in advance when
 practical.
 
+Release branches are not maintained as standing support branches. The active
+support branch is `main`; temporary release or security branches may be used for
+coordination and retired after release.
+
 ## Release process
 
-Releases are made by a maintainer:
+Releases are prepared in a normal pull request and published by the GitHub
+Actions release workflow after a GitHub Release is published.
 
-1. Confirm `CHANGELOG.md` describes all user-visible changes.
-2. Set the version in `pyproject.toml`.
-3. Update the version and release date in `CITATION.cff`.
-4. Run `make check`.
-5. Run `make build` to build and validate the distributions and generate the
-   CycloneDX SBOM.
-6. Confirm `dist/benchmatrix.cdx.json` is included with the release artifacts.
-7. Commit the release, create an annotated `vX.Y.Z` tag, and publish the tag.
-8. Publish the source distribution and wheel to PyPI.
-9. Add a new `Unreleased` section to `CHANGELOG.md`.
+1. Choose the next version from the changelog and compatibility policy.
+2. Update release metadata:
 
-Release notes should summarize changes and link to the corresponding changelog
-section. Publishing remains a manual maintainer action; release publishing
-automation is outside the current project scope.
+   * set `project.version` in `pyproject.toml`;
+   * set `version` in `CITATION.cff`;
+   * add or update `date-released` in `CITATION.cff` once the release date is
+     known.
+
+3. Move user-visible `CHANGELOG.md` entries from `Unreleased` into a versioned
+   section such as `## 0.2.0 - 2026-06-20`, then leave a fresh `Unreleased`
+   section at the top.
+4. Run the release validation commands:
+
+   ```bash
+   make check
+   make test-matrix
+   make build
+   ```
+
+5. Confirm `dist/` contains one source distribution, one wheel, and
+   `benchmatrix.cdx.json` for the intended version.
+6. Merge the release pull request after required checks pass.
+7. Create and push an annotated tag named `vX.Y.Z` for the release commit.
+8. Draft GitHub release notes from the changelog section for that version.
+9. Publish the GitHub Release. Publishing the release triggers
+   `.github/workflows/release.yml`, which rebuilds artifacts, attests them, and
+   publishes to PyPI through Trusted Publishing.
+10. Verify the package from PyPI in a clean environment.
+11. If any post-release fix is needed, prepare a new patch release. Do not
+    replace files for an already-published PyPI version.
+
+The detailed operational checklist lives in `docs/runbooks/release.md`.

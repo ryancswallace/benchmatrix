@@ -21,9 +21,9 @@ Use uv. The authoritative local check command is:
 make check
 ```
 
-It checks the uv lockfile, Ruff, Markdown, GitHub Actions workflows, CSpell,
-secrets, Bandit, deptry, pip-audit, pytest and coverage, basedpyright, built
-distributions, and CycloneDX SBOM generation. Run it after edits.
+It checks the uv lockfile, Ruff, Markdown, the documentation site, GitHub Actions
+workflows, CSpell, secrets, Bandit, deptry, pip-audit, pytest and coverage,
+basedpyright, built distributions, and CycloneDX SBOM generation. Run it after edits.
 
 Useful commands:
 
@@ -31,9 +31,11 @@ Useful commands:
 make format
 make lint
 make markdownlint
+make docs
 make workflow-lint
 make secrets
 make test
+make test-matrix
 make typecheck
 make security
 make deps

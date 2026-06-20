@@ -6,16 +6,8 @@ class BenchmatrixError(Exception):
 
 
 class MetadataSerializationError(BenchmatrixError, ValueError):
-    """Raised when benchmark metadata cannot be represented as strict JSON.
-
-    Args:
-        message: Explanation of the unsupported metadata value.
-    """
+    """Raised when benchmark metadata cannot be represented as strict JSON."""
 
 
 class BenchmarkJsonError(BenchmatrixError, ValueError):
-    """Raised when pytest-benchmark JSON cannot be parsed as benchmatrix output.
-
-    Args:
-        message: Explanation of the invalid or unsupported JSON structure.
-    """
+    """Raised when pytest-benchmark JSON cannot be parsed as benchmatrix output."""

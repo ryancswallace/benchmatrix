@@ -1,0 +1,90 @@
+site_name: benchmatrix
+site_description: pytest-benchmark matrix utilities and result parsing documentation.
+site_author: Ryan Wallace
+site_url: https://ryancswallace.github.io/benchmatrix/
+repo_name: ryancswallace/benchmatrix
+repo_url: https://github.com/ryancswallace/benchmatrix
+edit_uri: blob/main/docs/
+
+docs_dir: docs
+site_dir: site
+strict: true
+
+theme:
+  name: mkdocs
+  locale: en
+
+exclude_docs: |
+  _scripts/
+
+plugins:
+  - search
+  - gen-files:
+      scripts:
+        - docs/_scripts/gen_api_reference.py
+  - mkdocstrings:
+      handlers:
+        python:
+          paths:
+            - src
+          options:
+            docstring_style: google
+            members_order: source
+            separate_signature: true
+            show_root_heading: true
+            show_signature_annotations: true
+            show_source: true
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+nav:
+  - Home: index.md
+  - Tutorials:
+      - First benchmark: tutorials/first-benchmark.md
+  - How-to guides:
+      - Create a benchmark matrix: how-to/create-benchmark-matrix.md
+      - Parse benchmark results: how-to/parse-results.md
+      - Troubleshooting: how-to/troubleshooting.md
+  - Reference:
+      - Overview: reference/index.md
+      - API:
+          - Package: reference/api/index.md
+          - Benchmark harness: reference/api/bench_harness.md
+          - Benchmark results: reference/api/bench_results.md
+          - Exceptions: reference/api/exceptions.md
+      - Compatibility: reference/compatibility.md
+      - Configuration and automation: reference/configuration.md
+  - Explanation:
+      - Architecture: explanation/architecture.md
+      - Performance model: explanation/performance.md
+      - Threat model: explanation/threat-model.md
+      - Dependency policy: explanation/dependency-policy.md
+      - License policy: explanation/license-policy.md
+      - Lifecycle: explanation/lifecycle.md
+      - Repository health: explanation/repository-health.md
+      - Secrets: explanation/secrets.md  # pragma: allowlist secret
+      - AI-agent guidance: explanation/ai.md
+      - Deprecations: explanation/deprecations.md
+      - GitHub Actions security: explanation/github-actions-security.md
+      - Deployment environments: explanation/deployment-environments.md
+      - Repository settings: explanation/repository-settings.md
+      - Publishing: explanation/publishing.md
+      - First release: explanation/first-release.md
+  - Maintainer runbooks:
+      - Overview: runbooks/index.md
+      - Release: runbooks/release.md
+      - Dependency update: runbooks/dependency-update.md
+      - Security report: runbooks/security-report.md
+      - Incident response: runbooks/incident-response.md
+      - Failed CI: runbooks/failed-ci.md
+      - Ownership transfer: runbooks/ownership-transfer.md
+      - External repository setup: runbooks/repository-setup.md
+  - Project:
+      - Development: development.md
+      - Contributing: contributing.md
+      - Changelog: changelog.md
