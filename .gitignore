@@ -9,6 +9,7 @@ __pycache__/
 .ipynb_checkpoints/
 
 # Virtual environments
+.nox/
 .venv/
 venv/
 env/
@@ -17,10 +18,12 @@ env/
 build/
 dist/
 *.egg-info/
+site/
 
-# Test coverage
+# Test coverage and reports
 .coverage
 htmlcov/
+reports/
 
 # Environment and secrets
 .env

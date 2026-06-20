@@ -8,8 +8,10 @@ export PATH := $(HOME)/.local/bin:$(HOME)/.cargo/bin:$(PATH)
 UV_INSTALL_URL ?= https://astral.sh/uv/install.sh
 NODE_MODULES_STAMP := node_modules/.package-lock.json
 SBOM_PATH ?= dist/benchmatrix.cdx.json
+LINKCHECK_REPORT ?= reports/linkchecker.xml
+MIN_DEPS_PYTHON ?= 3.11
 
-.PHONY: help bootstrap npm-install ready install hooks-install lock-check test typecheck lint markdownlint workflow-lint spellcheck secrets security deps audit sbom build format check clean precommit fresh-precommit
+.PHONY: help bootstrap npm-install ready install hooks-install lock-check test test-min-deps test-matrix typecheck lint markdownlint docs docs-linkcheck serve-docs workflow-lint spellcheck secrets security deps audit sbom smoke-dist build format check clean precommit fresh-precommit
 
 help:
 	@echo "Available targets:"
@@ -21,8 +23,13 @@ help:
 	@echo "  format            Format code and apply Ruff auto-fixes"
 	@echo "  clean             Remove local cache files"
 	@echo "  test              Run unit tests"
+	@echo "  test-min-deps     Run tests with minimum direct dependency versions"
+	@echo "  test-matrix       Run the full local nox test and quality matrix"
 	@echo "  typecheck         Run basedpyright type checks"
 	@echo "  lint              Run Ruff lint and formatting checks"
+	@echo "  docs              Build the documentation site"
+	@echo "  docs-linkcheck    Check links in the built documentation site"
+	@echo "  serve-docs        Serve the documentation site locally"
 	@echo "  markdownlint      Lint Markdown files"
 	@echo "  workflow-lint     Lint GitHub Actions workflow files"
 	@echo "  spellcheck        Run CSpell spell checks"
@@ -31,7 +38,8 @@ help:
 	@echo "  deps              Run deptry dependency checks"
 	@echo "  audit             Audit locked dependencies for known vulnerabilities"
 	@echo "  sbom              Generate a CycloneDX runtime dependency SBOM"
-	@echo "  build             Build and validate distributions"
+	@echo "  smoke-dist        Install and import-test the built wheel"
+	@echo "  build             Build, validate, smoke-test, and generate release artifacts"
 	@echo "  check             Run the full local validation suite"
 	@echo "  ready             Sync dependencies and verify the environment"
 	@echo "  precommit         Run all pre-commit hooks against all files"
@@ -85,9 +93,17 @@ clean:
 	find . -path "./.venv" -prune -o -path "./node_modules" -prune -o -type d -name ".pyright" -prune -exec rm -rf {} +
 	find . -path "./.venv" -prune -o -path "./node_modules" -prune -o -type d -name "htmlcov" -prune -exec rm -rf {} +
 	find . -path "./.venv" -prune -o -path "./node_modules" -prune -o -type f -name ".coverage" -exec rm -f {} +
+	find . -path "./.venv" -prune -o -path "./node_modules" -prune -o -type d -name "site" -prune -exec rm -rf {} +
+	find . -path "./.venv" -prune -o -path "./node_modules" -prune -o -type d -name "reports" -prune -exec rm -rf {} +
 
 test: bootstrap
 	uv run pytest -q
+
+test-min-deps: bootstrap
+	uv run --python "$(MIN_DEPS_PYTHON)" --isolated --resolution lowest-direct --no-default-groups --group test --group release python -m pytest -q
+
+test-matrix: install
+	uv run nox
 
 typecheck: bootstrap
 	uv run basedpyright
@@ -99,8 +115,19 @@ lint: bootstrap
 markdownlint: npm-install
 	npx markdownlint-cli2
 
+docs: install
+	DISABLE_MKDOCS_2_WARNING=true uv run mkdocs build --strict
+
+docs-linkcheck: docs
+	mkdir -p "$$(dirname "$(LINKCHECK_REPORT)")"
+	uv run linkchecker --no-status --no-warnings -F xml/utf-8/"$(LINKCHECK_REPORT)" site/index.html
+
+serve-docs: install
+	DISABLE_MKDOCS_2_WARNING=true uv run mkdocs serve --strict
+
 workflow-lint: install
 	uv run pre-commit run actionlint --files $$(find .github/workflows -type f \( -name '*.yml' -o -name '*.yaml' \))
+	uv run zizmor --min-severity medium .github/workflows
 
 spellcheck: npm-install
 	npx cspell .
@@ -129,9 +156,22 @@ sbom: bootstrap
 	uv run cyclonedx-py environment "$$sbom_env/bin/python" --pyproject pyproject.toml --mc-type library \
 		--output-reproducible --spec-version 1.6 --output-format JSON --output-file "$(SBOM_PATH)"
 
+smoke-dist: bootstrap
+	@smoke_env=$$(mktemp -d); \
+	trap 'rm -rf "$$smoke_env"' 0 1 2 15; \
+	wheel=$$(find dist -maxdepth 1 -type f -name '*.whl' | sort | head -n 1); \
+	if [ -z "$$wheel" ]; then \
+		echo "No wheel found in dist/. Run make build first."; \
+		exit 1; \
+	fi; \
+	uv venv --quiet "$$smoke_env" && \
+	VIRTUAL_ENV="$$smoke_env" uv pip install --quiet "$$wheel" && \
+	"$$smoke_env/bin/python" -c "from benchmatrix import BenchmarkCase; print(BenchmarkCase.__name__)"
+
 build: bootstrap
 	uv build --clear
 	uv run twine check dist/*
+	$(MAKE) smoke-dist
 	$(MAKE) sbom
 
 check: bootstrap
@@ -145,6 +185,9 @@ check: bootstrap
 	echo ""; \
 	echo "==> Markdown linting"; \
 	$(MAKE) markdownlint || status=$$?; \
+	echo ""; \
+	echo "==> Documentation site and links"; \
+	$(MAKE) docs-linkcheck || status=$$?; \
 	echo ""; \
 	echo "==> GitHub Actions workflow linting"; \
 	$(MAKE) workflow-lint || status=$$?; \
@@ -167,15 +210,14 @@ check: bootstrap
 	echo "==> Pytest unit tests"; \
 	uv run pytest -q || status=$$?; \
 	echo ""; \
+	echo "==> Minimum dependency tests"; \
+	$(MAKE) test-min-deps || status=$$?; \
+	echo ""; \
 	echo "==> basedpyright type checks"; \
 	uv run basedpyright || status=$$?; \
 	echo ""; \
-	echo "==> Distribution build"; \
-	uv build --clear || status=$$?; \
-	uv run twine check dist/* || status=$$?; \
-	echo ""; \
-	echo "==> CycloneDX SBOM"; \
-	$(MAKE) sbom || status=$$?; \
+	echo "==> Distribution build, smoke test, and SBOM"; \
+	$(MAKE) build || status=$$?; \
 	exit $$status
 
 ready:

@@ -33,8 +33,8 @@ classifiers = [
     "Topic :: Software Development :: Testing",
 ]
 dependencies = [
-    "pytest",
-    "pytest-benchmark",
+    "pytest>=8.4",
+    "pytest-benchmark>=5.2.3",
 ]
 
 [project.urls]
@@ -45,20 +45,47 @@ Issues = "https://github.com/ryancswallace/benchmatrix/issues"
 Source = "https://github.com/ryancswallace/benchmatrix"
 
 [dependency-groups]
-dev = [
-    "bandit[toml]>=1.9.4",
-    "basedpyright>=1.39.8",
-    "build>=1.5.0",
-    "cyclonedx-bom>=7.3.0",
-    "deptry>=0.25.1",
-    "detect-secrets>=1.5.0",
+test = [
     "hypothesis>=6.148.0",
     "numpy>=2.2.6",
-    "pip-audit>=2.10.1",
-    "pre-commit>=4.6.0",
     "pytest-cov>=7.1.0",
-    "ruff",
+]
+lint = [
+    "pre-commit>=4.6.0",
+    "ruff>=0.15.17",
+]
+type = [
+    "basedpyright>=1.39.8",
+]
+docs = [
+    "linkchecker>=10.6.0",
+    "mkdocs-gen-files>=0.5.0",
+    "mkdocs>=1.6.1",
+    "mkdocstrings[python]>=0.30.0",
+]
+security = [
+    "bandit[toml]>=1.9.4",
+    "deptry>=0.25.1",
+    "detect-secrets>=1.5.0",
+    "pip-audit>=2.10.1",
+    "zizmor>=1.25.2",
+]
+release = [
+    "build>=1.5.0",
+    "cyclonedx-bom>=7.3.0",
     "twine>=6.2.0",
+]
+automation = [
+    "nox>=2026.4.10",
+]
+dev = [
+    { include-group = "automation" },
+    { include-group = "docs" },
+    { include-group = "lint" },
+    { include-group = "release" },
+    { include-group = "security" },
+    { include-group = "test" },
+    { include-group = "type" },
 ]
 
 [tool.uv]
@@ -75,7 +102,10 @@ include = [
     "/CITATION.cff",
     "/CODE_OF_CONDUCT.md",
     "/CONTRIBUTING.md",
+    "/docs",
     "/LICENSE",
+    "/mkdocs.yml",
+    "/noxfile.py",
     "/README.md",
     "/RELEASING.md",
     "/SECURITY.md",
@@ -88,11 +118,9 @@ include = [
 packages = ["src/benchmatrix"]
 
 [tool.pytest.ini_options]
-minversion = "8.0"
+minversion = "8.4"
 testpaths = ["tests"]
 pythonpath = ["src"]
-strict_config = true
-strict_markers = true
 xfail_strict = true
 required_plugins = [
     "pytest-benchmark>=5.2.3",
@@ -100,6 +128,8 @@ required_plugins = [
 ]
 addopts = [
     "-ra",
+    "--strict-config",
+    "--strict-markers",
     "--cov=benchmatrix",
     "--cov-report=term-missing",
 ]
@@ -137,7 +167,7 @@ known-first-party = ["benchmatrix"]
 line-ending = "lf"
 
 [tool.basedpyright]
-include = ["src", "tests", "examples"]
+include = ["src", "tests", "examples", "noxfile.py"]
 exclude = [".venv", "build", "dist", "node_modules"]
 pythonVersion = "3.11"
 typeCheckingMode = "standard"
