@@ -21,6 +21,7 @@ Set up and verify the development environment:
 
 ```bash
 make ready
+make hooks-install
 ```
 
 Before submitting a change, run:
@@ -30,8 +31,15 @@ make format
 make check
 ```
 
-`make check` runs Ruff, CSpell, pytest, and basedpyright. New behavior should
-include tests, and public APIs should include Google-style docstrings.
+`make check` verifies the uv lockfile, Ruff formatting and linting, Markdown,
+GitHub Actions workflows, CSpell, secret scanning, Bandit, deptry, pip-audit,
+pytest and coverage, basedpyright, and built distributions, including CycloneDX
+SBOM generation. New behavior should include tests, and public APIs should
+include Google-style docstrings.
+
+The Git hooks run fast, file-oriented checks. Use `make precommit` to run every
+hook manually. Treat additions to `.secrets.baseline` as security-sensitive
+changes and review each detected value before updating the baseline.
 
 ## Pull requests
 

@@ -122,9 +122,16 @@ make ready
 
 The environment is ready if the command passes.
 
-Outside the devcontainer, install Node.js 22.18 or newer with npm; `make check` uses npm to run the CSpell spell checker.
+Outside the devcontainer, install Node.js 22.18 or newer with npm; `make check`
+uses npm for Markdown and spelling checks.
 
 Development uses Python 3.14 by default via `.python-version`. The package supports Python 3.11 through 3.14.
+
+Install the repository's pre-commit and pre-push hooks once after cloning:
+
+```bash
+make hooks-install
+```
 
 ## Working locations
 
@@ -137,13 +144,40 @@ Development uses Python 3.14 by default via `.python-version`. The package suppo
 
 ```bash
 make install
+make hooks-install
 make test
 make lint
+make markdownlint
+make workflow-lint
 make spellcheck
+make secrets
+make security
+make deps
+make audit
+make sbom
+make typecheck
+make build
 make check
 make format
 make clean
+make precommit
 ```
+
+`make check` is the authoritative local validation command. It verifies the uv
+lockfile, Ruff linting and formatting, Markdown, GitHub Actions workflows,
+spelling, secrets, Bandit security checks, deptry dependency checks, pip-audit
+vulnerability checks, tests and coverage, basedpyright, distribution metadata,
+and CycloneDX SBOM generation.
+
+`make precommit` runs every configured hook against all tracked files. Secret
+scanning uses the reviewed `.secrets.baseline`; update that baseline only after
+confirming that newly detected values are safe to commit.
+
+`make sbom` creates `dist/benchmatrix.cdx.json`, a validated, reproducible
+CycloneDX 1.6 JSON SBOM for benchmatrix and its locked runtime dependencies. It
+uses an isolated runtime-only uv environment, so development tools are not
+reported as package dependencies. `make build` also generates the SBOM, and CI
+uploads it as a build artifact.
 
 ## Testing
 

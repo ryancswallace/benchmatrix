@@ -1,0 +1,60 @@
+minimum_pre_commit_version: "4.6.0"
+default_install_hook_types:
+  - pre-commit
+  - pre-push
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args:
+          - --fix=lf
+      - id: trailing-whitespace
+        args:
+          - --markdown-linebreak-ext=md
+
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: Ruff lint
+        entry: uv run ruff check --fix
+        language: system
+        types:
+          - python
+      - id: ruff-format
+        name: Ruff format
+        entry: uv run ruff format
+        language: system
+        types:
+          - python
+      - id: markdownlint
+        name: Markdownlint
+        entry: npx markdownlint-cli2 --no-globs
+        language: system
+        types:
+          - markdown
+      - id: detect-secrets
+        name: Detect secrets
+        entry: uv run detect-secrets-hook --baseline .secrets.baseline --no-verify --cores 1
+        language: system
+        types:
+          - text
+        exclude: ^(package-lock\.json|uv\.lock|notebooks/demo\.ipynb)$
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+
+  - repo: meta
+    hooks:
+      - id: check-hooks-apply
+      - id: check-useless-excludes

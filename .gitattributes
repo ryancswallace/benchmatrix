@@ -1,0 +1,20 @@
+* text=auto eol=lf
+
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+*.gif binary
+*.ico binary
+*.jpeg binary
+*.jpg binary
+*.pdf binary
+*.png binary
+*.webp binary
+
+package-lock.json linguist-generated=true
+uv.lock linguist-generated=true
+*.ipynb linguist-generated=true
+
+*.cff linguist-language=YAML
+Makefile linguist-language=Makefile
+LICENSE linguist-language=Text

@@ -46,13 +46,16 @@ Source = "https://github.com/ryancswallace/benchmatrix"
 
 [dependency-groups]
 dev = [
+    "bandit[toml]>=1.9.4",
     "basedpyright>=1.39.8",
     "build>=1.5.0",
+    "cyclonedx-bom>=7.3.0",
+    "deptry>=0.25.1",
+    "detect-secrets>=1.5.0",
     "hypothesis>=6.148.0",
     "numpy>=2.2.6",
+    "pip-audit>=2.10.1",
     "pre-commit>=4.6.0",
-    "pytest",
-    "pytest-benchmark>=5.2.3",
     "pytest-cov>=7.1.0",
     "ruff",
     "twine>=6.2.0",
@@ -60,21 +63,45 @@ dev = [
 
 [tool.uv]
 link-mode = "copy"
+required-version = ">=0.11.21,<0.12"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/CHANGELOG.md",
+    "/CITATION.cff",
+    "/CODE_OF_CONDUCT.md",
+    "/CONTRIBUTING.md",
+    "/LICENSE",
+    "/README.md",
+    "/RELEASING.md",
+    "/SECURITY.md",
+    "/examples",
+    "/src",
+    "/tests",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/benchmatrix"]
 
 [tool.pytest.ini_options]
+minversion = "8.0"
 testpaths = ["tests"]
 pythonpath = ["src"]
+strict_config = true
+strict_markers = true
+xfail_strict = true
+required_plugins = [
+    "pytest-benchmark>=5.2.3",
+    "pytest-cov>=7.1.0",
+]
 addopts = [
+    "-ra",
     "--cov=benchmatrix",
     "--cov-report=term-missing",
-    "--cov-fail-under=95",
 ]
 markers = [
     "integration: tests that exercise installed packages or third-party runtime integrations",
@@ -86,18 +113,43 @@ markers = [
 
 [tool.coverage.run]
 branch = true
+relative_files = true
 source = ["benchmatrix"]
 
 [tool.coverage.report]
+fail_under = 95
+precision = 2
 show_missing = true
 skip_covered = true
 
 [tool.ruff]
 line-length = 120
+src = ["src", "tests"]
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP"]
+select = ["B", "E", "F", "I", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["benchmatrix"]
 
 [tool.ruff.format]
 line-ending = "lf"
+
+[tool.basedpyright]
+include = ["src", "tests", "examples"]
+exclude = [".venv", "build", "dist", "node_modules"]
+pythonVersion = "3.11"
+typeCheckingMode = "standard"
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+
+[tool.deptry]
+ignore_notebooks = true
+known_first_party = ["benchmatrix"]
+
+[tool.deptry.per_rule_ignores]
+# pytest-benchmark supplies the benchmark fixture as a pytest plugin; the
+# dependency is intentionally not imported directly by benchmatrix.
+DEP002 = ["pytest-benchmark"]

@@ -27,12 +27,13 @@ Releases are made by a maintainer:
 2. Set the version in `pyproject.toml`.
 3. Update the version and release date in `CITATION.cff`.
 4. Run `make check`.
-5. Build the distributions with `uv build`.
-6. Validate them with `uv run twine check dist/*`.
+5. Run `make build` to build and validate the distributions and generate the
+   CycloneDX SBOM.
+6. Confirm `dist/benchmatrix.cdx.json` is included with the release artifacts.
 7. Commit the release, create an annotated `vX.Y.Z` tag, and publish the tag.
 8. Publish the source distribution and wheel to PyPI.
 9. Add a new `Unreleased` section to `CHANGELOG.md`.
 
 Release notes should summarize changes and link to the corresponding changelog
-section. Publishing remains a manual maintainer action; CI/CD automation is
-outside the current project scope.
+section. Publishing remains a manual maintainer action; release publishing
+automation is outside the current project scope.
