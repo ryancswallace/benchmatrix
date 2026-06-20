@@ -1,0 +1,8 @@
+# zizmor policy for GitHub Actions workflow linting.
+#
+# This repository intentionally uses carefully versioned action refs plus
+# Dependabot updates instead of SHA-pinning every action. Keep this exception
+# visible and revisit it if the project adopts full action SHA pinning.
+rules:
+  unpinned-uses:
+    disable: true

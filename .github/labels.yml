@@ -1,0 +1,95 @@
+- name: bug
+  color: d73a4a
+  description: Something is broken or behaving incorrectly.
+
+- name: enhancement
+  color: a2eeef
+  description: A new feature or improvement request.
+
+- name: documentation
+  color: 0075ca
+  description: Documentation, examples, tutorials, or runbooks.
+
+- name: api
+  color: 1d76db
+  description: Public API, exported symbols, or compatibility surface.
+
+- name: benchmarks
+  color: 5319e7
+  description: Benchmark matrix behavior, metrics, or examples.
+
+- name: tests
+  color: c2e0c6
+  description: Tests, fixtures, coverage, or test infrastructure.
+
+- name: ci
+  color: 0e8a16
+  description: Continuous integration workflow behavior.
+
+- name: github-actions
+  color: 0e8a16
+  description: GitHub Actions workflow configuration.
+
+- name: dependencies
+  color: 0366d6
+  description: Python, Node, action, or lockfile dependency changes.
+
+- name: packaging
+  color: fef2c0
+  description: Build backend, package metadata, wheels, sdists, or publishing.
+
+- name: security
+  color: b60205
+  description: Security posture, vulnerability handling, or secret hygiene.
+
+- name: automation
+  color: fbca04
+  description: Make, nox, pre-commit, lint, or repository automation.
+
+- name: dev-environment
+  color: d4c5f9
+  description: Devcontainer, editor, Python-version, or local setup changes.
+
+- name: release
+  color: fef2c0
+  description: Release preparation, changelog, versioning, or publishing.
+
+- name: performance
+  color: 5319e7
+  description: Performance semantics, benchmark reliability, or speed.
+
+- name: maintenance
+  color: c5def5
+  description: Repository maintenance that is not directly user-facing.
+
+- name: breaking-change
+  color: b60205
+  description: Public behavior or API change requiring migration.
+
+- name: good first issue
+  color: 7057ff
+  description: Good for a first contribution.
+
+- name: help wanted
+  color: 008672
+  description: Maintainer help is welcome.
+
+- name: question
+  color: d876e3
+  description: Question or clarification request.
+
+- name: needs-triage
+  color: ededed
+  description: Needs maintainer review and categorization.
+
+- name: duplicate
+  color: cfd3d7
+  description: This issue or pull request already exists.
+
+- name: invalid
+  color: e4e669
+  description: This does not look actionable as filed.
+
+- name: wontfix
+  color: ffffff
+  description: This will not be worked on.

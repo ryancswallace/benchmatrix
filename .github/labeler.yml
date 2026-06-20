@@ -1,0 +1,124 @@
+# Pull request labels applied by actions/labeler.
+# Keep these names synchronized with .github/labels.yml.
+
+changed-files-labels-limit: 8
+max-files-changed: 200
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.md"
+          - "docs/**"
+          - "mkdocs.yml"
+
+api:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/benchmatrix/__init__.py"
+          - "src/benchmatrix/bench_harness.py"
+          - "src/benchmatrix/bench_results.py"
+          - "src/benchmatrix/exceptions.py"
+
+benchmarks:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/benchmatrix/bench_harness.py"
+          - "examples/**/*benchmark*"
+          - "examples/**/*bench*"
+
+tests:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "tests/**"
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/workflows/**"
+          - ".github/dependabot.yml"
+          - ".github/settings.yml"
+          - ".github/labeler.yml"
+          - ".github/labels.yml"
+
+github-actions:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/workflows/**"
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/dependabot.yml"
+          - ".pre-commit-config.yaml"
+          - ".devcontainer/**"
+          - "pyproject.toml"
+          - "uv.lock"
+          - "package.json"
+          - "package-lock.json"
+
+packaging:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pyproject.toml"
+          - "src/benchmatrix/py.typed"
+          - "CITATION.cff"
+          - "LICENSE"
+          - "RELEASING.md"
+
+security:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "SECURITY.md"
+          - ".secrets.baseline"
+          - ".github/workflows/**"
+          - "docs/explanation/*security*.md"
+          - "docs/explanation/threat-model.md"
+          - "docs/runbooks/security-report.md"
+          - "docs/runbooks/incident-response.md"
+
+automation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "Makefile"
+          - "noxfile.py"
+          - ".github/dependabot.yml"
+          - ".github/settings.yml"
+          - ".pre-commit-config.yaml"
+          - ".markdownlint-cli2.yaml"
+          - "cspell.json"
+
+dev-environment:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".devcontainer/**"
+          - ".vscode/**"
+          - ".python-version"
+
+release:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "CHANGELOG.md"
+          - "RELEASING.md"
+          - "docs/runbooks/release.md"
+          - "docs/explanation/publishing.md"
+          - "docs/explanation/first-release.md"
+  - base-branch:
+      - "^main$"
+
+performance:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/benchmatrix/bench_harness.py"
+          - "docs/explanation/performance.md"
+          - "examples/**"
+
+maintenance:
+  - head-branch:
+      - "^(chore|maintenance|deps|dependabot)/"
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**"
+          - "AGENTS.md"
+          - ".github/CODEOWNERS"
+          - ".gitattributes"
+          - ".gitignore"
