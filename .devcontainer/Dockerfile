@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/devcontainers/python:2-3.14-bookworm
+FROM mcr.microsoft.com/devcontainers/python:3.14-bookworm
 
 # The base image may include a Yarn APT source with a stale/missing key.
 # Remove it because this project does not need Yarn from dl.yarnpkg.com.
