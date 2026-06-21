@@ -21,26 +21,53 @@ NODE_MODULES_STAMP := node_modules/.package-lock.json
 SBOM_PATH ?= dist/benchmatrix.cdx.json
 UV_INSTALL_URL ?= https://astral.sh/uv/install.sh
 
-.PHONY: help bootstrap npm-install ready install hooks-install lock-check test test-min-deps test-matrix typecheck lint markdownlint docs docs-linkcheck serve-docs docker-lint docker-ready docker-build docker-build-test docker-test docker-smoke docker-scan docker-check workflow-lint spellcheck secrets security deps audit sbom smoke-dist build format check check-all ca clean clean-build precommit fresh-precommit
+# -----------------------------------------------------------------------------
+# Target declarations
+# -----------------------------------------------------------------------------
+.PHONY: help
+.PHONY: bootstrap npm-install install hooks-install ready
+.PHONY: clean clean-build
+.PHONY: format lint typecheck markdownlint workflow-lint spellcheck
+.PHONY: test test-min-deps test-matrix
+.PHONY: docs docs-linkcheck serve-docs
+.PHONY: docker-lint docker-ready docker-build docker-build-test docker-test docker-smoke docker-scan docker-check
+.PHONY: lock-check deps secrets security audit
+.PHONY: sbom smoke-dist build
+.PHONY: check check-all ca precommit fresh-precommit
 
+# -----------------------------------------------------------------------------
+# Help
+# -----------------------------------------------------------------------------
 help:
 	@echo "Available targets:"
+	@echo ""
+	@echo "Setup:"
 	@echo "  bootstrap         Install uv if it is not already available"
 	@echo "  npm-install       Install Node development dependencies"
 	@echo "  install           Sync Python dependencies from uv.lock"
 	@echo "  hooks-install     Install pre-commit and pre-push Git hooks"
-	@echo "  lock-check        Verify pyproject.toml and uv.lock are in sync"
-	@echo "  format            Format code and apply Ruff auto-fixes"
+	@echo "  ready             Sync dependencies and verify the environment"
+	@echo ""
+	@echo "Cleanup:"
 	@echo "  clean             Remove local cache files"
 	@echo "  clean-build       Remove build and distribution artifacts"
+	@echo ""
+	@echo "Python quality:"
+	@echo "  format            Format code and apply Ruff auto-fixes"
+	@echo "  lint              Run Ruff lint and formatting checks"
+	@echo "  typecheck         Run basedpyright type checks"
+	@echo ""
+	@echo "Tests:"
 	@echo "  test              Run unit tests"
 	@echo "  test-min-deps     Run tests with minimum direct dependency versions"
 	@echo "  test-matrix       Run the full local nox test and quality matrix"
-	@echo "  typecheck         Run basedpyright type checks"
-	@echo "  lint              Run Ruff lint and formatting checks"
+	@echo ""
+	@echo "Documentation:"
 	@echo "  docs              Build the documentation site"
 	@echo "  docs-linkcheck    Check links in the built documentation site"
 	@echo "  serve-docs        Serve the documentation site locally"
+	@echo ""
+	@echo "Docker:"
 	@echo "  docker-lint       Lint Dockerfiles"
 	@echo "  docker-build      Build the runtime Docker image"
 	@echo "  docker-build-test Build the test Docker image"
@@ -48,23 +75,34 @@ help:
 	@echo "  docker-smoke      Smoke-test the runtime Docker image"
 	@echo "  docker-scan       Scan Docker images for critical vulnerabilities"
 	@echo "  docker-check      Run Docker lint, build, test, smoke, and scan checks"
+	@echo ""
+	@echo "Repository quality:"
 	@echo "  markdownlint      Lint Markdown files"
 	@echo "  workflow-lint     Lint GitHub Actions workflow files"
 	@echo "  spellcheck        Run CSpell spell checks"
+	@echo ""
+	@echo "Dependencies and security:"
+	@echo "  lock-check        Verify pyproject.toml and uv.lock are in sync"
+	@echo "  deps              Run deptry dependency checks"
 	@echo "  secrets           Scan tracked files for secrets"
 	@echo "  security          Run Bandit security checks"
-	@echo "  deps              Run deptry dependency checks"
 	@echo "  audit             Audit locked dependencies for known vulnerabilities"
+	@echo ""
+	@echo "Release artifacts:"
 	@echo "  sbom              Generate a CycloneDX runtime dependency SBOM"
 	@echo "  smoke-dist        Install and import-test the built wheel"
 	@echo "  build             Build, validate, smoke-test, and generate release artifacts"
+	@echo ""
+	@echo "Validation suites:"
 	@echo "  check             Run the full local validation suite"
 	@echo "  check-all         Run every local, matrix, hook, and Docker check"
 	@echo "  ca                Alias for check-all"
-	@echo "  ready             Sync dependencies and verify the environment"
 	@echo "  precommit         Run all pre-commit hooks against all files"
 	@echo "  fresh-precommit   Clean caches, install dependencies, run hooks and checks"
 
+# -----------------------------------------------------------------------------
+# Setup
+# -----------------------------------------------------------------------------
 bootstrap:
 	@if command -v uv >/dev/null 2>&1; then \
 		uv --version; \
@@ -98,13 +136,19 @@ install: bootstrap
 hooks-install: install npm-install
 	uv run pre-commit install --install-hooks
 
-lock-check: bootstrap
-	uv lock --check
+ready:
+	@for step in install check; do \
+		if ! $(MAKE) $$step; then \
+			echo "Environment setup failed during $$step."; \
+			exit 1; \
+		fi; \
+	done; \
+	echo ""; \
+	echo "Environment is ready."
 
-format: bootstrap
-	uv run ruff check --fix $(RUFF_ARGS)
-	uv run ruff format $(RUFF_ARGS)
-
+# -----------------------------------------------------------------------------
+# Cleanup
+# -----------------------------------------------------------------------------
 clean:
 	find . -path "./.venv" -prune -o -path "./node_modules" -prune -o -type d -name "__pycache__" -prune -exec rm -rf {} +
 	find . -path "./.venv" -prune -o -path "./node_modules" -prune -o -type d -name ".pytest_cache" -prune -exec rm -rf {} +
@@ -120,6 +164,23 @@ clean-build:
 	rm -rf build dist
 	find . -path "./.venv" -prune -o -path "./node_modules" -prune -o -type d -name "*.egg-info" -prune -exec rm -rf {} +
 
+# -----------------------------------------------------------------------------
+# Python quality
+# -----------------------------------------------------------------------------
+format: bootstrap
+	uv run ruff check --fix $(RUFF_ARGS)
+	uv run ruff format $(RUFF_ARGS)
+
+lint: bootstrap
+	uv run ruff check $(RUFF_ARGS)
+	uv run ruff format --check $(RUFF_ARGS)
+
+typecheck: bootstrap
+	uv run basedpyright
+
+# -----------------------------------------------------------------------------
+# Tests
+# -----------------------------------------------------------------------------
 test: bootstrap
 	uv run pytest $(PYTEST_ARGS)
 
@@ -129,16 +190,9 @@ test-min-deps: bootstrap
 test-matrix: install
 	uv run nox $(NOX_ARGS)
 
-typecheck: bootstrap
-	uv run basedpyright
-
-lint: bootstrap
-	uv run ruff check $(RUFF_ARGS)
-	uv run ruff format --check $(RUFF_ARGS)
-
-markdownlint: npm-install
-	npx markdownlint-cli2
-
+# -----------------------------------------------------------------------------
+# Documentation
+# -----------------------------------------------------------------------------
 docs: install
 	DISABLE_MKDOCS_2_WARNING=true uv run mkdocs build --strict
 
@@ -149,6 +203,9 @@ docs-linkcheck: docs
 serve-docs: install
 	DISABLE_MKDOCS_2_WARNING=true uv run mkdocs serve --strict
 
+# -----------------------------------------------------------------------------
+# Docker
+# -----------------------------------------------------------------------------
 docker-lint: npm-install
 	npx dockerfile-utils lint Dockerfile .devcontainer/Dockerfile
 
@@ -185,6 +242,12 @@ docker-scan: docker-build docker-build-test
 
 docker-check: docker-lint docker-test docker-smoke docker-scan
 
+# -----------------------------------------------------------------------------
+# Repository quality
+# -----------------------------------------------------------------------------
+markdownlint: npm-install
+	npx markdownlint-cli2
+
 workflow-lint: install
 	uv run pre-commit run actionlint --files $$(find .github/workflows -type f \( -name '*.yml' -o -name '*.yaml' \))
 	uv run zizmor --min-severity medium .github/workflows
@@ -192,14 +255,20 @@ workflow-lint: install
 spellcheck: npm-install
 	npx cspell .
 
+# -----------------------------------------------------------------------------
+# Dependencies and security
+# -----------------------------------------------------------------------------
+lock-check: bootstrap
+	uv lock --check
+
+deps: bootstrap
+	uv run deptry src examples
+
 secrets: install  # pragma: allowlist secret
 	uv run detect-secrets-hook --baseline .secrets.baseline --no-verify --cores 1 $$(git ls-files --cached --others --exclude-standard ':!:package-lock.json' ':!:uv.lock' ':!:notebooks/demo.ipynb')  # pragma: allowlist secret
 
 security: bootstrap
 	uv run bandit -q -c pyproject.toml -r src examples
-
-deps: bootstrap
-	uv run deptry src examples
 
 audit: bootstrap
 	@audit_file=$$(mktemp); \
@@ -207,6 +276,9 @@ audit: bootstrap
 	uv export --quiet --locked --all-groups --no-emit-project --format requirements-txt --output-file "$$audit_file" && \
 	uv run pip-audit --requirement "$$audit_file" --require-hashes --disable-pip --strict --progress-spinner off
 
+# -----------------------------------------------------------------------------
+# Release artifacts
+# -----------------------------------------------------------------------------
 sbom: bootstrap
 	@sbom_env=$$(mktemp -d); \
 	trap 'rm -rf "$$sbom_env"' 0 1 2 15; \
@@ -234,6 +306,9 @@ build: bootstrap
 	$(MAKE) smoke-dist
 	$(MAKE) sbom
 
+# -----------------------------------------------------------------------------
+# Validation suites
+# -----------------------------------------------------------------------------
 check: bootstrap
 	@status=0; \
 	echo "==> uv lockfile"; \
@@ -314,16 +389,6 @@ check-all: bootstrap
 	exit $$status
 
 ca: check-all
-
-ready:
-	@for step in install check; do \
-		if ! $(MAKE) $$step; then \
-			echo "Environment setup failed during $$step."; \
-			exit 1; \
-		fi; \
-	done; \
-	echo ""; \
-	echo "Environment is ready."
 
 precommit: install npm-install
 	uv run pre-commit run $(PRECOMMIT_ARGS)
