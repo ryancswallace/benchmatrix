@@ -5,7 +5,9 @@ on:
     paths:
       - docs/**
       - mkdocs.yml
+      - Makefile
       - pyproject.toml
+      - uv.lock
       - README.md
       - CHANGELOG.md
       - CONTRIBUTING.md
@@ -16,7 +18,9 @@ on:
     paths:
       - docs/**
       - mkdocs.yml
+      - Makefile
       - pyproject.toml
+      - uv.lock
       - README.md
       - CHANGELOG.md
       - CONTRIBUTING.md
