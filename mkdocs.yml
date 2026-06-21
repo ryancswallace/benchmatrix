@@ -49,6 +49,7 @@ nav:
   - How-to guides:
       - Create a benchmark matrix: how-to/create-benchmark-matrix.md
       - Parse benchmark results: how-to/parse-results.md
+      - Run with Docker: how-to/run-with-docker.md
       - Troubleshooting: how-to/troubleshooting.md
   - Reference:
       - Overview: reference/index.md
@@ -78,6 +79,7 @@ nav:
   - Maintainer runbooks:
       - Overview: runbooks/index.md
       - Release: runbooks/release.md
+      - Container release: runbooks/container-release.md
       - Dependency update: runbooks/dependency-update.md
       - Security report: runbooks/security-report.md
       - Incident response: runbooks/incident-response.md

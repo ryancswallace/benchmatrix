@@ -51,6 +51,8 @@ dependencies:
           - ".github/dependabot.yml"
           - ".pre-commit-config.yaml"
           - ".devcontainer/**"
+          - "Dockerfile"
+          - ".dockerignore"
           - "pyproject.toml"
           - "uv.lock"
           - "package.json"
@@ -85,6 +87,8 @@ automation:
           - ".github/settings.yml"
           - ".pre-commit-config.yaml"
           - ".markdownlint-cli2.yaml"
+          - "Dockerfile"
+          - ".dockerignore"
           - "cspell.json"
 
 dev-environment:

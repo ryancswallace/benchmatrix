@@ -18,8 +18,10 @@ CI should verify project health without granting unnecessary write access.
   instead of long-lived publishing tokens.
 * Release artifacts are attested with GitHub artifact attestations before they
   are published.
-* Artifacts should be limited to build outputs such as distributions, SBOM
-  files, and attestation metadata.
+* Docker images are built in a dedicated workflow, scanned with Trivy, and only
+  pushed from non-pull-request events with `packages: write`.
+* Artifacts should be limited to build outputs such as distributions, container
+  images, SBOM files, and attestation metadata.
 
 ## Pull requests
 

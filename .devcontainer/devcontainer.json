@@ -7,6 +7,13 @@
         "ghcr.io/devcontainers/features/node:2": {
             "version": "24",
             "npmVersion": "latest"
+        },
+        "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+            "version": "latest",
+            "moby": true,
+            "installDockerBuildx": true,
+            "dockerDashComposeVersion": "none",
+            "installDockerComposeSwitch": false
         }
     },
     "containerEnv": {
@@ -40,7 +47,6 @@
                 "ms-python.debugpy",
                 "ms-python.python",
                 "ms-python.vscode-pylance",
-                "ms-toolsai.jupyter",
                 "ms-vscode.makefile-tools",
                 "nhoizey.gremlins",
                 "streetsidesoftware.code-spell-checker",

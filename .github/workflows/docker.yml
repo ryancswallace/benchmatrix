@@ -1,0 +1,175 @@
+name: Docker
+
+on:
+  pull_request:
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - package.json
+      - package-lock.json
+      - pyproject.toml
+      - uv.lock
+      - README.md
+      - LICENSE
+      - Makefile
+      - src/**
+      - tests/**
+      - examples/**
+      - .github/workflows/docker.yml
+  push:
+    branches:
+      - main
+    tags:
+      - v*
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUNTIME_IMAGE: ghcr.io/ryancswallace/benchmatrix
+  TEST_IMAGE: ghcr.io/ryancswallace/benchmatrix-test
+  LOCAL_RUNTIME_IMAGE: benchmatrix:ci
+  LOCAL_TEST_IMAGE: benchmatrix-test:ci
+
+jobs:
+  docker:
+    name: Build and scan Docker images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Lint Dockerfiles
+        run: make docker-lint
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Generate runtime image metadata
+        id: runtime-meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.RUNTIME_IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+
+      - name: Generate test image metadata
+        id: test-meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.TEST_IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+
+      - name: Build test image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: test
+          load: true
+          tags: ${{ env.LOCAL_TEST_IMAGE }}
+          labels: ${{ steps.test-meta.outputs.labels }}
+          cache-from: type=gha,scope=test
+          cache-to: type=gha,mode=max,scope=test
+
+      - name: Run test image
+        run: docker run --rm "${LOCAL_TEST_IMAGE}"
+
+      - name: Build runtime image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: runtime
+          load: true
+          tags: ${{ env.LOCAL_RUNTIME_IMAGE }}
+          labels: ${{ steps.runtime-meta.outputs.labels }}
+          cache-from: type=gha,scope=runtime
+          cache-to: type=gha,mode=max,scope=runtime
+
+      - name: Smoke-test runtime image
+        run: docker run --rm "${LOCAL_RUNTIME_IMAGE}"
+
+      - name: Scan runtime image for critical vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.LOCAL_RUNTIME_IMAGE }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL
+
+      - name: Scan test image for critical vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.LOCAL_TEST_IMAGE }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL
+          skip-setup-trivy: true
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish runtime image
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: runtime
+          push: true
+          tags: ${{ steps.runtime-meta.outputs.tags }}
+          labels: ${{ steps.runtime-meta.outputs.labels }}
+          cache-from: type=gha,scope=runtime
+          cache-to: type=gha,mode=max,scope=runtime
+          provenance: true
+          sbom: true
+
+      - name: Publish test image
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: test
+          push: true
+          tags: ${{ steps.test-meta.outputs.tags }}
+          labels: ${{ steps.test-meta.outputs.labels }}
+          cache-from: type=gha,scope=test
+          cache-to: type=gha,mode=max,scope=test
+          provenance: true
+          sbom: true

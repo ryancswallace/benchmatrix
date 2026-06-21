@@ -15,6 +15,17 @@ The release workflow publishes from the `pypi` environment with PyPI Trusted
 Publishing and OIDC. Do not add a long-lived PyPI token unless Trusted
 Publishing is temporarily blocked.
 
+## Docker images
+
+The Docker workflow builds separate runtime and test images. Pull requests build
+and scan images without publishing them. Pushes to `main` and release tags that
+match `v*` publish images to GitHub Container Registry.
+
+The devcontainer uses Docker-outside-of-Docker so maintainers can run Docker
+checks locally against the host Docker daemon after rebuilding the devcontainer.
+Normal local validation still avoids Docker image builds; `make check` only lints
+Dockerfiles.
+
 ## Documentation site
 
 Build the site locally with:

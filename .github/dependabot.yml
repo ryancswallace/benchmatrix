@@ -99,6 +99,22 @@ updates:
           - "patch"
 
   - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "08:30"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "maintenance"
+      - "automation"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
+  - package-ecosystem: "docker"
     directory: "/.devcontainer"
     schedule:
       interval: "weekly"

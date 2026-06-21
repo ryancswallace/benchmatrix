@@ -113,9 +113,11 @@ confirming the tag, changelog, and workflow run are for the intended version.
 4. Check the release workflow artifacts and attestations.
 5. Confirm the Release verification workflow installed `benchmatrix==X.Y.Z`
    from PyPI and imported `BenchmarkCase` successfully.
-6. Confirm the documentation deployment for `main` completed if release docs
+6. Confirm the Docker workflow published and smoke-tested the GHCR images for
+   the release tag.
+7. Confirm the documentation deployment for `main` completed if release docs
    changed.
-7. Close the release issue or checklist item, if one exists.
+8. Close the release issue or checklist item, if one exists.
 
 ## Manual workflow dispatch
 

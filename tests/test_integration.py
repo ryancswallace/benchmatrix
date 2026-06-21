@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import os
+import shutil
 import subprocess
 import sys
 import textwrap
@@ -63,6 +64,15 @@ def _venv_python(venv_path: Path) -> Path:
         return venv_path / "Scripts" / "python.exe"
 
     return venv_path / "bin" / "python"
+
+
+def _uv() -> str:
+    """Return the uv executable path, or skip when unavailable."""
+    uv_path = shutil.which("uv")
+    if uv_path is None:
+        pytest.skip("uv is required for packaging smoke tests")
+
+    return uv_path
 
 
 def test_harness_runs_with_real_pytest_benchmark_fixture(benchmark: _BenchmarkFixture) -> None:
@@ -141,17 +151,20 @@ def test_make_benchmark_test_is_collected_by_real_pytest(tmp_path: Path) -> None
 def test_built_wheel_can_be_imported_from_clean_virtualenv(tmp_path: Path) -> None:
     dist_dir = tmp_path / "dist"
     venv_dir = tmp_path / "venv"
+    uv = _uv()
 
     _ = _run_command(
-        [sys.executable, "-m", "build", "--wheel", "--outdir", str(dist_dir)],
+        [uv, "build", "--wheel", "--out-dir", str(dist_dir)],
         cwd=_PROJECT_ROOT,
     )
     wheels = sorted(dist_dir.glob("benchmatrix-*.whl"))
     assert len(wheels) == 1
 
-    _ = _run_command([sys.executable, "-m", "venv", str(venv_dir)], cwd=_PROJECT_ROOT)
+    _ = _run_command([uv, "venv", "--quiet", str(venv_dir)], cwd=_PROJECT_ROOT)
     python = _venv_python(venv_dir)
-    _ = _run_command([str(python), "-m", "pip", "install", "--no-deps", str(wheels[0])], cwd=_PROJECT_ROOT)
+    _ = _run_command(
+        [uv, "pip", "install", "--quiet", "--python", str(python), "--no-deps", str(wheels[0])], cwd=_PROJECT_ROOT
+    )
     import_script = (
         "import benchmatrix; "
         + "print(benchmatrix.__version__); "

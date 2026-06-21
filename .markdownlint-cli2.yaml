@@ -11,4 +11,18 @@ globs:
   - "**/*.md"
 
 ignores:
+  - "__pycache__/**"
+  - ".benchmarks/**"
+  - ".benchmarks/**"
+  - ".coverage/**"
+  - ".git/**"
+  - ".hypothesis/**"
+  - ".nox/**"
+  - ".pytest_cache/**"
+  - ".ruff_cache/**"
+  - ".venv/**"
+  - "build/**"
+  - "dist/**"
   - "node_modules/**"
+  - "reports/**"
+  - "vendor/**"

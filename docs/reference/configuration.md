@@ -8,10 +8,10 @@ Run the complete local validation suite with:
 make check
 ```
 
-It verifies the lockfile, Ruff, Markdown, GitHub Actions workflows, spelling,
-secret scanning, Bandit, deptry, pip-audit, tests and coverage, minimum direct
-dependency versions, basedpyright, documentation links, distribution metadata,
-and SBOM generation.
+It verifies the lockfile, Ruff, Markdown, Dockerfiles, GitHub Actions workflows,
+spelling, secret scanning, Bandit, deptry, pip-audit, tests and coverage,
+minimum direct dependency versions, basedpyright, documentation links,
+distribution metadata, and SBOM generation.
 
 ## Dependency groups
 
@@ -69,6 +69,9 @@ locally:
   publishes to PyPI through Trusted Publishing.
 * `.github/workflows/release-verify.yml` verifies post-release installation from
   PyPI after a GitHub Release is published.
+* `.github/workflows/docker.yml` builds runtime and test Docker images, scans
+  them for critical vulnerabilities, and publishes them to GHCR from `main` and
+  `v*` tags.
 * `.github/workflows/workflow-lint.yml` runs actionlint and zizmor for workflow
   configuration changes, using `.github/zizmor.yml` for project-specific audit
   policy.
@@ -103,7 +106,7 @@ that have manifests in this repository:
 * `npm` for Markdown and spelling tooling in `package.json`;
 * `pre-commit` for hook revisions in `.pre-commit-config.yaml`;
 * `github-actions` for workflow actions under `.github/workflows/`;
-* `docker` for the devcontainer base image;
+* `docker` for the runtime Docker image and devcontainer base images;
 * `devcontainers` for devcontainer features.
 
 Dependabot pull requests should be labeled with `dependencies` and
@@ -133,6 +136,39 @@ uv run nox --tags quality
 uv run nox --tags docs
 uv run nox -s release
 ```
+
+## Docker images
+
+Build and smoke-test the runtime image locally with:
+
+```bash
+make docker-build
+make docker-smoke
+```
+
+Build and run the test image locally with:
+
+```bash
+make docker-test
+```
+
+Run all local Docker checks with:
+
+```bash
+make docker-check
+```
+
+Scan locally built images for critical vulnerabilities with:
+
+```bash
+make docker-scan
+```
+
+`make check` runs Dockerfile linting but does not build Docker images, so normal
+local validation does not require a Docker daemon. The devcontainer includes the
+Docker-outside-of-Docker feature so contributors can run `make docker-check`
+after rebuilding the devcontainer. The Docker workflow builds, scans, and
+publishes images in GitHub Actions.
 
 ## Generated artifacts
 

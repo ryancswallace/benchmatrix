@@ -43,3 +43,6 @@ additional pre-1.0 compatibility expectations described in
   to release refs matching `refs/tags/v*`.
 * Added CI test and coverage report artifacts, documentation link checking,
   minimum-dependency tests, and post-release PyPI installation verification.
+* Added Docker runtime and test images, local Docker targets,
+  Docker-outside-of-Docker devcontainer support, Dockerfile linting, GHCR
+  publishing, image SBOM/provenance, and critical-vulnerability image scanning.
