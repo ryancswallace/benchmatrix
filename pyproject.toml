@@ -33,7 +33,7 @@ classifiers = [
     "Topic :: Software Development :: Testing",
 ]
 dependencies = [
-    "pytest>=8.4",
+    "pytest>=9.1.1",
     "pytest-benchmark>=5.2.3",
 ]
 
@@ -46,13 +46,13 @@ Source = "https://github.com/ryancswallace/benchmatrix"
 
 [dependency-groups]
 test = [
-    "hypothesis>=6.148.0",
+    "hypothesis>=6.155.7",
     "numpy>=2.2.6",
     "pytest-cov>=7.1.0",
 ]
 lint = [
     "pre-commit>=4.6.0",
-    "ruff>=0.15.17",
+    "ruff>=0.15.18",
 ]
 type = [
     "basedpyright>=1.39.8",
@@ -61,14 +61,14 @@ docs = [
     "linkchecker>=10.6.0",
     "mkdocs-gen-files>=0.5.0",
     "mkdocs>=1.6.1",
-    "mkdocstrings[python]>=0.30.0",
+    "mkdocstrings[python]>=1.0.4",
 ]
 security = [
     "bandit[toml]>=1.9.4",
     "deptry>=0.25.1",
     "detect-secrets>=1.5.0",
     "pip-audit>=2.10.1",
-    "zizmor>=1.25.2",
+    "zizmor>=1.26.1",
 ]
 release = [
     "build>=1.5.0",
@@ -93,7 +93,7 @@ link-mode = "copy"
 required-version = ">=0.11.8,<0.12"
 
 [build-system]
-requires = ["hatchling>=1.27"]
+requires = ["hatchling>=1.30.1"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.sdist]
