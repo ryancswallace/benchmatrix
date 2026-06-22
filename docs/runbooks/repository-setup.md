@@ -18,8 +18,8 @@ inside this repository.
    this repository.
 3. Confirm `.github/settings.yml` is on `main`.
 4. Watch the app output or repository settings after installation and verify:
-   description, homepage, topics, merge strategies, vulnerability alerts, and
-   `main` branch protection.
+   description, homepage, topics, merge strategies, vulnerability alerts,
+   deployment environments, and `main` branch protection.
 5. If the app reports an unsupported setting, configure that item manually and
    update `docs/explanation/repository-settings.md` with the exception.
 
@@ -89,24 +89,24 @@ inside this repository.
 1. Confirm `make docs` passes locally and in CI.
 2. Go to Settings -> Pages.
 3. Set Build and deployment -> Source to GitHub Actions.
-4. Create or verify the `github-pages` environment.
-5. Restrict deployment to the default branch in the environment settings.
-6. Run the documentation workflow once from `main`.
-7. Confirm the site resolves at `https://ryancswallace.github.io/benchmatrix/`.
-8. If the site URL changes, update `mkdocs.yml`, `.github/settings.yml`,
+4. Verify the Settings app created the `github-pages` environment and
+   restricted deployments to `main`.
+5. Run the documentation workflow once from `main`.
+6. Confirm the site resolves at `https://ryancswallace.github.io/benchmatrix/`.
+7. If the site URL changes, update `mkdocs.yml`, `.github/settings.yml`,
    `pyproject.toml`, and docs that mention the URL.
 
 ## PyPI Trusted Publishing
 
 1. Create or claim the PyPI project `benchmatrix`.
-2. Create the GitHub environment `pypi`.
-3. Add trusted maintainer reviewers to the `pypi` environment.
-4. Restrict environment deployments to release refs if the repository plan
-   supports that control.
-5. Do not add PyPI secrets to the environment when Trusted Publishing is the
+2. Verify the Settings app created the GitHub environment `pypi` and
+   restricted deployments to `v*` tags.
+3. Add trusted maintainer reviewers to the `pypi` environment if the repository
+   plan supports that control.
+4. Do not add PyPI secrets to the environment when Trusted Publishing is the
    intended path.
-6. In PyPI, open the project -> Publishing -> Add trusted publisher.
-7. Configure:
+5. In PyPI, open the project -> Publishing -> Add trusted publisher.
+6. Configure:
 
    ```text
    owner: ryancswallace
@@ -115,10 +115,10 @@ inside this repository.
    environment: pypi
    ```
 
-8. Confirm `.github/workflows/release.yml` grants `id-token: write` to the
+7. Confirm `.github/workflows/release.yml` grants `id-token: write` to the
    publish job and uses the `pypi` environment.
-9. Do not add a long-lived PyPI token if Trusted Publishing works.
-10. If a token is temporarily unavoidable, make it project-scoped, store it as
+8. Do not add a long-lived PyPI token if Trusted Publishing works.
+9. If a token is temporarily unavoidable, make it project-scoped, store it as
     an environment secret, and remove it after Trusted Publishing is working.
 
 ## Repository profile

@@ -1,7 +1,7 @@
 # Repository settings-as-code for the GitHub Settings app.
 # Install https://github.com/apps/settings to sync this file from the default
-# branch. Settings that GitHub only exposes through UI, rulesets, environments,
-# or external services are documented in docs/runbooks/repository-setup.md.
+# branch. Settings that GitHub only exposes through UI, rulesets, or
+# external services are documented in docs/runbooks/repository-setup.md.
 
 repository:
   description: "Build pytest-benchmark matrices and parse benchmark results with lightweight Python utilities."
@@ -43,3 +43,14 @@ branches:
       allow_deletions: false
       required_conversation_resolution: true
       restrictions: null
+
+environments:
+  - name: "github-pages"
+    deployment_branch_policy:
+      custom_branches:
+        - main
+  - name: "pypi"
+    deployment_branch_policy:
+      custom_branches:
+        - name: v*
+          type: tag

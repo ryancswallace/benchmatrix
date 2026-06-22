@@ -15,7 +15,8 @@ the app is installed, changes merged to the default branch sync these settings:
 * Dependabot alerts and automated security fixes;
 * `main` branch protection, including required reviews, code owner review,
   stale review dismissal, last-push approval, required status checks, linear
-  history, blocked force pushes, blocked deletions, and conversation resolution.
+  history, blocked force pushes, blocked deletions, and conversation resolution;
+* deployment environments and their branch or tag deployment policies.
 
 Install the Settings app only after branch protection is active enough that
 changes to `.github/settings.yml` require review. The app can change repository
@@ -98,15 +99,14 @@ default branch. Do not commit the generated `site/` directory.
 
 ## GitHub environments
 
-Create environments before wiring publish workflows to them:
+The GitHub Settings app syncs these environments from `.github/settings.yml`:
 
-* `github-pages` for documentation deployment;
-* `pypi` for package publishing.
+* `github-pages` for documentation deployment, restricted to `main`;
+* `pypi` for package publishing, restricted to `v*` tags.
 
-For `pypi`, require trusted maintainer review before deployment and restrict
-deployments to release refs when the repository plan supports it. Keep secrets
-out of the environment when using PyPI Trusted Publishing because OIDC should
-provide a short-lived publishing token.
+For `pypi`, require trusted maintainer review before deployment when the
+repository plan supports it. Keep secrets out of the environment when using PyPI
+Trusted Publishing because OIDC should provide a short-lived publishing token.
 
 ## PyPI Trusted Publishing
 
