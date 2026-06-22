@@ -131,7 +131,7 @@ updates:
       include: "scope"
 
   - package-ecosystem: "devcontainers"
-    directory: "/.devcontainer"
+    directory: "/"
     schedule:
       interval: "weekly"
       day: "wednesday"

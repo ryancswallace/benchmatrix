@@ -90,7 +90,7 @@ dev = [
 
 [tool.uv]
 link-mode = "copy"
-required-version = ">=0.11.21,<0.12"
+required-version = ">=0.11.8,<0.12"
 
 [build-system]
 requires = ["hatchling>=1.27"]

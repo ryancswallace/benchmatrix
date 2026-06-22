@@ -4,16 +4,19 @@
         "dockerfile": "Dockerfile"
     },
     "features": {
-        "ghcr.io/devcontainers/features/node:2": {
-            "version": "24",
-            "npmVersion": "latest"
-        },
         "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
             "version": "latest",
             "moby": true,
             "installDockerBuildx": true,
             "dockerDashComposeVersion": "none",
             "installDockerComposeSwitch": false
+        },
+        "ghcr.io/devcontainers/features/github-cli:1": {
+            "version": "latest"
+        },
+        "ghcr.io/devcontainers/features/node:2": {
+            "version": "24",
+            "npmVersion": "latest"
         }
     },
     "containerEnv": {
@@ -41,6 +44,8 @@
                 "charliermarsh.ruff",
                 "davidanson.vscode-markdownlint",
                 "detachhead.basedpyright",
+                "github.vscode-github-actions",
+                "github.vscode-pull-request-github",
                 "gruntfuggly.todo-tree",
                 "mikestead.dotenv",
                 "ms-azuretools.vscode-containers",
