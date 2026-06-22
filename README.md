@@ -1,29 +1,34 @@
 # benchmatrix
 
-`benchmatrix` is a small matrix and results layer for
-[`pytest-benchmark`](https://pytest-benchmark.readthedocs.io/). It helps define
-repeatable benchmark suites across multiple implementations, input cases, and
-metric views, then parse the JSON produced by pytest-benchmark into structured,
-metric-aware results.
+[![CI](https://github.com/ryancswallace/benchmatrix/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ryancswallace/benchmatrix/actions/workflows/ci.yml)
+[![Documentation](https://github.com/ryancswallace/benchmatrix/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/ryancswallace/benchmatrix/actions/workflows/docs.yml)
+[![Docker](https://github.com/ryancswallace/benchmatrix/actions/workflows/docker.yml/badge.svg?branch=main)](https://github.com/ryancswallace/benchmatrix/actions/workflows/docker.yml)
+[![CodeQL](https://github.com/ryancswallace/benchmatrix/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/ryancswallace/benchmatrix/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://github.com/ryancswallace/benchmatrix/actions/workflows/scorecard.yml/badge.svg?branch=main)](https://github.com/ryancswallace/benchmatrix/actions/workflows/scorecard.yml)
+[![Workflow lint](https://github.com/ryancswallace/benchmatrix/actions/workflows/workflow-lint.yml/badge.svg?branch=main)](https://github.com/ryancswallace/benchmatrix/actions/workflows/workflow-lint.yml)
+[![Python 3.11-3.14](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-3776AB?logo=python&logoColor=white)](https://github.com/ryancswallace/benchmatrix/blob/main/pyproject.toml)
+[![License: MIT](https://img.shields.io/github/license/ryancswallace/benchmatrix?color=blue)](https://github.com/ryancswallace/benchmatrix/blob/main/LICENSE)
+[![Typed with basedpyright](https://img.shields.io/badge/types-basedpyright-2f6fdd)](https://github.com/DetachHead/basedpyright)
+[![Linted with Ruff](https://img.shields.io/badge/lint-Ruff-46a2f1)](https://docs.astral.sh/ruff/)
+[![Coverage gate: 95%](https://img.shields.io/badge/coverage%20gate-%E2%89%A595%25-2e7d32)](https://github.com/ryancswallace/benchmatrix/blob/main/pyproject.toml)
+[![SBOM: CycloneDX 1.6](https://img.shields.io/badge/SBOM-CycloneDX%201.6-6f42c1)](https://cyclonedx.org/)
 
-pytest-benchmark remains the measurement engine. It performs calibration,
-timing, statistics, reporting, and JSON export. benchmatrix adds:
+**Benchmark matrices for Python projects that need performance data they can
+trust, compare, and parse.**
 
-* implementation-by-case-by-metric pytest parameter matrices;
-* strict JSON-safe metadata identifying each benchmark invocation;
-* conventions for single-call latency, logical-work throughput, and local
-  latency-distribution comparisons;
-* parsing and concise display of benchmatrix-tagged pytest-benchmark JSON output.
+benchmatrix sits on top of
+[pytest-benchmark](https://pytest-benchmark.readthedocs.io/) and adds the layer
+that benchmark suites usually grow by hand: implementation-by-case matrices,
+strict JSON-safe metadata, metric-aware result parsing, and concise display of
+saved benchmark runs.
 
-benchmatrix is intended for synchronous Python callables. It is not a replacement
-for pytest-benchmark, a load-testing tool, or a production latency monitor.
-In particular, its tail-latency metric summarizes local pytest-benchmark
-samples; it does not measure service p95/p99 latency under concurrent load.
+| Build repeatable suites | Keep metrics honest | Parse saved runs |
+| --- | --- | --- |
+| Generate pytest benchmark tests across implementations, cases, and metric views. | Separate latency, throughput, and local distribution comparisons instead of mixing unlike numbers. | Load benchmatrix-tagged pytest-benchmark JSON rows into structured Python objects. |
 
-## Basic usage
+## Quick Start
 
-Define implementations and cases, then assign the generated pytest function to
-a module-level `test_*` name:
+Create a benchmark matrix from ordinary synchronous callables:
 
 ```python
 from benchmatrix import BenchmarkCase, make_benchmark_test
@@ -32,6 +37,7 @@ implementations = {
     "builtin": sum,
     "loop": lambda values: sum(value for value in values),
 }
+
 cases = [
     BenchmarkCase.from_values(
         "small",
@@ -44,200 +50,94 @@ cases = [
 test_sum_matrix = make_benchmark_test(implementations, cases)
 ```
 
-Run it through pytest-benchmark and save machine-readable results:
+Run it with pytest-benchmark and keep the machine-readable output:
 
 ```bash
-uv run pytest path/to/test_benchmarks.py --benchmark-json benchmark.json
+uv run pytest tests/test_sum_benchmark.py --benchmark-json benchmark.json
 ```
 
-Parse benchmatrix-tagged rows separately:
+Read the tagged rows back later:
 
 ```python
 from benchmatrix import display_benchmark_rows, load_benchmark_json
 
-display_benchmark_rows(load_benchmark_json("benchmark.json"))
+rows = load_benchmark_json("benchmark.json")
+display_benchmark_rows(rows)
 ```
 
-## Measurement semantics
+## Why It Exists
 
-benchmatrix presents three views of timings produced by pytest-benchmark:
+pytest-benchmark owns timing, calibration, statistics, terminal reporting, and
+JSON export. benchmatrix owns the repeatable structure around those timings.
 
-* `single_call_latency` measures the elapsed time of one synchronous target
-  invocation. pytest-benchmark may execute many calibrated invocations to
-  estimate that value. Input construction is excluded unless it happens inside
-  the target function.
-* `batch_throughput` measures the same target invocation, then derives either
-  calls per second or logical work units per second. With `work_units=100` and
-  `work_unit_name="items"`, one completed target call represents 100 items of
-  work. This is derived single-process throughput, not concurrent load,
-  saturation throughput, or request throughput for a deployed service.
-* `tail_latency` uses pytest-benchmark pedantic rounds and derives
-  p50/p90/p95/p99 from the raw JSON samples. It is useful for comparing the
-  local timing distributions of implementations. It is not production tail
-  latency under traffic, contention, queueing, retries, or network load.
+| Need | benchmatrix gives you |
+| --- | --- |
+| Compare multiple implementations | One generated pytest benchmark matrix instead of repeated parametrization code. |
+| Track what each timing means | JSON-safe invocation metadata with implementation, case, and metric identity. |
+| Report different metric views | Single-call latency, logical-work throughput, and local tail-latency summaries. |
+| Reuse benchmark output | Parsers and display helpers for pytest-benchmark JSON produced by benchmatrix tests. |
 
-The returned `BenchmarkInvocationRecord` contains identifying metadata, not
-timing results. Read timings from pytest-benchmark's terminal output, saved
-runs, or JSON output. `load_benchmark_json` turns benchmatrix-tagged JSON rows
-into metric-aware result objects.
+benchmatrix is intentionally narrow: it benchmarks synchronous Python callables.
+It is not a load-testing framework, production latency monitor, or replacement
+for pytest-benchmark.
 
-### Common traps
+## Install
 
-* **Benchmarking lazy setup instead of completed work.** A target returning a
-  generator, coroutine, query plan, future, or other deferred object may only
-  measure object creation. Consume or resolve lazy results inside the target.
-  Async target functions are intentionally unsupported.
-* **Reusing mutated inputs.** By default, repeated invocations receive the same
-  argument objects. Use `fresh_inputs=True` when the target mutates its inputs.
-  The default fresh-input copier is shallow; use `deep_copy` or a
-  domain-specific copier when nested mutable state must be rebuilt.
-* **Confusing setup cost with operation cost.** Fresh-input factories and
-  copying run outside the timed target body. Put construction inside the target
-  when end-to-end construction cost is part of the operation being measured.
-* **Misstating work units.** `work_units` must describe the logical work
-  completed by one target call and must be comparable across implementations.
-  Incorrect counts produce precise-looking but incorrect throughput values.
-* **Using aggregate samples as one-call tail latency.** Keep
-  `pedantic_iterations=1` for `tail_latency`. Values above one represent
-  per-round aggregate timing samples rather than clean one-call samples.
-* **Comparing unlike environments.** Python version, build options, dependency
-  versions, CPU, power management, thermal state, and background activity can
-  materially affect results. Compare runs from controlled, similarly configured
-  environments and retain pytest-benchmark metadata with saved results.
-* **Treating small differences as conclusions.** Repeat runs, inspect the
-  distribution and outliers, and prefer stable differences over a single mean
-  value. Establish a representative baseline before using performance
-  thresholds.
-* **Ignoring correctness.** Verify implementations separately or assert their
-  outputs before relying on performance comparisons. A faster implementation
-  that performs less work is not an equivalent benchmark.
-
-## Development setup
-
-From the root of the repository, open a terminal and run:
+For local development from this repository:
 
 ```bash
 make ready
 ```
 
-The environment is ready if the command passes.
-
-Outside the devcontainer, install Node.js 22.18 or newer with npm; `make check`
-uses npm for Markdown and spelling checks.
-
-Development uses Python 3.14 by default via `.python-version`. The package supports Python 3.11 through 3.14.
-
-Install the repository's pre-commit and pre-push hooks once after cloning:
+To try the package from another project before the first PyPI release, install
+from GitHub:
 
 ```bash
-make hooks-install
+uv add "benchmatrix @ git+https://github.com/ryancswallace/benchmatrix"
 ```
 
-## Working locations
+## Documentation
 
-* `notebooks/` for demos
-* `src/benchmatrix/` for the package implementation
-* `tests/` for tests
-* `data/` for provided dummy test data
+| Start here | Use it for |
+| --- | --- |
+| [First benchmark](docs/tutorials/first-benchmark.md) | A complete first benchmark from test file to parsed JSON. |
+| [Create a benchmark matrix](docs/how-to/create-benchmark-matrix.md) | Cases, work units, fresh inputs, and synchronous target wrappers. |
+| [Parse benchmark results](docs/how-to/parse-results.md) | Loading and displaying benchmatrix-tagged pytest-benchmark JSON. |
+| [Performance model](docs/explanation/performance.md) | What the metrics mean and what they do not prove. |
+| [Configuration and automation](docs/reference/configuration.md) | Make targets, CI workflows, Docker checks, docs, and SBOM generation. |
 
-## Useful commands
+The MkDocs site builds in strict mode and generates API reference pages from the
+package docstrings.
+
+## Quality Signals
+
+benchmatrix is small, but its project hygiene is deliberately serious:
+
+* Python 3.11 through 3.14, tested on Linux, macOS, and Windows.
+* Ruff formatting and linting, basedpyright type checks, pytest coverage with a
+  95% minimum, and minimum-dependency tests.
+* Strict Markdown, spelling, workflow linting with actionlint and zizmor, and
+  strict MkDocs builds with link checking.
+* CodeQL, OpenSSF Scorecard, Dependabot, dependency review, Bandit,
+  detect-secrets, deptry, and pip-audit.
+* Docker runtime and test images that build, run, scan with Trivy, and publish
+  to GHCR with provenance and SBOMs.
+* Reproducible package builds with a CycloneDX 1.6 SBOM generated by `make build`.
+
+Run the same local gate CI expects:
 
 ```bash
-make install
-make hooks-install
-make test
-make test-matrix
-make lint
-make markdownlint
-make workflow-lint
-make docs
-make spellcheck
-make secrets
-make security
-make deps
-make audit
-make sbom
-make typecheck
-make build
 make check
-make format
-make clean
-make precommit
 ```
 
-`make check` is the authoritative local validation command. It verifies the uv
-lockfile, Ruff linting and formatting, Markdown, documentation site, GitHub
-Actions workflows, spelling, secrets, Bandit security checks, deptry dependency
-checks, pip-audit vulnerability checks, tests and coverage, basedpyright,
-distribution metadata, and CycloneDX SBOM generation.
+## Project Links
 
-`make test-matrix` runs the nox automation: tests on every supported Python
-version (3.11 through 3.14), Ruff, basedpyright, Bandit, deptry, and an isolated
-distribution build/install smoke test. Nox uses uv-backed environments and the
-locked project dependencies. Run an individual session with, for example,
-`uv run nox -s tests-3.11`, all quality sessions with
-`uv run nox --tags quality`, or the docs session with `uv run nox --tags docs`.
-
-`make docs` builds the MkDocs site in strict mode. The API reference section is
-generated from package docstrings during the build and is integrated under the
-Reference navigation.
-
-`make precommit` runs every configured hook against all tracked files. Secret
-scanning uses the reviewed `.secrets.baseline`; update that baseline only after
-confirming that newly detected values are safe to commit.
-
-`make sbom` creates `dist/benchmatrix.cdx.json`, a validated, reproducible
-CycloneDX 1.6 JSON SBOM for benchmatrix and its locked runtime dependencies. It
-uses an isolated runtime-only uv environment, so development tools are not
-reported as package dependencies. `make build` also generates the SBOM, and CI
-uploads it as a build artifact.
-
-## Testing
-
-The test suite uses pytest and pytest-cov. The default test command runs unit, property-based, integration, and packaging smoke tests:
-
-```bash
-make test
-```
-
-Coverage is configured in `pyproject.toml` with branch coverage enabled and a minimum total coverage threshold. The default pytest run prints missing lines and fails if coverage drops below the configured threshold.
-
-Useful focused runs:
-
-```bash
-uv run pytest -m unit
-uv run pytest -m property
-uv run pytest -m integration
-uv run pytest -m "integration and slow"
-uv run pytest -m "not slow"
-```
-
-Markers:
-
-* `unit`: fast isolated tests for package behavior.
-* `property`: Hypothesis-based tests for invariants and broader generated inputs.
-* `integration`: tests that exercise third-party runtime integrations or installed-package behavior.
-* `slow`: slower subprocess or packaging tests.
-* `numpy`: tests that require NumPy and are skipped if NumPy is unavailable.
-
-Representative pytest-benchmark JSON fixtures live under `tests/fixtures/benchmark_results/`. Use these for parser contract tests when a scenario is easier to understand as a JSON artifact than as a large inline dictionary.
-
-## Examples
-
-`examples/test_factorial_benchmarks_simplified.py` shows the generated-test API.
-`examples/test_factorial_benchmarks.py` shows the equivalent explicit pytest
-parametrization. Both compare iterative and recursive factorial implementations
-across every supported metric.
-
-## Project policies
-
-Contributions are welcome. See the [contribution guide](CONTRIBUTING.md) for
-development and pull request expectations.
-
+* [Examples](examples/)
+* [Contributing](CONTRIBUTING.md)
 * [Changelog](CHANGELOG.md)
-* [Code of conduct](CODE_OF_CONDUCT.md)
-* [Release policy](RELEASING.md)
 * [Security policy](SECURITY.md)
+* [Release policy](RELEASING.md)
+* [Code of conduct](CODE_OF_CONDUCT.md)
 * [Citation metadata](CITATION.cff)
 
 ## License
