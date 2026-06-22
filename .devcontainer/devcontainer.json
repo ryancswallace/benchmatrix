@@ -63,5 +63,9 @@
         "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,type=bind,consistency=cached"
     ],
     "postCreateCommand": "make ready",
-    "remoteUser": "vscode"
+    "remoteUser": "vscode",
+    "runArgs": [
+        "--env-file",
+        "${localWorkspaceFolder}/.devcontainer/.env.local"
+    ]
 }
