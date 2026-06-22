@@ -27,7 +27,7 @@ UV_INSTALL_URL ?= https://astral.sh/uv/install.sh
 .PHONY: help
 .PHONY: bootstrap npm-install install hooks-install ready
 .PHONY: clean clean-build
-.PHONY: format lint typecheck markdownlint workflow-lint spellcheck
+.PHONY: format lint typecheck markdownlint workflow-lint workflow-env-lint spellcheck
 .PHONY: test test-min-deps test-matrix
 .PHONY: docs docs-linkcheck serve-docs
 .PHONY: docker-lint docker-ready docker-build docker-build-test docker-test docker-smoke docker-scan docker-check
@@ -79,6 +79,7 @@ help:
 	@echo "Repository quality:"
 	@echo "  markdownlint      Lint Markdown files"
 	@echo "  workflow-lint     Lint GitHub Actions workflow files"
+	@echo "  workflow-env-lint Check referenced GitHub environments exist"
 	@echo "  spellcheck        Run CSpell spell checks"
 	@echo ""
 	@echo "Dependencies and security:"
@@ -252,6 +253,9 @@ workflow-lint: install
 	uv run pre-commit run actionlint --files $$(find .github/workflows -type f \( -name '*.yml' -o -name '*.yaml' \))
 	uv run zizmor --min-severity medium .github/workflows
 
+workflow-env-lint: npm-install
+	npm run workflow-env-lint
+
 spellcheck: npm-install
 	npx cspell .
 
@@ -311,79 +315,89 @@ build: bootstrap
 # -----------------------------------------------------------------------------
 check: bootstrap
 	@status=0; \
+	failed_targets=""; \
 	echo "==> uv lockfile"; \
-	$(MAKE) lock-check || status=$$?; \
+	$(MAKE) lock-check || { status=$$?; failed_targets="$$failed_targets lock-check"; }; \
 	echo ""; \
 	echo "==> Python linting and formatting"; \
-	$(MAKE) lint || status=$$?; \
+	$(MAKE) lint || { status=$$?; failed_targets="$$failed_targets lint"; }; \
 	echo ""; \
 	echo "==> Python type checks"; \
-	$(MAKE) typecheck || status=$$?; \
+	$(MAKE) typecheck || { status=$$?; failed_targets="$$failed_targets typecheck"; }; \
 	echo ""; \
 	echo "==> Pytest unit tests"; \
-	$(MAKE) test || status=$$?; \
+	$(MAKE) test || { status=$$?; failed_targets="$$failed_targets test"; }; \
 	echo ""; \
 	echo "==> Dependency usage checks"; \
-	$(MAKE) deps || status=$$?; \
+	$(MAKE) deps || { status=$$?; failed_targets="$$failed_targets deps"; }; \
 	echo ""; \
 	echo "==> Markdown linting"; \
-	$(MAKE) markdownlint || status=$$?; \
+	$(MAKE) markdownlint || { status=$$?; failed_targets="$$failed_targets markdownlint"; }; \
 	echo ""; \
 	echo "==> Dockerfile linting"; \
-	$(MAKE) docker-lint || status=$$?; \
+	$(MAKE) docker-lint || { status=$$?; failed_targets="$$failed_targets docker-lint"; }; \
 	echo ""; \
 	echo "==> GitHub Actions workflow linting"; \
-	$(MAKE) workflow-lint || status=$$?; \
+	$(MAKE) workflow-lint || { status=$$?; failed_targets="$$failed_targets workflow-lint"; }; \
 	echo ""; \
 	echo "==> CSpell spell checks"; \
-	$(MAKE) spellcheck || status=$$?; \
+	$(MAKE) spellcheck || { status=$$?; failed_targets="$$failed_targets spellcheck"; }; \
 	echo ""; \
 	echo "==> Documentation site and links"; \
-	$(MAKE) docs-linkcheck || status=$$?; \
+	$(MAKE) docs-linkcheck || { status=$$?; failed_targets="$$failed_targets docs-linkcheck"; }; \
 	echo ""; \
 	echo "==> Secret scanning"; \
-	$(MAKE) secrets || status=$$?; \
+	$(MAKE) secrets || { status=$$?; failed_targets="$$failed_targets secrets"; }; \
 	echo ""; \
 	echo "==> Bandit security checks"; \
-	$(MAKE) security || status=$$?; \
+	$(MAKE) security || { status=$$?; failed_targets="$$failed_targets security"; }; \
 	echo ""; \
 	echo "==> pip-audit dependency vulnerabilities"; \
-	$(MAKE) audit || status=$$?; \
+	$(MAKE) audit || { status=$$?; failed_targets="$$failed_targets audit"; }; \
 	echo ""; \
 	echo "==> Minimum dependency tests"; \
-	$(MAKE) test-min-deps || status=$$?; \
+	$(MAKE) test-min-deps || { status=$$?; failed_targets="$$failed_targets test-min-deps"; }; \
 	echo ""; \
 	echo "==> Distribution build, smoke test, and SBOM"; \
-	$(MAKE) build || status=$$?; \
+	$(MAKE) build || { status=$$?; failed_targets="$$failed_targets build"; }; \
 	echo ""; \
 	echo "============================================================"; \
 	if [ "$$status" -eq 0 ]; then \
 		echo "ALL CHECKS PASSED"; \
 	else \
 		echo "CHECKS FAILED (exit $$status)"; \
+		echo "Failed targets:"; \
+		for target in $$failed_targets; do \
+			echo "  - $$target"; \
+		done; \
 	fi; \
 	echo "============================================================"; \
 	exit $$status
 
 check-all: bootstrap
 	@status=0; \
+	failed_targets=""; \
 	echo "==> Standard validation suite"; \
-	$(MAKE) check || status=$$?; \
+	$(MAKE) check || { status=$$?; failed_targets="$$failed_targets check"; }; \
 	echo ""; \
 	echo "==> Full pre-commit hook suite"; \
-	$(MAKE) precommit || status=$$?; \
+	$(MAKE) precommit || { status=$$?; failed_targets="$$failed_targets precommit"; }; \
 	echo ""; \
 	echo "==> Full nox test and quality matrix"; \
-	$(MAKE) test-matrix || status=$$?; \
+	$(MAKE) test-matrix || { status=$$?; failed_targets="$$failed_targets test-matrix"; }; \
 	echo ""; \
 	echo "==> Full Docker validation suite"; \
-	$(MAKE) docker-check || status=$$?; \
+	$(MAKE) docker-check || { status=$$?; failed_targets="$$failed_targets docker-check"; }; \
 	echo ""; \
 	echo "============================================================"; \
 	if [ "$$status" -eq 0 ]; then \
 		echo "ALL AVAILABLE CHECKS PASSED"; \
 	else \
 		echo "CHECK-ALL FAILED (exit $$status)"; \
+		echo "Failed targets:"; \
+		for target in $$failed_targets; do \
+			echo "  - $$target"; \
+		done; \
 	fi; \
 	echo "============================================================"; \
 	exit $$status

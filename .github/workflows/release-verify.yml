@@ -52,7 +52,7 @@ jobs:
 
       - name: Set up uv
         if: steps.version.outputs.should_verify == 'true'
-        uses: astral-sh/setup-uv@v8
+        uses: astral-sh/setup-uv@v8.2.0
         with:
           version: "0.11.21"
           enable-cache: false
