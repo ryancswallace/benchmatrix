@@ -132,7 +132,7 @@ store it only as an environment secret.
 
 Set these repository profile fields:
 
-* description: `pytest-benchmark matrix utilities and result parsing.`;
+* description: `Build pytest-benchmark matrices and parse benchmark results with lightweight Python utilities.`;
 * homepage: `https://ryancswallace.github.io/benchmatrix/` once Pages is live;
 * topics: `benchmark`, `benchmarking`, `performance`, `pytest`,
   `pytest-benchmark`, `python`.

@@ -14,7 +14,7 @@ ENV PATH="/app/.venv/bin:/usr/local/bin:${PATH}" \
 
 LABEL org.opencontainers.image.source="https://github.com/ryancswallace/benchmatrix" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.description="pytest-benchmark matrix utilities and result parsing"
+      org.opencontainers.image.description="Build pytest-benchmark matrices and parse benchmark results with lightweight Python utilities."
 
 WORKDIR /app
 
