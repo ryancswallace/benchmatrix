@@ -99,14 +99,12 @@ inside this repository.
 ## PyPI Trusted Publishing
 
 1. Create or claim the PyPI project `benchmatrix`.
-2. Verify the Settings app created the GitHub environment `pypi` and
-   restricted deployments to `v*` tags.
-3. Add trusted maintainer reviewers to the `pypi` environment if the repository
-   plan supports that control.
-4. Do not add PyPI secrets to the environment when Trusted Publishing is the
+2. Verify the Settings app created the GitHub environment `pypi`, restricted
+   deployments to `v*` tags, and configured required reviewer(s).
+3. Do not add PyPI secrets to the environment when Trusted Publishing is the
    intended path.
-5. In PyPI, open the project -> Publishing -> Add trusted publisher.
-6. Configure:
+4. In PyPI, open the project -> Publishing -> Add trusted publisher.
+5. Configure:
 
    ```text
    owner: ryancswallace
@@ -115,10 +113,10 @@ inside this repository.
    environment: pypi
    ```
 
-7. Confirm `.github/workflows/release.yml` grants `id-token: write` to the
+6. Confirm `.github/workflows/release.yml` grants `id-token: write` to the
    publish job and uses the `pypi` environment.
-8. Do not add a long-lived PyPI token if Trusted Publishing works.
-9. If a token is temporarily unavoidable, make it project-scoped, store it as
+7. Do not add a long-lived PyPI token if Trusted Publishing works.
+8. If a token is temporarily unavoidable, make it project-scoped, store it as
     an environment secret, and remove it after Trusted Publishing is working.
 
 ## Repository profile

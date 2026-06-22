@@ -50,6 +50,9 @@ environments:
       custom_branches:
         - main
   - name: "pypi"
+    reviewers:
+      - id: 20177051  # gh api users/ryancswallace --jq .id
+        type: "User"
     deployment_branch_policy:
       custom_branches:
         - name: v*
