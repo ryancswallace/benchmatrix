@@ -27,7 +27,7 @@ UV_INSTALL_URL ?= https://astral.sh/uv/install.sh
 .PHONY: help
 .PHONY: bootstrap npm-install install hooks-install ready
 .PHONY: clean clean-build
-.PHONY: format lint typecheck markdownlint workflow-lint spellcheck
+.PHONY: format lint typecheck markdownlint workflow-lint workflow-env-lint spellcheck
 .PHONY: test test-min-deps test-matrix
 .PHONY: docs docs-linkcheck serve-docs
 .PHONY: docker-lint docker-ready docker-build docker-build-test docker-test docker-smoke docker-scan docker-check
@@ -79,6 +79,7 @@ help:
 	@echo "Repository quality:"
 	@echo "  markdownlint      Lint Markdown files"
 	@echo "  workflow-lint     Lint GitHub Actions workflow files"
+	@echo "  workflow-env-lint Check referenced GitHub environments exist"
 	@echo "  spellcheck        Run CSpell spell checks"
 	@echo ""
 	@echo "Dependencies and security:"
@@ -251,6 +252,9 @@ markdownlint: npm-install
 workflow-lint: install
 	uv run pre-commit run actionlint --files $$(find .github/workflows -type f \( -name '*.yml' -o -name '*.yaml' \))
 	uv run zizmor --min-severity medium .github/workflows
+
+workflow-env-lint: npm-install
+	npm run workflow-env-lint
 
 spellcheck: npm-install
 	npx cspell .

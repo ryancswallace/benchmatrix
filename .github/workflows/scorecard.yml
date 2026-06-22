@@ -10,8 +10,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write
-  id-token: write
 
 concurrency:
   group: scorecard-${{ github.workflow }}-${{ github.ref }}
@@ -22,6 +20,10 @@ jobs:
     name: Scorecard analysis
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+      id-token: write
 
     steps:
       - name: Check out repository

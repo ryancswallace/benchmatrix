@@ -166,7 +166,7 @@ dev = [
     { name = "linkchecker", specifier = ">=10.6.0" },
     { name = "mkdocs", specifier = ">=1.6.1" },
     { name = "mkdocs-gen-files", specifier = ">=0.5.0" },
-    { name = "mkdocstrings", extras = ["python"], specifier = ">=0.30.0" },
+    { name = "mkdocstrings", extras = ["python"], specifier = ">=1.0.4" },
     { name = "nox", specifier = ">=2026.4.10" },
     { name = "numpy", specifier = ">=2.2.6" },
     { name = "pip-audit", specifier = ">=2.10.1" },
@@ -180,7 +180,7 @@ docs = [
     { name = "linkchecker", specifier = ">=10.6.0" },
     { name = "mkdocs", specifier = ">=1.6.1" },
     { name = "mkdocs-gen-files", specifier = ">=0.5.0" },
-    { name = "mkdocstrings", extras = ["python"], specifier = ">=0.30.0" },
+    { name = "mkdocstrings", extras = ["python"], specifier = ">=1.0.4" },
 ]
 lint = [
     { name = "pre-commit", specifier = ">=4.6.0" },

@@ -102,11 +102,11 @@ default branch. Do not commit the generated `site/` directory.
 The GitHub Settings app syncs these environments from `.github/settings.yml`:
 
 * `github-pages` for documentation deployment, restricted to `main`;
-* `pypi` for package publishing, restricted to `v*` tags.
+* `pypi` for package publishing, restricted to `v*` tags and requiring
+  approval from project maintainer(s).
 
-For `pypi`, require trusted maintainer review before deployment when the
-repository plan supports it. Keep secrets out of the environment when using PyPI
-Trusted Publishing because OIDC should provide a short-lived publishing token.
+Keep secrets out of the environment when using PyPI Trusted Publishing because
+OIDC should provide a short-lived publishing token.
 
 ## PyPI Trusted Publishing
 
