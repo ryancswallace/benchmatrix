@@ -66,8 +66,10 @@ locally:
     the link-check report, and deploys the MkDocs site from `main` through GitHub
     Pages.
 * `.github/workflows/draft-release.yml` validates release metadata when a `v*`
-    tag is pushed, extracts release notes from `CHANGELOG.md`, and creates or
-    updates the draft GitHub Release.
+    tag is pushed, extracts release notes from `CHANGELOG.md`, builds and
+    verifies release assets, and creates or updates the draft GitHub Release
+    with the package source distribution, wheel, and SBOM attached; it also
+    supports manual dispatch for retrying an existing tag.
 * `.github/workflows/release.yml` builds release artifacts, uploads package
     distributions and the SBOM as separate Actions artifacts, attaches them to
     the GitHub Release, attests them, publishes the distributions to PyPI through

@@ -63,7 +63,8 @@ after the draft GitHub Release is reviewed and published.
     release metadata, refuses existing tags, and pushes
     `v$BENCHMATRIX_RELEASE_VERSION`.
 
-7. Review the draft GitHub Release created by `.github/workflows/draft-release.yml`.
+7. Review the draft GitHub Release created by `.github/workflows/draft-release.yml`,
+    including the attached source distribution, wheel, and SBOM assets.
 8. Publish the GitHub Release. Publishing the release triggers
     `.github/workflows/release.yml`, which rebuilds artifacts, attaches them to
     the GitHub Release, attests them, and publishes to PyPI through Trusted

@@ -315,6 +315,9 @@ release-pr: release-version-check
 
 release-tag: release-version-check
 	uv run python scripts/create_release_tag.py "$(RELEASE_VERSION)" --base "$(RELEASE_TAG_BASE)"
+	@release_url=$$(gh repo view --json url --jq .url 2>/dev/null || \
+		git config --get remote.origin.url | sed -E 's#^git@github.com:#https://github.com/#; s#\.git$$##'); \
+	echo "GitHub Releases: $$release_url/releases"
 
 sbom: bootstrap
 	@sbom_env=$$(mktemp -d); \

@@ -63,7 +63,11 @@ changes before routine maintenance items.
 
 Pushing an annotated tag named `vX.Y.Z` starts `.github/workflows/draft-release.yml`.
 That workflow validates release metadata, extracts notes from `CHANGELOG.md`,
-and creates or updates a draft GitHub Release for the pushed tag.
+builds the source distribution, wheel, and SBOM, creates or updates a draft
+GitHub Release for the pushed tag, attaches those files to the draft, and
+verifies that the package assets are present before the workflow succeeds. The
+workflow also supports manual dispatch for rerunning draft creation and asset
+attachment for an existing tag.
 
 `.github/workflows/release.yml` publishes when a GitHub Release is published.
 The workflow listens for:
@@ -80,10 +84,10 @@ intentionally stops before publication; GitHub suppresses most follow-on
 workflow runs caused by that token to avoid recursive automation.
 
 The publish job is guarded with `startsWith(github.ref, 'refs/tags/v')`, so PyPI
-publication only runs from version tags such as `v0.2.0`. The workflow builds
+publication only runs from version tags such as `v0.2.0`. The workflow rebuilds
 from the tagged source, uploads package distributions and the SBOM as separate
-Actions artifacts, attaches those files to the GitHub Release, attests them, and
-publishes only the distributions to PyPI from the `pypi` environment.
+Actions artifacts, refreshes those files on the GitHub Release, attests them,
+and publishes only the distributions to PyPI from the `pypi` environment.
 
 The workflow also has manual dispatch. Treat `publish=false` as a build smoke
 check. Treat `publish=true` as a real publication and only run it from an exact
