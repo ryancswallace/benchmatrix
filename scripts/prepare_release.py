@@ -16,7 +16,7 @@ RELEASE_VERSION_RE = re.compile(r"^(?P<version>(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(
 PROJECT_VERSION_RE = re.compile(r'(?ms)(^\[project\]\n.*?^version = ")(?P<version>[^"]+)(")')
 CITATION_VERSION_RE = re.compile(r"(?m)^version: .+$")
 CITATION_DATE_RE = re.compile(r"(?m)^date-released: .+$")
-UNRELEASED_TEMPLATE = "### Added\n\n### Changed"
+UNRELEASED_TEMPLATE = "### Added\n\n### Changed\n\n### Deprecated\n\n### Removed\n\n### Fixed\n\n### Security"
 
 
 class ReleaseError(Exception):
