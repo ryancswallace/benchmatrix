@@ -12,6 +12,13 @@ additional pre-1.0 compatibility expectations described in
 
 ### Changed
 
+## 0.2.1 - 2026-06-22
+
+### Changed
+
+* Fix release and release-verify workflow bugs preventing creation of PyPI
+  releases.
+
 ## 0.2.0 - 2026-06-22
 
 ### Added
