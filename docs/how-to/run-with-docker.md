@@ -58,13 +58,13 @@ IMAGE_TAG=my-check make docker-build docker-smoke
 After container publishing is enabled and a release has been published, run:
 
 ```bash
-docker run --rm ghcr.io/ryancswallace/benchmatrix:v0.1.0
+docker run --rm ghcr.io/ryancswallace/benchmatrix:latest
 ```
 
 The default command should print `BenchmarkCase`. To run a custom command:
 
 ```bash
-docker run --rm ghcr.io/ryancswallace/benchmatrix:v0.1.0 \
+docker run --rm ghcr.io/ryancswallace/benchmatrix:latest \
   python -c "from benchmatrix import BenchmarkCase; print(BenchmarkCase.__name__)"
 ```
 

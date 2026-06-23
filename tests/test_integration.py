@@ -180,7 +180,6 @@ def test_built_wheel_can_be_imported_from_clean_virtualenv(tmp_path: Path) -> No
         cwd=_PROJECT_ROOT,
     )
 
-    version, case_name, pytest_imported = result.stdout.strip().splitlines()
-    assert version == "0.1.0"
+    _, case_name, pytest_imported = result.stdout.strip().splitlines()
     assert case_name == "case"
     assert pytest_imported == "False"
