@@ -104,6 +104,7 @@ jobs:
       - name: Upload assets to GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: >-
           gh release upload "$GITHUB_REF_NAME"
           dist/*.tar.gz
