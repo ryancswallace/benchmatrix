@@ -20,6 +20,10 @@ RUFF_ARGS ?= .
 NODE_MODULES_STAMP := node_modules/.package-lock.json
 SBOM_PATH ?= dist/benchmatrix.cdx.json
 UV_INSTALL_URL ?= https://astral.sh/uv/install.sh
+RELEASE_VERSION ?= $(BENCHMATRIX_RELEASE_VERSION)
+RELEASE_PR_BASE ?= main
+RELEASE_PR_FLAGS ?=
+RELEASE_TAG_BASE ?= main
 
 # -----------------------------------------------------------------------------
 # Target declarations
@@ -32,7 +36,7 @@ UV_INSTALL_URL ?= https://astral.sh/uv/install.sh
 .PHONY: docs docs-linkcheck serve-docs
 .PHONY: docker-lint docker-ready docker-build docker-build-test docker-test docker-smoke docker-scan docker-check
 .PHONY: lock-check deps secrets security audit
-.PHONY: prepare-release sbom smoke-dist build
+.PHONY: release-version-check release-preflight prepare-release release-pr-ready release-pr release-tag sbom smoke-dist validate-dist build
 .PHONY: check check-all ca precommit fresh-precommit
 
 # -----------------------------------------------------------------------------
@@ -42,66 +46,72 @@ help:
 	@echo "Available targets:"
 	@echo ""
 	@echo "Setup:"
-	@echo "  bootstrap         Install uv if it is not already available"
-	@echo "  npm-install       Install Node development dependencies"
-	@echo "  install           Sync Python dependencies from uv.lock"
-	@echo "  hooks-install     Install pre-commit and pre-push Git hooks"
-	@echo "  ready             Sync dependencies and verify the environment"
+	@echo "  bootstrap             Install uv if it is not already available"
+	@echo "  npm-install           Install Node development dependencies"
+	@echo "  install               Sync Python dependencies from uv.lock"
+	@echo "  hooks-install         Install pre-commit and pre-push Git hooks"
+	@echo "  ready                 Sync dependencies and verify the environment"
 	@echo ""
 	@echo "Cleanup:"
-	@echo "  clean             Remove local cache files"
-	@echo "  clean-build       Remove build and distribution artifacts"
+	@echo "  clean                 Remove local cache files"
+	@echo "  clean-build           Remove build and distribution artifacts"
 	@echo ""
 	@echo "Python quality:"
-	@echo "  format            Format code and apply Ruff auto-fixes"
-	@echo "  lint              Run Ruff lint and formatting checks"
-	@echo "  typecheck         Run basedpyright type checks"
+	@echo "  format                Format code and apply Ruff auto-fixes"
+	@echo "  lint                  Run Ruff lint and formatting checks"
+	@echo "  typecheck             Run basedpyright type checks"
 	@echo ""
 	@echo "Tests:"
-	@echo "  test              Run unit tests"
-	@echo "  test-min-deps     Run tests with minimum direct dependency versions"
-	@echo "  test-matrix       Run the full local nox test and quality matrix"
+	@echo "  test                  Run unit tests"
+	@echo "  test-min-deps         Run tests with minimum direct dependency versions"
+	@echo "  test-matrix           Run the full local nox test and quality matrix"
 	@echo ""
 	@echo "Documentation:"
-	@echo "  docs              Build the documentation site"
-	@echo "  docs-linkcheck    Check links in the built documentation site"
-	@echo "  serve-docs        Serve the documentation site locally"
+	@echo "  docs                  Build the documentation site"
+	@echo "  docs-linkcheck        Check links in the built documentation site"
+	@echo "  serve-docs            Serve the documentation site locally"
 	@echo ""
 	@echo "Docker:"
-	@echo "  docker-lint       Lint Dockerfiles"
-	@echo "  docker-build      Build the runtime Docker image"
-	@echo "  docker-build-test Build the test Docker image"
-	@echo "  docker-test       Build and run the test Docker image"
-	@echo "  docker-smoke      Smoke-test the runtime Docker image"
-	@echo "  docker-scan       Scan Docker images for critical vulnerabilities"
-	@echo "  docker-check      Run Docker lint, build, test, smoke, and scan checks"
+	@echo "  docker-lint           Lint Dockerfiles"
+	@echo "  docker-build          Build the runtime Docker image"
+	@echo "  docker-build-test     Build the test Docker image"
+	@echo "  docker-test           Build and run the test Docker image"
+	@echo "  docker-smoke          Smoke-test the runtime Docker image"
+	@echo "  docker-scan           Scan Docker images for critical vulnerabilities"
+	@echo "  docker-check          Run Docker lint, build, test, smoke, and scan checks"
 	@echo ""
 	@echo "Repository quality:"
-	@echo "  markdownlint      Lint Markdown files"
-	@echo "  workflow-lint     Lint GitHub Actions workflow files"
-	@echo "  workflow-env-lint Check referenced GitHub environments exist"
-	@echo "  spellcheck        Run CSpell spell checks"
+	@echo "  markdownlint          Lint Markdown files"
+	@echo "  workflow-lint         Lint GitHub Actions workflow files"
+	@echo "  workflow-env-lint     Check referenced GitHub environments exist"
+	@echo "  spellcheck            Run CSpell spell checks"
 	@echo ""
 	@echo "Dependencies and security:"
-	@echo "  lock-check        Verify pyproject.toml and uv.lock are in sync"
-	@echo "  deps              Run deptry dependency checks"
-	@echo "  secrets           Scan tracked files for secrets"
-	@echo "  security          Run Bandit security checks"
-	@echo "  audit             Audit locked dependencies for known vulnerabilities"
+	@echo "  lock-check            Verify pyproject.toml and uv.lock are in sync"
+	@echo "  deps                  Run deptry dependency checks"
+	@echo "  secrets               Scan tracked files for secrets"
+	@echo "  security              Run Bandit security checks"
+	@echo "  audit                 Audit locked dependencies for known vulnerabilities"
 	@echo ""
 	@echo "Release artifacts:"
-	@echo "  prepare-release   Update release metadata; set RELEASE_VERSION=X.Y.Z"
-	@echo "  sbom              Generate a CycloneDX runtime dependency SBOM"
-	@echo "  smoke-dist        Install and import-test the built wheel"
-	@echo "  build             Build, validate, smoke-test, and generate release artifacts"
+	@echo "  release-version-check Validate BENCHMATRIX_RELEASE_VERSION syntax"
+	@echo "  release-preflight     Check release prerequisites before preparing a release"
+	@echo "  prepare-release       Update release metadata; set BENCHMATRIX_RELEASE_VERSION=X.Y.Z"
+	@echo "  release-pr-ready      Prepare, validate, commit, push, and open the release PR"
+	@echo "  release-pr            Commit, push, and open the release pull request"
+	@echo "  release-tag           Create and push the annotated release tag"
+	@echo "  sbom                  Generate a CycloneDX runtime dependency SBOM"
+	@echo "  smoke-dist            Install and import-test the built wheel"
+	@echo "  validate-dist         Verify dist contains the expected release artifacts"
+	@echo "  build                 Build, validate, smoke-test, and generate release artifacts"
 	@echo ""
 	@echo "Validation suites:"
-	@echo "  all               Alias for check"
-	@echo "  check             Run the full local validation suite"
-	@echo "  check-all         Run every local, matrix, hook, and Docker check"
-	@echo "  ca                Alias for check-all"
-	@echo "  precommit         Run all pre-commit hooks against all files"
-	@echo "  fresh-precommit   Clean caches, install dependencies, run hooks and checks"
+	@echo "  all                   Alias for check"
+	@echo "  check                 Run the full local validation suite"
+	@echo "  check-all             Run every local, matrix, hook, and Docker check"
+	@echo "  ca                    Alias for check-all"
+	@echo "  precommit             Run all pre-commit hooks against all files"
+	@echo "  fresh-precommit       Clean caches, install dependencies, run hooks and checks"
 
 # -----------------------------------------------------------------------------
 # Setup
@@ -285,12 +295,26 @@ audit: bootstrap
 # -----------------------------------------------------------------------------
 # Release artifacts
 # -----------------------------------------------------------------------------
-prepare-release: bootstrap
-	@if [ -z "$(RELEASE_VERSION)" ]; then \
-		echo "Usage: make prepare-release RELEASE_VERSION=X.Y.Z [RELEASE_DATE=YYYY-MM-DD]"; \
-		exit 2; \
-	fi
+release-version-check: bootstrap
+	uv run python scripts/prepare_release.py validate-version "$(RELEASE_VERSION)"
+
+release-preflight: release-version-check
+	uv run python scripts/release_preflight.py "$(RELEASE_VERSION)" --base "$(RELEASE_PR_BASE)"
+
+prepare-release: release-version-check
 	uv run python scripts/prepare_release.py prepare "$(RELEASE_VERSION)" $(if $(RELEASE_DATE),--date "$(RELEASE_DATE)",)
+
+release-pr-ready: release-version-check
+	$(MAKE) release-preflight
+	$(MAKE) prepare-release
+	$(MAKE) check
+	$(MAKE) release-pr
+
+release-pr: release-version-check
+	uv run python scripts/create_release_pr.py "$(RELEASE_VERSION)" --base "$(RELEASE_PR_BASE)" $(RELEASE_PR_FLAGS)
+
+release-tag: release-version-check
+	uv run python scripts/create_release_tag.py "$(RELEASE_VERSION)" --base "$(RELEASE_TAG_BASE)"
 
 sbom: bootstrap
 	@sbom_env=$$(mktemp -d); \
@@ -313,11 +337,35 @@ smoke-dist: bootstrap
 	VIRTUAL_ENV="$$smoke_env" uv pip install --quiet "$$wheel" && \
 	"$$smoke_env/bin/python" -c "from benchmatrix import BenchmarkCase; print(BenchmarkCase.__name__)"
 
+validate-dist: bootstrap
+	@version=$$(uv version --short); \
+	expected_wheel="dist/benchmatrix-$$version-py3-none-any.whl"; \
+	expected_sdist="dist/benchmatrix-$$version.tar.gz"; \
+	expected_sbom="$(SBOM_PATH)"; \
+	status=0; \
+	for artifact in "$$expected_wheel" "$$expected_sdist" "$$expected_sbom"; do \
+		if [ ! -f "$$artifact" ]; then \
+			echo "Missing expected artifact: $$artifact"; \
+			status=1; \
+		fi; \
+	done; \
+	unexpected=$$(find dist -maxdepth 1 -type f ! -name ".gitignore" ! -name "benchmatrix-$$version-py3-none-any.whl" ! -name "benchmatrix-$$version.tar.gz" ! -name "$$(basename "$(SBOM_PATH)")" | sort); \
+	if [ -n "$$unexpected" ]; then \
+		echo "Unexpected files in dist/:"; \
+		printf '%s\n' "$$unexpected"; \
+		status=1; \
+	fi; \
+	if [ "$$status" -ne 0 ]; then \
+		exit "$$status"; \
+	fi; \
+	echo "dist/ contains expected release artifacts for $$version."
+
 build: bootstrap
 	uv build --clear
 	uv run twine check dist/*
 	$(MAKE) smoke-dist
 	$(MAKE) sbom
+	$(MAKE) validate-dist
 
 # -----------------------------------------------------------------------------
 # Validation suites

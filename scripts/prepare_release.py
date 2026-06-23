@@ -5,12 +5,14 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import os
 import re
 import subprocess
 import sys
 from pathlib import Path
 
 VERSION_RE = re.compile(r"^(?:v)?(?P<version>(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))$")
+RELEASE_VERSION_RE = re.compile(r"^(?P<version>(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))$")
 PROJECT_VERSION_RE = re.compile(r'(?ms)(^\[project\]\n.*?^version = ")(?P<version>[^"]+)(")')
 CITATION_VERSION_RE = re.compile(r"(?m)^version: .+$")
 CITATION_DATE_RE = re.compile(r"(?m)^date-released: .+$")
@@ -177,6 +179,23 @@ def run_uv_lock(root: Path) -> None:
     subprocess.run(["uv", "lock"], cwd=root, check=True)
 
 
+def validate_release_version(raw_version: str | None) -> str:
+    """Return a valid BENCHMATRIX_RELEASE_VERSION value."""
+    if not raw_version:
+        raise ReleaseError("Set BENCHMATRIX_RELEASE_VERSION=X.Y.Z before running this release target.")
+    match = RELEASE_VERSION_RE.match(raw_version.strip())
+    if not match:
+        raise ReleaseError(f"BENCHMATRIX_RELEASE_VERSION must be X.Y.Z without a leading v; got {raw_version!r}.")
+    return match.group("version")
+
+
+def validate_version(args: argparse.Namespace) -> int:
+    """Validate and print the release version used by Make targets."""
+    version = validate_release_version(args.version)
+    print(f"Release version is {version}.")
+    return 0
+
+
 def prepare(args: argparse.Namespace) -> int:
     """Prepare release metadata."""
     root = args.repo_root.resolve()
@@ -220,6 +239,15 @@ def parser() -> argparse.ArgumentParser:
     root_parser = argparse.ArgumentParser(description=__doc__)
     root_parser.add_argument("--repo-root", type=Path, default=Path.cwd(), help="Repository root to operate on.")
     subparsers = root_parser.add_subparsers(dest="command", required=True)
+
+    validate_version_parser = subparsers.add_parser("validate-version", help="Check release version syntax.")
+    validate_version_parser.add_argument(
+        "version",
+        nargs="?",
+        default=os.environ.get("BENCHMATRIX_RELEASE_VERSION"),
+        help="Release version as X.Y.Z without a leading v. Defaults to BENCHMATRIX_RELEASE_VERSION.",
+    )
+    validate_version_parser.set_defaults(func=validate_version)
 
     prepare_parser = subparsers.add_parser("prepare", help="Update release metadata and uv.lock.")
     prepare_parser.add_argument("version", help="Release version, with or without a leading v.")

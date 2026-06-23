@@ -13,7 +13,9 @@ make build
 
 This command builds the source distribution and wheel, checks metadata with
 Twine, installs the built wheel into a temporary environment, imports the public
-package, and generates the runtime CycloneDX SBOM at `dist/benchmatrix.cdx.json`.
+package, generates the runtime CycloneDX SBOM at `dist/benchmatrix.cdx.json`,
+and fails unless the release artifact files in `dist/` are the expected
+wheel, source distribution, and SBOM for the package version in `pyproject.toml`.
 
 The release workflow runs the same command before publishing, so local release
 checks and CI release checks exercise the same path.
@@ -21,18 +23,29 @@ checks and CI release checks exercise the same path.
 ## Version metadata
 
 The project uses static package metadata, but release preparation is automated.
-After the `CHANGELOG.md` entries under `## Unreleased` are ready, run:
+After the `CHANGELOG.md` entries under `## Unreleased` are ready, export the
+release version without a leading `v`, then run the release pull request
+preparation target:
 
 ```bash
-make prepare-release RELEASE_VERSION=X.Y.Z
+export BENCHMATRIX_RELEASE_VERSION=X.Y.Z
+make release-pr-ready
 ```
 
-The command updates `pyproject.toml`, `CITATION.cff`, and `CHANGELOG.md`, sets
-`date-released` in `CITATION.cff`, creates the dated changelog section, and runs
-`uv lock` after the `pyproject.toml` version changes. Use
+This command checks release prerequisites, updates `pyproject.toml`,
+`CITATION.cff`, and `CHANGELOG.md`, sets `date-released` in `CITATION.cff`,
+creates the dated changelog section, runs `uv lock` after the `pyproject.toml`
+version changes, runs the full local `make check` suite, and creates or reuses
+the standardized release branch, commit, and GitHub pull request. Use
 `RELEASE_DATE=YYYY-MM-DD` when the release date should be explicit.
 
-The Git tag must be named `vX.Y.Z` and must match the package version `X.Y.Z`.
+After the release pull request is merged, create the Git tag with:
+
+```bash
+make release-tag
+```
+
+The tag must be named `vX.Y.Z` and must match the package version `X.Y.Z`.
 Do not publish if the tag and metadata disagree.
 
 ## Changelog and release notes

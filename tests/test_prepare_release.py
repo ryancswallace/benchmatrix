@@ -110,3 +110,34 @@ def test_validate_rejects_inconsistent_release_metadata(tmp_path: Path) -> None:
     exit_code = release.main(["--repo-root", str(tmp_path), "validate", "1.2.3"])
 
     assert exit_code == 1
+
+
+def test_validate_release_version_requires_env_style_version() -> None:
+    release = _load_prepare_release()
+
+    assert release.validate_release_version("1.2.3") == "1.2.3"
+
+    with pytest.raises(release.ReleaseError, match="Set BENCHMATRIX_RELEASE_VERSION"):
+        release.validate_release_version("")
+
+    with pytest.raises(release.ReleaseError, match="without a leading v"):
+        release.validate_release_version("v1.2.3")
+
+    with pytest.raises(release.ReleaseError, match="must be X.Y.Z"):
+        release.validate_release_version("1.2")
+
+
+def test_validate_version_cli_reports_missing_or_malformed_versions(capsys: pytest.CaptureFixture[str]) -> None:
+    release = _load_prepare_release()
+
+    assert release.main(["validate-version", ""]) == 1
+    missing = capsys.readouterr()
+    assert "Set BENCHMATRIX_RELEASE_VERSION=X.Y.Z" in missing.err
+
+    assert release.main(["validate-version", "v1.2.3"]) == 1
+    malformed = capsys.readouterr()
+    assert "without a leading v" in malformed.err
+
+    assert release.main(["validate-version", "1.2.3"]) == 0
+    valid = capsys.readouterr()
+    assert "Release version is 1.2.3." in valid.out

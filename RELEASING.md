@@ -30,34 +30,46 @@ Releases are prepared in a normal pull request, drafted automatically when a
 after the draft GitHub Release is reviewed and published.
 
 1. Choose the next version from the changelog and compatibility policy.
-2. Update the `CHANGELOG.md` entries under `## Unreleased`.
-3. Run the release preparation command:
+2. Export the release version without a leading `v`:
 
    ```bash
-   make prepare-release RELEASE_VERSION=X.Y.Z
+   export BENCHMATRIX_RELEASE_VERSION=X.Y.Z
    ```
 
-   This updates `pyproject.toml`, `CITATION.cff`, and `CHANGELOG.md`, updates
-   `date-released`, creates the dated changelog section, and runs `uv lock`.
-   Add `RELEASE_DATE=YYYY-MM-DD` when the release date should be explicit.
-
-4. Run the release validation command:
+3. Update the `CHANGELOG.md` entries under `## Unreleased`.
+4. Prepare the release metadata, validate locally, commit the release files,
+   push the release branch, and open or reuse the standardized pull request:
 
    ```bash
-   make check
+   make release-pr-ready
    ```
 
-5. Confirm `dist/` contains one source distribution, one wheel, and
-   `benchmatrix.cdx.json` for the intended version.
-6. Merge the release pull request after required checks pass.
-7. Create and push an annotated tag named `vX.Y.Z` for the release commit.
-8. Review the draft GitHub Release created by `.github/workflows/draft-release.yml`.
-9. Publish the GitHub Release. Publishing the release triggers
+   Add `RELEASE_DATE=YYYY-MM-DD` when the release date should be explicit. The
+   target runs `make release-preflight`, `make prepare-release`, `make check`,
+   and `make release-pr`. The preparation step updates `pyproject.toml`,
+   `CITATION.cff`, and `CHANGELOG.md`, updates `date-released`, creates the
+   dated changelog section, and runs `uv lock`. The pull request step creates
+   `release/v$BENCHMATRIX_RELEASE_VERSION`, commits the release metadata files,
+   pushes the branch, and opens or reuses the GitHub pull request.
+
+5. Merge the release pull request after required checks pass.
+6. Create and push the annotated release tag from the merged default branch:
+
+   ```bash
+   make release-tag
+   ```
+
+   This switches to `main`, pulls `origin/main` with `--ff-only`, validates the
+   release metadata, refuses existing tags, and pushes
+   `v$BENCHMATRIX_RELEASE_VERSION`.
+
+7. Review the draft GitHub Release created by `.github/workflows/draft-release.yml`.
+8. Publish the GitHub Release. Publishing the release triggers
    `.github/workflows/release.yml`, which rebuilds artifacts, attaches them to
    the GitHub Release, attests them, and publishes to PyPI through Trusted
    Publishing.
-10. Verify the package from PyPI in a clean environment.
-11. If any post-release fix is needed, prepare a new patch release. Do not
+9. Verify the package from PyPI in a clean environment.
+10. If any post-release fix is needed, prepare a new patch release. Do not
     replace files for an already-published PyPI version.
 
 The detailed operational checklist lives in `docs/runbooks/release.md`.
