@@ -74,7 +74,7 @@ def run_command(
 
 def output(command: list[str], *, cwd: Path, check: bool = True) -> str:
     """Run a command and return stripped stdout."""
-    return run_command(command, cwd=cwd, capture=True, check=check).stdout.strip()
+    return run_command(command, cwd=cwd, capture=True, check=check).stdout.rstrip()
 
 
 def ensure_tools() -> None:
@@ -87,6 +87,7 @@ def ensure_tools() -> None:
 def status_paths(root: Path) -> set[str]:
     """Return paths with tracked or untracked working-tree status."""
     status = output(["git", "status", "--porcelain=v1"], cwd=root)
+    print(f"{status=}")
     paths: set[str] = set()
     for line in status.splitlines():
         if not line:
