@@ -66,9 +66,9 @@ locally:
   the link-check report, and deploys the MkDocs site from `main` through GitHub
   Pages.
 * `.github/workflows/release.yml` builds release artifacts, uploads package
-  distributions and the SBOM as separate artifacts, attests them, publishes the
-  distributions to PyPI through Trusted Publishing, and verifies installation
-  from PyPI after publication.
+  distributions and the SBOM as separate Actions artifacts, attaches them to
+  the GitHub Release, attests them, publishes the distributions to PyPI through
+  Trusted Publishing, and verifies installation from PyPI after publication.
 * `.github/workflows/release-verify.yml` manually re-runs post-release
   installation verification from PyPI.
 * `.github/workflows/docker.yml` builds runtime and test Docker images, scans

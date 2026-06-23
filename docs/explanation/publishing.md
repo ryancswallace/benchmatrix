@@ -57,8 +57,9 @@ That means creating or editing a draft release is safe. Publishing the release i
 the deployment action. The publish job is guarded with `startsWith(github.ref,
 'refs/tags/v')`, so PyPI publication only runs from version tags such as
 `v0.2.0`. The workflow builds from the tagged source, uploads package
-distributions and the SBOM as separate release artifacts, attests them, and
-publishes only the distributions to PyPI from the `pypi` environment.
+distributions and the SBOM as separate Actions artifacts, attaches those files
+to the GitHub Release, attests them, and publishes only the distributions to
+PyPI from the `pypi` environment.
 
 The workflow also has manual dispatch. Treat `publish=false` as a build smoke
 check. Treat `publish=true` as a real publication and only run it from an exact
@@ -121,5 +122,5 @@ rm -rf "$verify_env"
 The command should print `BenchmarkCase`. The release workflow's verification
 job runs that same post-publication smoke check after a GitHub Release is
 published. Also
-inspect the PyPI project page, release workflow logs, uploaded artifacts, SBOM,
-and attestations.
+inspect the PyPI project page, release workflow logs, GitHub Release assets,
+Actions artifacts, SBOM, and attestations.

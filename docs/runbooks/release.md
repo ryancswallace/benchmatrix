@@ -86,8 +86,8 @@ GitHub Release does. The publish job only runs when the workflow ref starts with
 `refs/tags/v`, so releases must use tags such as `v0.2.0`. The workflow rebuilds
 distributions from the tagged source, generates the SBOM, smoke-tests the wheel,
 creates artifact attestations, uploads package distributions and the SBOM as
-separate workflow artifacts, and then publishes only the distributions to PyPI
-from the `pypi` environment.
+separate workflow artifacts, attaches those files to the GitHub Release, and
+then publishes only the distributions to PyPI from the `pypi` environment.
 
 If the `pypi` environment requires approval, approve the deployment only after
 confirming the tag, changelog, and workflow run are for the intended version.
@@ -113,7 +113,9 @@ after publication rather than racing the publishing job.
    ```
 
 3. Confirm the command prints `BenchmarkCase`.
-4. Check the release workflow artifacts and attestations.
+4. Check the GitHub Release assets, release workflow artifacts, and
+   attestations. Confirm the Release page lists the source distribution, wheel,
+   and SBOM in addition to GitHub's automatic source archives.
 5. Confirm the release workflow's `Verify PyPI install` job installed
    `benchmatrix==X.Y.Z` from PyPI and imported `BenchmarkCase` successfully.
 6. Confirm the Docker workflow published and smoke-tested the GHCR images for

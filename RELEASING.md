@@ -52,8 +52,9 @@ Actions release workflow after a GitHub Release is published.
 7. Create and push an annotated tag named `vX.Y.Z` for the release commit.
 8. Draft GitHub release notes from the changelog section for that version.
 9. Publish the GitHub Release. Publishing the release triggers
-   `.github/workflows/release.yml`, which rebuilds artifacts, attests them, and
-   publishes to PyPI through Trusted Publishing.
+   `.github/workflows/release.yml`, which rebuilds artifacts, attaches them to
+   the GitHub Release, attests them, and publishes to PyPI through Trusted
+   Publishing.
 10. Verify the package from PyPI in a clean environment.
 11. If any post-release fix is needed, prepare a new patch release. Do not
     replace files for an already-published PyPI version.
