@@ -10,6 +10,12 @@ additional pre-1.0 compatibility expectations described in
 
 ### Added
 
+### Changed
+
+## 0.2.0 - 2026-06-22
+
+### Added
+
 * Initial benchmark matrix utilities.
 * pytest-benchmark JSON parsing and display utilities.
 * Automated linting, typing, security, dependency, test, coverage, and package
@@ -30,19 +36,14 @@ additional pre-1.0 compatibility expectations described in
   protection, security features, Pages, environments, and PyPI publishing.
 * Focused Python dependency groups for test, lint, type, docs, security,
   release, and automation tooling, with `dev` as the aggregate group.
-* Expanded compatibility, lifecycle, security-fix, release-branch, and
-  deprecation policy documentation.
+* Compatibility, lifecycle, security-fix, release-branch, and deprecation
+  policy documentation.
 * GitHub Actions CI/CD workflows for quality checks, multi-version and
   cross-OS tests, docs deployment, PyPI Trusted Publishing, artifact
   attestations, CodeQL, dependency review, OpenSSF Scorecard, and workflow
   linting.
-
-### Changed
-
-* Removed the manual labels-as-code sync workflow and limited PyPI publishing
-  to release refs matching `refs/tags/v*`.
-* Added CI test and coverage report artifacts, documentation link checking,
-  minimum-dependency tests, and post-release PyPI installation verification.
-* Added Docker runtime and test images, local Docker targets,
-  Docker-outside-of-Docker devcontainer support, Dockerfile linting, GHCR
-  publishing, image SBOM/provenance, and critical-vulnerability image scanning.
+* CI test and coverage report artifacts, documentation link checking, minimum-
+  dependency tests, and post-release PyPI installation verification.
+* Docker runtime and test images, local Docker targets, Docker-outside-of-Docker
+  devcontainer support, Dockerfile linting, GHCR publishing, image
+  SBOM/provenance, and critical-vulnerability image scanning.
