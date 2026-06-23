@@ -41,8 +41,7 @@ especially the `pypi` environment and PyPI Trusted Publishing checklist.
 5. Run local validation:
 
    ```bash
-   make check
-   make test-matrix
+   make check-all
    ```
 
 6. Build and smoke-test the artifacts locally:
