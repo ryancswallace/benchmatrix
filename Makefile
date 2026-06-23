@@ -24,7 +24,7 @@ UV_INSTALL_URL ?= https://astral.sh/uv/install.sh
 # -----------------------------------------------------------------------------
 # Target declarations
 # -----------------------------------------------------------------------------
-.PHONY: help
+.PHONY: help all
 .PHONY: bootstrap npm-install install hooks-install ready
 .PHONY: clean clean-build
 .PHONY: format lint typecheck markdownlint workflow-lint workflow-env-lint spellcheck
@@ -32,7 +32,7 @@ UV_INSTALL_URL ?= https://astral.sh/uv/install.sh
 .PHONY: docs docs-linkcheck serve-docs
 .PHONY: docker-lint docker-ready docker-build docker-build-test docker-test docker-smoke docker-scan docker-check
 .PHONY: lock-check deps secrets security audit
-.PHONY: sbom smoke-dist build
+.PHONY: prepare-release sbom smoke-dist build
 .PHONY: check check-all ca precommit fresh-precommit
 
 # -----------------------------------------------------------------------------
@@ -90,11 +90,13 @@ help:
 	@echo "  audit             Audit locked dependencies for known vulnerabilities"
 	@echo ""
 	@echo "Release artifacts:"
+	@echo "  prepare-release   Update release metadata; set RELEASE_VERSION=X.Y.Z"
 	@echo "  sbom              Generate a CycloneDX runtime dependency SBOM"
 	@echo "  smoke-dist        Install and import-test the built wheel"
 	@echo "  build             Build, validate, smoke-test, and generate release artifacts"
 	@echo ""
 	@echo "Validation suites:"
+	@echo "  all               Alias for check"
 	@echo "  check             Run the full local validation suite"
 	@echo "  check-all         Run every local, matrix, hook, and Docker check"
 	@echo "  ca                Alias for check-all"
@@ -283,6 +285,13 @@ audit: bootstrap
 # -----------------------------------------------------------------------------
 # Release artifacts
 # -----------------------------------------------------------------------------
+prepare-release: bootstrap
+	@if [ -z "$(RELEASE_VERSION)" ]; then \
+		echo "Usage: make prepare-release RELEASE_VERSION=X.Y.Z [RELEASE_DATE=YYYY-MM-DD]"; \
+		exit 2; \
+	fi
+	uv run python scripts/prepare_release.py prepare "$(RELEASE_VERSION)" $(if $(RELEASE_DATE),--date "$(RELEASE_DATE)",)
+
 sbom: bootstrap
 	@sbom_env=$$(mktemp -d); \
 	trap 'rm -rf "$$sbom_env"' 0 1 2 15; \
@@ -313,6 +322,8 @@ build: bootstrap
 # -----------------------------------------------------------------------------
 # Validation suites
 # -----------------------------------------------------------------------------
+all: check
+
 check: bootstrap
 	@status=0; \
 	failed_targets=""; \

@@ -25,32 +25,33 @@ coordination and retired after release.
 
 ## Release process
 
-Releases are prepared in a normal pull request and published by the GitHub
-Actions release workflow after a GitHub Release is published.
+Releases are prepared in a normal pull request, drafted automatically when a
+`vX.Y.Z` tag is pushed, and published by the GitHub Actions release workflow
+after the draft GitHub Release is reviewed and published.
 
 1. Choose the next version from the changelog and compatibility policy.
-2. Update release metadata:
-
-   * set `project.version` in `pyproject.toml`;
-   * set `version` in `CITATION.cff`;
-   * add or update `date-released` in `CITATION.cff` once the release date is
-     known.
-
-3. Move user-visible `CHANGELOG.md` entries from `Unreleased` into a versioned
-   section such as `## 0.2.0 - 2026-06-20`, then leave a fresh `Unreleased`
-   section at the top.
-4. Run the release validation commands:
+2. Update the `CHANGELOG.md` entries under `## Unreleased`.
+3. Run the release preparation command:
 
    ```bash
-   make check-all
-   make build
+   make prepare-release RELEASE_VERSION=X.Y.Z
+   ```
+
+   This updates `pyproject.toml`, `CITATION.cff`, and `CHANGELOG.md`, updates
+   `date-released`, creates the dated changelog section, and runs `uv lock`.
+   Add `RELEASE_DATE=YYYY-MM-DD` when the release date should be explicit.
+
+4. Run the release validation command:
+
+   ```bash
+   make check
    ```
 
 5. Confirm `dist/` contains one source distribution, one wheel, and
    `benchmatrix.cdx.json` for the intended version.
 6. Merge the release pull request after required checks pass.
 7. Create and push an annotated tag named `vX.Y.Z` for the release commit.
-8. Draft GitHub release notes from the changelog section for that version.
+8. Review the draft GitHub Release created by `.github/workflows/draft-release.yml`.
 9. Publish the GitHub Release. Publishing the release triggers
    `.github/workflows/release.yml`, which rebuilds artifacts, attaches them to
    the GitHub Release, attests them, and publishes to PyPI through Trusted

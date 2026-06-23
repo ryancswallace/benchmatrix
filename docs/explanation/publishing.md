@@ -20,13 +20,17 @@ checks and CI release checks exercise the same path.
 
 ## Version metadata
 
-The project currently uses static package metadata. A release version must be
-updated in these files:
+The project uses static package metadata, but release preparation is automated.
+After the `CHANGELOG.md` entries under `## Unreleased` are ready, run:
 
-* `pyproject.toml`, `[project] version`;
-* `CITATION.cff`, `version`;
-* `CITATION.cff`, `date-released` once the release date is known;
-* `CHANGELOG.md`, a versioned section with the release date.
+```bash
+make prepare-release RELEASE_VERSION=X.Y.Z
+```
+
+The command updates `pyproject.toml`, `CITATION.cff`, and `CHANGELOG.md`, sets
+`date-released` in `CITATION.cff`, creates the dated changelog section, and runs
+`uv lock` after the `pyproject.toml` version changes. Use
+`RELEASE_DATE=YYYY-MM-DD` when the release date should be explicit.
 
 The Git tag must be named `vX.Y.Z` and must match the package version `X.Y.Z`.
 Do not publish if the tag and metadata disagree.
@@ -44,6 +48,10 @@ changes before routine maintenance items.
 
 ## GitHub Release publishing flow
 
+Pushing an annotated tag named `vX.Y.Z` starts `.github/workflows/draft-release.yml`.
+That workflow validates release metadata, extracts notes from `CHANGELOG.md`,
+and creates or updates a draft GitHub Release for the pushed tag.
+
 `.github/workflows/release.yml` publishes when a GitHub Release is published.
 The workflow listens for:
 
@@ -54,12 +62,15 @@ release:
 ```
 
 That means creating or editing a draft release is safe. Publishing the release is
-the deployment action. The publish job is guarded with `startsWith(github.ref,
-'refs/tags/v')`, so PyPI publication only runs from version tags such as
-`v0.2.0`. The workflow builds from the tagged source, uploads package
-distributions and the SBOM as separate Actions artifacts, attaches those files
-to the GitHub Release, attests them, and publishes only the distributions to
-PyPI from the `pypi` environment.
+the deployment action. The draft-release workflow uses `GITHUB_TOKEN`, so it
+intentionally stops before publication; GitHub suppresses most follow-on
+workflow runs caused by that token to avoid recursive automation.
+
+The publish job is guarded with `startsWith(github.ref, 'refs/tags/v')`, so PyPI
+publication only runs from version tags such as `v0.2.0`. The workflow builds
+from the tagged source, uploads package distributions and the SBOM as separate
+Actions artifacts, attaches those files to the GitHub Release, attests them, and
+publishes only the distributions to PyPI from the `pypi` environment.
 
 The workflow also has manual dispatch. Treat `publish=false` as a build smoke
 check. Treat `publish=true` as a real publication and only run it from an exact

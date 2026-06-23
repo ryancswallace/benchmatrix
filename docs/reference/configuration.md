@@ -65,6 +65,9 @@ locally:
 * `.github/workflows/docs.yml` builds docs, checks generated-site links, uploads
   the link-check report, and deploys the MkDocs site from `main` through GitHub
   Pages.
+* `.github/workflows/draft-release.yml` validates release metadata when a `v*`
+  tag is pushed, extracts release notes from `CHANGELOG.md`, and creates or
+  updates the draft GitHub Release.
 * `.github/workflows/release.yml` builds release artifacts, uploads package
   distributions and the SBOM as separate Actions artifacts, attaches them to
   the GitHub Release, attests them, publishes the distributions to PyPI through
@@ -83,8 +86,9 @@ locally:
 
 Standalone SBOM and artifact-attestation workflows are intentionally not added:
 `make build`, CI packaging, and the release workflow already generate SBOMs and
-release provenance without an extra scheduler. Release drafting is also left out
-until the project has enough release volume to justify another automation path.
+release provenance without an extra scheduler. Release drafting is limited to a
+small tag-triggered workflow so the deployment action remains publishing the
+reviewed GitHub Release.
 
 ## Pull request labels
 
