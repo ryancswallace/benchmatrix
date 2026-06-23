@@ -58,8 +58,8 @@ especially the `pypi` environment and PyPI Trusted Publishing checklist.
 
    Confirm the directory contains exactly these release artifacts for `X.Y.Z`:
 
-   * `benchmatrix-X.Y.Z.tar.gz`;
    * `benchmatrix-X.Y.Z-py3-none-any.whl`;
+   * `benchmatrix-X.Y.Z.tar.gz`;
    * `benchmatrix.cdx.json`.
 
 8. Open a pull request, wait for required checks, and merge it normally.

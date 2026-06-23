@@ -42,8 +42,7 @@ Actions release workflow after a GitHub Release is published.
 4. Run the release validation commands:
 
    ```bash
-   make check
-   make test-matrix
+   make check-all
    make build
    ```
 
