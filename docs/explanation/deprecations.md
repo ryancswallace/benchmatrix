@@ -15,7 +15,7 @@ Deprecation is not required for:
 * private names beginning with `_`;
 * undocumented implementation details;
 * behavior that is removed immediately for security or serious correctness
-  reasons.
+    reasons.
 
 ## Timing
 
@@ -39,7 +39,7 @@ major release unless release notes document a narrower exception.
 
 1. confirm the changelog mentioned the deprecation;
 2. confirm the removal timing has arrived or the security/correctness exception
-   applies;
+     applies;
 3. remove the behavior and tests together;
 4. update API docs, tutorials, examples, and compatibility notes;
 5. run `make check` and `make test-matrix`.

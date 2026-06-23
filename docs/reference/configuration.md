@@ -60,29 +60,29 @@ The repository uses focused workflows that call the same Make targets used
 locally:
 
 * `.github/workflows/ci.yml` runs quality checks, supported-Python tests,
-  coverage and JUnit report artifact upload, minimum-dependency tests,
-  packaging smoke checks, SBOM generation, and scheduled dependency audits.
+    coverage and JUnit report artifact upload, minimum-dependency tests,
+    packaging smoke checks, SBOM generation, and scheduled dependency audits.
 * `.github/workflows/docs.yml` builds docs, checks generated-site links, uploads
-  the link-check report, and deploys the MkDocs site from `main` through GitHub
-  Pages.
+    the link-check report, and deploys the MkDocs site from `main` through GitHub
+    Pages.
 * `.github/workflows/draft-release.yml` validates release metadata when a `v*`
-  tag is pushed, extracts release notes from `CHANGELOG.md`, and creates or
-  updates the draft GitHub Release.
+    tag is pushed, extracts release notes from `CHANGELOG.md`, and creates or
+    updates the draft GitHub Release.
 * `.github/workflows/release.yml` builds release artifacts, uploads package
-  distributions and the SBOM as separate Actions artifacts, attaches them to
-  the GitHub Release, attests them, publishes the distributions to PyPI through
-  Trusted Publishing, and verifies installation from PyPI after publication.
+    distributions and the SBOM as separate Actions artifacts, attaches them to
+    the GitHub Release, attests them, publishes the distributions to PyPI through
+    Trusted Publishing, and verifies installation from PyPI after publication.
 * `.github/workflows/release-verify.yml` manually re-runs post-release
-  installation verification from PyPI.
+    installation verification from PyPI.
 * `.github/workflows/docker.yml` builds runtime and test Docker images, scans
-  them for critical vulnerabilities, and publishes them to GHCR from `main` and
-  `v*` tags.
+    them for critical vulnerabilities, and publishes them to GHCR from `main` and
+    `v*` tags.
 * `.github/workflows/workflow-lint.yml` runs actionlint and zizmor for workflow
-  configuration changes, using `.github/zizmor.yml` for project-specific audit
-  policy.
+    configuration changes, using `.github/zizmor.yml` for project-specific audit
+    policy.
 * `.github/workflows/codeql.yml`, `.github/workflows/dependency-review.yml`,
-  and `.github/workflows/scorecard.yml` provide GitHub-native security and
-  supply-chain checks.
+    and `.github/workflows/scorecard.yml` provide GitHub-native security and
+    supply-chain checks.
 
 Standalone SBOM and artifact-attestation workflows are intentionally not added:
 `make build`, CI packaging, and the release workflow already generate SBOMs and
@@ -97,7 +97,7 @@ Pull request labels are applied automatically by GitHub Actions:
 * `.github/labeler.yml` maps changed files and branch names to labels.
 * `.github/workflows/labeler.yml` runs `actions/labeler` on pull requests.
 * `.github/labels.yml` documents the repository's recommended label set for
-  maintainers.
+    maintainers.
 
 Labels are not synced automatically. Create or update labels manually in GitHub
 when the recommended label set changes.

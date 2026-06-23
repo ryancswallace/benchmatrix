@@ -39,14 +39,14 @@ metadata with saved runs.
 Common pitfalls:
 
 * A target returning a generator, coroutine, future, query plan, or other lazy
-  object may only measure object creation. Resolve lazy work inside the
-  synchronous target wrapper.
+    object may only measure object creation. Resolve lazy work inside the
+    synchronous target wrapper.
 * Fresh-input factories and copying run outside the timed target body. Put
-  construction inside the target only when setup cost is part of the operation
-  being measured.
+    construction inside the target only when setup cost is part of the operation
+    being measured.
 * Reused mutable inputs can drift across invocations. Use `fresh_inputs=True`,
-  `deep_copy`, or a domain-specific copier when targets mutate their inputs.
+    `deep_copy`, or a domain-specific copier when targets mutate their inputs.
 * Small differences need repeated runs, distribution checks, and controlled
-  environments before they become conclusions.
+    environments before they become conclusions.
 * A faster implementation still needs ordinary correctness tests. Benchmark
-  tests should not be the only proof that two implementations do the same work.
+    tests should not be the only proof that two implementations do the same work.

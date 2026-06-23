@@ -27,14 +27,14 @@ of truth.
 ## Change stages
 
 * **Experimental**: behavior may change without deprecation. This includes
-  undocumented internals, private modules, and private names.
+    undocumented internals, private modules, and private names.
 * **Documented**: behavior appears in docs or examples and should receive a
-  changelog note when changed.
+    changelog note when changed.
 * **Stable public API**: exported from `benchmatrix.__init__`, documented in the
-  API reference, and covered by tests.
+    API reference, and covered by tests.
 * **Deprecated**: retained temporarily with migration guidance.
 * **Removed**: no longer available after the documented removal release or after
-  an urgent security/correctness removal.
+    an urgent security/correctness removal.
 
 ## Public API stability
 

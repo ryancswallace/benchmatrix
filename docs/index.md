@@ -9,13 +9,13 @@ Use this site by task type:
 
 * **Tutorials** teach the first complete workflow from zero to a benchmark run.
 * **How-to guides** solve focused tasks such as creating a benchmark matrix or
-  parsing saved JSON results.
+    parsing saved JSON results.
 * **Reference** records exact APIs, compatibility commitments, and automation
-  commands.
+    commands.
 * **Explanation** describes architecture, policy, security posture, and design
-  tradeoffs.
+    tradeoffs.
 * **Maintainer runbooks** are operational checklists for releases, incidents,
-  dependency updates, and repository administration.
+    dependency updates, and repository administration.
 
 ## Quick start
 

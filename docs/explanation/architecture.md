@@ -14,7 +14,7 @@ replace its calibration, timing, statistics, terminal reporting, or JSON export.
 * `bench_results.py` parses and displays saved benchmark results.
 * `exceptions.py` contains package-specific exceptions.
 * `_schema.py` is a private schema constant module shared by implementation
-  code.
+    code.
 * `__init__.py` defines the public package exports.
 
 ## Design constraints

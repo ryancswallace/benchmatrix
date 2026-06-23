@@ -10,37 +10,37 @@ needs a manual update sooner.
 ## Steps
 
 1. Identify whether the dependency is runtime, development, Node, or GitHub
-   Actions tooling. For Dependabot pull requests, confirm that the ecosystem,
-   labels, and changed files match the update described in the pull request.
+    Actions tooling. For Dependabot pull requests, confirm that the ecosystem,
+    labels, and changed files match the update described in the pull request.
 2. Update the declaration in the appropriate file.
 3. Refresh locks:
 
-   ```bash
-   uv lock
-   npm install
-   ```
+    ```bash
+    uv lock
+    npm install
+    ```
 
-   Use only the command that matches the changed ecosystem.
+    Use only the command that matches the changed ecosystem.
 
 4. Run focused checks:
 
-   ```bash
-   make deps
-   make audit
-   npm audit --audit-level=moderate
-   ```
+    ```bash
+    make deps
+    make audit
+    npm audit --audit-level=moderate
+    ```
 
 5. Run full validation:
 
-   ```bash
-   make check
-   ```
+    ```bash
+    make check
+    ```
 
 6. If the update can affect supported Python behavior, run:
 
-   ```bash
-   make test-matrix
-   ```
+    ```bash
+    make test-matrix
+    ```
 
 7. Add a changelog entry when users or maintainers should know.
 
@@ -51,19 +51,19 @@ lockfiles, workflow files, or devcontainer files.
 ## Dependabot-specific handling
 
 1. Check the pull request title and labels. Expected labels are `dependencies`
-   and `maintenance`, with ecosystem-specific labels when useful.
+    and `maintenance`, with ecosystem-specific labels when useful.
 2. Review release notes for major updates, security updates, build backends,
-   pytest, pytest-benchmark, Ruff, basedpyright, uv, and GitHub Actions.
+    pytest, pytest-benchmark, Ruff, basedpyright, uv, and GitHub Actions.
 3. Let CI complete. If CI fails, reproduce locally with the command reported by
-   the failed job.
+    the failed job.
 4. For Python updates that touch supported-version behavior, run:
 
-   ```bash
-   make test-matrix
-   ```
+    ```bash
+    make test-matrix
+    ```
 
 5. Merge only after a human review. Auto-merge is intentionally not part of the
-   baseline policy.
+    baseline policy.
 
 ## Manual Dependabot maintenance
 

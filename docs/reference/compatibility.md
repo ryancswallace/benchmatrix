@@ -90,7 +90,7 @@ true:
 
 * the issue is high impact for installed users;
 * a safe, minimal patch can be prepared without carrying substantial branch
-  maintenance cost;
+    maintenance cost;
 * the affected release still has meaningful user adoption;
 * the maintainer has capacity to validate and publish the backport.
 

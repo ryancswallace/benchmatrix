@@ -10,12 +10,12 @@ The repository includes `.github/settings.yml` for the GitHub Settings app. If
 the app is installed, changes merged to the default branch sync these settings:
 
 * repository description, homepage, topics, issues/projects/wiki flags, and
-  branch deletion after merge;
+    branch deletion after merge;
 * allowed merge strategies: squash and rebase enabled, merge commits disabled;
 * Dependabot alerts and automated security fixes;
 * `main` branch protection, including required reviews, code owner review,
-  stale review dismissal, last-push approval, required status checks, linear
-  history, blocked force pushes, blocked deletions, and conversation resolution;
+    stale review dismissal, last-push approval, required status checks, linear
+    history, blocked force pushes, blocked deletions, and conversation resolution;
 * deployment environments and their branch or tag deployment policies.
 
 Install the Settings app only after branch protection is active enough that
@@ -106,7 +106,7 @@ The GitHub Settings app syncs these environments from `.github/settings.yml`:
 
 * `github-pages` for documentation deployment, restricted to `main`;
 * `pypi` for package publishing, restricted to `v*` tags and requiring
-  approval from project maintainer(s).
+    approval from project maintainer(s).
 
 Keep secrets out of the environment when using PyPI Trusted Publishing because
 OIDC should provide a short-lived publishing token.
@@ -138,7 +138,7 @@ Set these repository profile fields:
 * description: `Build pytest-benchmark matrices and parse benchmark results with lightweight Python utilities.`;
 * homepage: `https://ryancswallace.github.io/benchmatrix/` once Pages is live;
 * topics: `benchmark`, `benchmarking`, `performance`, `pytest`,
-  `pytest-benchmark`, `python`.
+    `pytest-benchmark`, `python`.
 
 Disable the wiki and projects unless the project starts using them deliberately.
 Keep issues enabled.

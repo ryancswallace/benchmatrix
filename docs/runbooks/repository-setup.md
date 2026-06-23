@@ -9,19 +9,19 @@ inside this repository.
 1. Confirm you are an administrator for `ryancswallace/benchmatrix`.
 2. Open the default branch and confirm the latest `make check` result is green.
 3. Review `.github/settings.yml` and this runbook together. If they disagree,
-   fix the repository file or the docs before changing external settings.
+    fix the repository file or the docs before changing external settings.
 
 ## Settings-as-code setup
 
 1. Decide whether to use the GitHub Settings app for this repository.
 2. If using it, install the app from `https://github.com/apps/settings` for only
-   this repository.
+    this repository.
 3. Confirm `.github/settings.yml` is on `main`.
 4. Watch the app output or repository settings after installation and verify:
-   description, homepage, topics, merge strategies, vulnerability alerts,
-   deployment environments, and `main` branch protection.
+    description, homepage, topics, merge strategies, vulnerability alerts,
+    deployment environments, and `main` branch protection.
 5. If the app reports an unsupported setting, configure that item manually and
-   update `docs/explanation/repository-settings.md` with the exception.
+    update `docs/explanation/repository-settings.md` with the exception.
 
 ## Branch protection or ruleset
 
@@ -36,21 +36,21 @@ inside this repository.
 9. Require status checks and branch freshness.
 10. Select these required checks:
 
-    ```text
-    Quality checks
-    Package build and smoke test
-    Minimum dependency tests
-    Tests (ubuntu-24.04, Python 3.11)
-    Tests (ubuntu-24.04, Python 3.12)
-    Tests (ubuntu-24.04, Python 3.13)
-    Tests (ubuntu-24.04, Python 3.14)
-    ```
+     ```text
+     Quality checks
+     Package build and smoke test
+     Minimum dependency tests
+     Tests (ubuntu-24.04, Python 3.11)
+     Tests (ubuntu-24.04, Python 3.12)
+     Tests (ubuntu-24.04, Python 3.13)
+     Tests (ubuntu-24.04, Python 3.14)
+     ```
 
 11. Require linear history.
 12. Block force pushes.
 13. Block branch deletion.
 14. Save, then open a test pull request or inspect the branch protection summary
-    to confirm the expected checks are enforced.
+     to confirm the expected checks are enforced.
 
 ## Merge strategy settings
 
@@ -60,7 +60,7 @@ inside this repository.
 4. Disable merge commits.
 5. Enable automatic branch deletion after merge.
 6. Leave auto-merge disabled unless the project adopts a written auto-merge
-   policy.
+    policy.
 
 ## Dependabot and security alerts
 
@@ -73,16 +73,16 @@ inside this repository.
 7. Enable push protection if available for the repository.
 8. Enable private vulnerability reporting.
 9. In your personal notification settings, watch repository security alerts or
-   verify another maintainer is assigned to do so.
+    verify another maintainer is assigned to do so.
 
 ## Labels
 
 1. Open Issues -> Labels in GitHub repository settings.
 2. Compare the current repository labels with `.github/labels.yml`.
 3. Create, rename, or update labels manually when the recommended label set
-   changes.
+    changes.
 4. Do not delete existing labels without checking whether open issues or pull
-   requests still use them.
+    requests still use them.
 
 ## GitHub Pages
 
@@ -96,44 +96,44 @@ for a repository that does not have a Pages site yet. If this step is skipped,
 2. Go to Settings -> Pages.
 3. Set Build and deployment -> Source to GitHub Actions.
 4. Verify the Settings app created the `github-pages` environment and
-   restricted deployments to `main`.
+    restricted deployments to `main`.
 5. Run the documentation workflow once from `main`.
 6. Confirm the site resolves at `https://ryancswallace.github.io/benchmatrix/`.
 7. If the site URL changes, update `mkdocs.yml`, `.github/settings.yml`,
-   `pyproject.toml`, and docs that mention the URL.
+    `pyproject.toml`, and docs that mention the URL.
 
 ## PyPI Trusted Publishing
 
 1. Create or claim the PyPI project `benchmatrix`.
 2. Verify the Settings app created the GitHub environment `pypi`, restricted
-   deployments to `v*` tags, and configured required reviewer(s).
+    deployments to `v*` tags, and configured required reviewer(s).
 3. Do not add PyPI secrets to the environment when Trusted Publishing is the
-   intended path.
+    intended path.
 4. In PyPI, open the project -> Publishing -> Add trusted publisher.
 5. Configure:
 
-   ```text
-   owner: ryancswallace
-   repository: benchmatrix
-   workflow filename: release.yml
-   environment: pypi
-   ```
+    ```text
+    owner: ryancswallace
+    repository: benchmatrix
+    workflow filename: release.yml
+    environment: pypi
+    ```
 
 6. Confirm `.github/workflows/release.yml` grants `id-token: write` to the
-   publish job and uses the `pypi` environment.
+    publish job and uses the `pypi` environment.
 7. Do not add a long-lived PyPI token if Trusted Publishing works.
 8. If a token is temporarily unavoidable, make it project-scoped, store it as
-    an environment secret, and remove it after Trusted Publishing is working.
+     an environment secret, and remove it after Trusted Publishing is working.
 
 ## Repository profile
 
 1. Set the repository description to
-   `Build pytest-benchmark matrices and parse benchmark results with lightweight Python utilities.`.
+    `Build pytest-benchmark matrices and parse benchmark results with lightweight Python utilities.`.
 2. Set the homepage to `https://ryancswallace.github.io/benchmatrix/` once Pages
-   is live.
+    is live.
 3. Set topics:
-   `benchmark`, `benchmarking`, `performance`, `pytest`, `pytest-benchmark`,
-   `python`.
+    `benchmark`, `benchmarking`, `performance`, `pytest`, `pytest-benchmark`,
+    `python`.
 4. Keep issues enabled.
 5. Disable wiki and projects unless maintainers intentionally adopt them.
 

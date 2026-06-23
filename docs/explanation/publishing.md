@@ -114,10 +114,10 @@ GitHub repository settings:
 1. Create an environment named `pypi`.
 2. Add trusted maintainer reviewers.
 3. Restrict deployment branches or tags to release refs if the repository plan
-   supports that control.
+    supports that control.
 4. Do not add PyPI secrets when Trusted Publishing works.
 5. If a temporary token is unavoidable, use a project-scoped token, store it only
-   in the `pypi` environment, and remove it after Trusted Publishing succeeds.
+    in the `pypi` environment, and remove it after Trusted Publishing succeeds.
 
 ## Documentation artifacts
 
@@ -145,6 +145,5 @@ rm -rf "$verify_env"
 
 The command should print `BenchmarkCase`. The release workflow's verification
 job runs that same post-publication smoke check after a GitHub Release is
-published. Also
-inspect the PyPI project page, release workflow logs, GitHub Release assets,
-Actions artifacts, SBOM, and attestations.
+published. Also inspect the PyPI project page, release workflow logs, GitHub
+Release assets, Actions artifacts, SBOM, and attestations.

@@ -8,7 +8,7 @@ Use this when a vulnerability is reported privately.
 2. Do not discuss details in public issues or pull requests.
 3. Preserve the original report and reporter contact.
 4. Triage affected versions, exploitability, and whether the issue is runtime or
-   development-only.
+    development-only.
 
 ## Investigation
 
@@ -17,10 +17,10 @@ Use this when a vulnerability is reported privately.
 3. Add a regression test when possible.
 4. Run:
 
-   ```bash
-   make check
-   make test-matrix
-   ```
+    ```bash
+    make check
+    make test-matrix
+    ```
 
 ## Remediation
 

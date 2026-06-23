@@ -8,10 +8,10 @@ convenience images for reproducible local use, CI smoke checks, and examples.
 The repository builds two images:
 
 * `ghcr.io/ryancswallace/benchmatrix` is the runtime image. It installs the
-  package with runtime dependencies only and defaults to a safe import smoke
-  test.
+    package with runtime dependencies only and defaults to a safe import smoke
+    test.
 * `ghcr.io/ryancswallace/benchmatrix-test` is the test image. It includes the
-  project test and release tooling and defaults to `python -m pytest -q`.
+    project test and release tooling and defaults to `python -m pytest -q`.
 
 Both images run as a non-root user.
 
@@ -65,7 +65,7 @@ The default command should print `BenchmarkCase`. To run a custom command:
 
 ```bash
 docker run --rm ghcr.io/ryancswallace/benchmatrix:latest \
-  python -c "from benchmatrix import BenchmarkCase; print(BenchmarkCase.__name__)"
+    python -c "from benchmatrix import BenchmarkCase; print(BenchmarkCase.__name__)"
 ```
 
 ## Tag policy

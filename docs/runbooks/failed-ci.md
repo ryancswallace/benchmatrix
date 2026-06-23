@@ -6,14 +6,14 @@ Use this when a pull request or default-branch CI run fails.
 
 1. Identify the failing job and first failing command.
 2. Check whether the failure is deterministic by rerunning only if the error
-   looks infrastructure-related.
+    looks infrastructure-related.
 3. Reproduce locally with the matching command:
 
-   ```bash
-   make check
-   make test-matrix
-   make docs
-   ```
+    ```bash
+    make check
+    make test-matrix
+    make docs
+    ```
 
 4. If the failure is Python-version-specific, run the matching nox session.
 

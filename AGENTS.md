@@ -54,6 +54,7 @@ make check
 - Public functions/classes use Google-style docstrings.
 - Private helpers use concise one-line PEP 257 docstrings.
 - Do not add broad `type: ignore`, `# noqa`, or pyright suppressions unless there is no cleaner alternative.
+- Use four spaces for indentation in Markdown files.
 
 ## API constraints
 
