@@ -86,6 +86,12 @@ inside this repository.
 
 ## GitHub Pages
 
+GitHub Pages must be enabled once per repository before the documentation
+workflow can deploy. This is intentionally a small click-ops step: the default
+`GITHUB_TOKEN` can deploy to an existing Pages site, but it cannot enable Pages
+for a repository that does not have a Pages site yet. If this step is skipped,
+`actions/configure-pages` fails with `Get Pages site failed` and `Not Found`.
+
 1. Confirm `make docs` passes locally and in CI.
 2. Go to Settings -> Pages.
 3. Set Build and deployment -> Source to GitHub Actions.

@@ -93,9 +93,12 @@ The documentation site is configured for:
 * source content: `docs/` plus generated API reference pages;
 * local validation: `make docs`.
 
-If publishing the site, set Pages to deploy with GitHub Actions rather than a
-branch source. Use the `github-pages` environment and restrict deployment to the
-default branch. Do not commit the generated `site/` directory.
+If publishing the site, enable Pages once in Settings -> Pages and set Build
+and deployment -> Source to GitHub Actions rather than a branch source. This
+one-time click-ops step creates the Pages site that `actions/configure-pages`
+expects to find during the documentation workflow. Use the `github-pages`
+environment and restrict deployment to the default branch. Do not commit the
+generated `site/` directory.
 
 ## GitHub environments
 
