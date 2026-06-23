@@ -87,21 +87,17 @@ especially the `pypi` environment and PyPI Trusted Publishing checklist.
     or remote tag, creates `v$BENCHMATRIX_RELEASE_VERSION`, and pushes it to
     `origin`.
 
-2. Wait for `.github/workflows/draft-release.yml` to create or update the draft
-    GitHub Release for `v$BENCHMATRIX_RELEASE_VERSION`. The workflow
-    validates that the tag version, package metadata, citation metadata, and
-    changelog section agree, builds the source distribution, wheel, and SBOM,
-    attaches those files to the draft release, and verifies the uploaded assets.
-3. Open the draft GitHub Release. Confirm the tag, title, notes, source
+2. Open the draft GitHub Release created by
+    `.github/workflows/draft-release.yml`. Confirm the tag, title, notes, source
     distribution, wheel, and SBOM are correct. GitHub also shows its automatic
     source code archives on the release page.
 
     If the draft workflow fails before assets are attached, rerun the
     `Draft release` workflow manually with the same `vX.Y.Z` tag after fixing
     the failure.
-4. Publish the draft GitHub Release.
-5. Watch `.github/workflows/release.yml` through the publish and verification
-    jobs.
+3. Publish the draft GitHub Release.
+4. Watch `.github/workflows/release.yml` through the publish and verification
+    jobs. Review and approve the `pypi` environment release if required.
 
 The draft-release workflow intentionally stops at a draft with reviewable
 package assets attached. The workflow uses `GITHUB_TOKEN`, and GitHub

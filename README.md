@@ -88,11 +88,16 @@ For local development from this repository:
 make ready
 ```
 
-To try the package from another project before the first PyPI release, install
-from GitHub:
+To install the latest release from PyPI:
 
 ```bash
-uv add "benchmatrix @ git+https://github.com/ryancswallace/benchmatrix"
+uv add benchmatrix
+```
+
+or
+
+```bash
+pip install benchmatrix
 ```
 
 ## Documentation
