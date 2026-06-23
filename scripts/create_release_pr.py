@@ -87,7 +87,6 @@ def ensure_tools() -> None:
 def status_paths(root: Path) -> set[str]:
     """Return paths with tracked or untracked working-tree status."""
     status = output(["git", "status", "--porcelain=v1"], cwd=root)
-    print(f"{status=}")
     paths: set[str] = set()
     for line in status.splitlines():
         if not line:

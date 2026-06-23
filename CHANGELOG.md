@@ -20,6 +20,18 @@ additional pre-1.0 compatibility expectations described in
 
 ### Security
 
+## 0.2.2 - 2026-06-23
+
+### Changed
+
+* Change documentation site from built-in MkDocs theme to Material theme
+* Automate several steps of the release process
+
+### Fixed
+
+* Ensure all assets, including wheels and SBOMs attached to GitHub releases
+* Standardize Markdown formatting on four spaces for indentation
+
 ## 0.2.1 - 2026-06-22
 
 ### Changed
