@@ -77,18 +77,22 @@ especially the `pypi` environment and PyPI Trusted Publishing checklist.
 3. On GitHub, create a new release for tag `vX.Y.Z`.
 4. Use release notes copied from the `CHANGELOG.md` section for `X.Y.Z`.
 5. Publish the GitHub Release.
-6. Watch `.github/workflows/release.yml`.
+6. Watch `.github/workflows/release.yml` through the publish and verification
+   jobs.
 
 The release workflow runs on the GitHub `release` event with the `published`
 activity type. Drafting a release does not publish to PyPI; publishing the
 GitHub Release does. The publish job only runs when the workflow ref starts with
 `refs/tags/v`, so releases must use tags such as `v0.2.0`. The workflow rebuilds
 distributions from the tagged source, generates the SBOM, smoke-tests the wheel,
-creates artifact attestations, and then publishes to PyPI from the `pypi`
-environment.
+creates artifact attestations, uploads package distributions and the SBOM as
+separate workflow artifacts, and then publishes only the distributions to PyPI
+from the `pypi` environment.
 
 If the `pypi` environment requires approval, approve the deployment only after
 confirming the tag, changelog, and workflow run are for the intended version.
+The verification job depends on the publish job, so it verifies the package
+after publication rather than racing the publishing job.
 
 ## Verify after publication
 
@@ -110,8 +114,8 @@ confirming the tag, changelog, and workflow run are for the intended version.
 
 3. Confirm the command prints `BenchmarkCase`.
 4. Check the release workflow artifacts and attestations.
-5. Confirm the Release verification workflow installed `benchmatrix==X.Y.Z`
-   from PyPI and imported `BenchmarkCase` successfully.
+5. Confirm the release workflow's `Verify PyPI install` job installed
+   `benchmatrix==X.Y.Z` from PyPI and imported `BenchmarkCase` successfully.
 6. Confirm the Docker workflow published and smoke-tested the GHCR images for
    the release tag.
 7. Confirm the documentation deployment for `main` completed if release docs

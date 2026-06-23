@@ -70,7 +70,7 @@ jobs:
           name: docs-linkcheck-report
           path: reports/linkchecker.xml
           if-no-files-found: ignore
-          retention-days: 30
+          retention-days: 90
 
       - name: Configure GitHub Pages
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'

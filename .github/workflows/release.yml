@@ -61,16 +61,23 @@ jobs:
         with:
           subject-path: dist/*
 
-      - name: Upload release artifacts
+      - name: Upload package distributions
         uses: actions/upload-artifact@v7
         with:
           name: benchmatrix-release-dist
           path: |
             dist/*.tar.gz
             dist/*.whl
-            dist/*.cdx.json
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 90
+
+      - name: Upload release SBOM
+        uses: actions/upload-artifact@v7
+        with:
+          name: benchmatrix-release-sbom
+          path: dist/*.cdx.json
+          if-no-files-found: error
+          retention-days: 90
 
   publish:
     name: Publish to PyPI
@@ -94,3 +101,65 @@ jobs:
 
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+
+  verify:
+    name: Verify PyPI install
+    if: (github.event_name == 'release' || inputs.publish == 'true') && startsWith(github.ref, 'refs/tags/v')
+    needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    steps:
+      - name: Resolve release version
+        id: version
+        shell: bash
+        env:
+          RELEASE_REF: ${{ github.ref_name }}
+        run: |
+          release_ref="${RELEASE_REF}"
+          case "$release_ref" in
+            v*) version="${release_ref#v}" ;;
+            *)
+              echo "Release verification only runs for v* tags; got '${release_ref}'."
+              exit 1
+              ;;
+          esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version-file: .python-version
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.2.0
+        with:
+          version: "0.11.21"
+          enable-cache: false
+
+      - name: Verify package installation from PyPI
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          verify_env="$(mktemp -d)"
+          trap 'rm -rf "$verify_env"' EXIT
+          uv venv --quiet "$verify_env"
+          for attempt in $(seq 1 20); do
+            if VIRTUAL_ENV="$verify_env" uv pip install --quiet "benchmatrix==$VERSION"; then
+              break
+            fi
+            if [ "$attempt" -eq 20 ]; then
+              echo "Failed to install benchmatrix==$VERSION from PyPI after $attempt attempts."
+              exit 1
+            fi
+            sleep 30
+          done
+          "$verify_env/bin/python" -c "from benchmatrix import BenchmarkCase; print(BenchmarkCase.__name__)"

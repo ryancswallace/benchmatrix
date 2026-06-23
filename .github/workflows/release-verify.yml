@@ -1,9 +1,6 @@
 name: Release verification
 
 on:
-  release:
-    types:
-      - published
   workflow_dispatch:
     inputs:
       version:
@@ -15,13 +12,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-verify-${{ github.event.release.tag_name || inputs.version }}
+  group: release-verify-${{ inputs.version }}
   cancel-in-progress: false
 
 jobs:
   verify-pypi:
     name: Verify PyPI install
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'v')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
 
@@ -30,35 +26,37 @@ jobs:
         id: version
         shell: bash
         env:
-          RELEASE_REF: ${{ github.event.release.tag_name || inputs.version }}
+          RELEASE_REF: ${{ inputs.version }}
         run: |
           release_ref="${RELEASE_REF}"
+          if [ -z "$release_ref" ]; then
+            echo "Release verification did not receive a version."
+            exit 1
+          fi
+
           case "$release_ref" in
             v*) version="${release_ref#v}" ;;
-            *)
-              echo "Release verification only runs for v* tags or v* manual inputs; got '${release_ref}'."
-              echo "should_verify=false" >> "$GITHUB_OUTPUT"
-              exit 0
-              ;;
+            *) version="$release_ref" ;;
           esac
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "should_verify=true" >> "$GITHUB_OUTPUT"
+
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Set up Python
-        if: steps.version.outputs.should_verify == 'true'
         uses: actions/setup-python@v6
         with:
           python-version-file: .python-version
 
       - name: Set up uv
-        if: steps.version.outputs.should_verify == 'true'
         uses: astral-sh/setup-uv@v8.2.0
         with:
           version: "0.11.21"
           enable-cache: false
 
       - name: Verify package installation from PyPI
-        if: steps.version.outputs.should_verify == 'true'
         shell: bash
         env:
           VERSION: ${{ steps.version.outputs.version }}
