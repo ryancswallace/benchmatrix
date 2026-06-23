@@ -95,6 +95,7 @@ especially the `pypi` environment and PyPI Trusted Publishing checklist.
     If the draft workflow fails before assets are attached, rerun the
     `Draft release` workflow manually with the same `vX.Y.Z` tag after fixing
     the failure.
+
 3. Publish the draft GitHub Release.
 4. Watch `.github/workflows/release.yml` through the publish and verification
     jobs. Review and approve the `pypi` environment release if required.
