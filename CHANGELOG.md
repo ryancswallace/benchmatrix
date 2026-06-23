@@ -12,6 +12,14 @@ additional pre-1.0 compatibility expectations described in
 
 ### Changed
 
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
 ## 0.2.1 - 2026-06-22
 
 ### Changed

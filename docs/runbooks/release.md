@@ -32,9 +32,7 @@ especially the `pypi` environment and PyPI Trusted Publishing checklist.
     * minor for new features or pre-1.0 breaking changes;
     * major for post-1.0 breaking public API changes.
 
-3. Update the `CHANGELOG.md` entries **under `## Unreleased`**. Call out
-    breaking changes, Python support changes, deprecations, and security fixes
-    explicitly.
+3. Update the `CHANGELOG.md` entries **under `## Unreleased`**.
 4. Prepare release metadata, validate the release, and open the pull request:
 
     ```bash
