@@ -15,7 +15,9 @@ license: MIT
 repository-code: "https://github.com/ryancswallace/benchmatrix"
 url: "https://github.com/ryancswallace/benchmatrix"
 keywords:
+  - "python"
   - "benchmarking"
+  - "benchmark"
   - "performance"
   - "pytest"
   - "pytest-benchmark"
