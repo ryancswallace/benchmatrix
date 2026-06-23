@@ -22,19 +22,9 @@ additional pre-1.0 compatibility expectations described in
 
 ## 0.2.3 - 2026-06-23
 
-### Added
-
-### Changed
-
-### Deprecated
-
-### Removed
-
 ### Fixed
 
 * Ensure all assets uploaded to draft GitHub release
-
-### Security
 
 ## 0.2.2 - 2026-06-23
 
