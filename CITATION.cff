@@ -10,7 +10,7 @@ authors:
     given-names: "Ryan"
     email: "ryancswallace@gmail.com"
     alias: "ryancswallace"
-version: 0.2.0
+version: 0.2.1
 date-released: "2026-06-22"
 license: MIT
 repository-code: "https://github.com/ryancswallace/benchmatrix"
