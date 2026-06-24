@@ -66,6 +66,8 @@
     "remoteUser": "vscode",
     "runArgs": [
         "--env-file",
-        "${localWorkspaceFolder}/.devcontainer/.env.local"
+        "${localWorkspaceFolder}/.devcontainer/.env.local",
+        "--security-opt",
+        "seccomp=unconfined"
     ]
 }

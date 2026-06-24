@@ -116,6 +116,7 @@
         "Scorecard",
         "sdist",
         "sdists",
+        "seccomp",
         "setupuv",
         "superfences",
         "supplychain",
