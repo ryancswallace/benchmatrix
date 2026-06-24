@@ -1,22 +1,8 @@
 # Security policy
 
-## Supported versions
-
-Security fixes are provided for the latest released version of benchmatrix.
-Because the project is currently pre-1.0, fixes are not routinely backported to
-older minor versions.
-
-The active support branch is `main`. Temporary security release branches may be
-created for coordinated disclosure, but they are not maintained after the fix is
-released unless the release notes explicitly say otherwise.
-
-A backport to an older release may be considered when the issue is high impact,
-the patch is small and safe, the affected release still has meaningful user
-adoption, and the maintainer has capacity to validate and publish the backport.
+Please do not open a public issue for a suspected vulnerability.
 
 ## Reporting a vulnerability
-
-Please do not open a public issue for a suspected vulnerability.
 
 Email Ryan Wallace at <ryancswallace@gmail.com> with:
 
@@ -28,3 +14,21 @@ Email Ryan Wallace at <ryancswallace@gmail.com> with:
 You should receive an acknowledgement within seven days. The maintainer will
 coordinate validation, remediation, and disclosure with the reporter. Please
 allow a reasonable period for a fix before publishing details.
+
+## Support scope
+
+Security fixes are provided for the latest released version of benchmatrix.
+Because the project is currently pre-1.0, older minor versions are not routinely
+backported. Security and compatibility fixes are normally prepared on `main` and
+released from there.
+
+For the full support and backport policy, see
+[Compatibility](docs/reference/compatibility.md#security-fix-policy) and
+[Lifecycle](docs/explanation/lifecycle.md).
+
+## Related documentation
+
+* [Threat model](docs/explanation/threat-model.md)
+* [Secrets handling](docs/explanation/secrets.md)
+* [Security report runbook](docs/runbooks/security-report.md)
+* [Incident response runbook](docs/runbooks/incident-response.md)

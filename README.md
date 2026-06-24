@@ -102,12 +102,19 @@ pip install benchmatrix
 
 ## Documentation
 
+The documentation source lives under [`docs/`](docs/). The top-level Markdown
+files are short project entry points; detailed guides, explanations, references,
+and runbooks live in the MkDocs documentation.
+
 | Start here | Use it for |
 | --- | --- |
 | [First benchmark](docs/tutorials/first-benchmark.md) | A complete first benchmark from test file to parsed JSON. |
 | [Create a benchmark matrix](docs/how-to/create-benchmark-matrix.md) | Cases, work units, fresh inputs, and synchronous target wrappers. |
 | [Parse benchmark results](docs/how-to/parse-results.md) | Loading and displaying benchmatrix-tagged pytest-benchmark JSON. |
 | [Performance model](docs/explanation/performance.md) | What the metrics mean and what they do not prove. |
+| [Development](docs/development.md) | Local setup, test commands, and repository layout. |
+| [Compatibility](docs/reference/compatibility.md) | Supported Python versions, API stability, and support policy. |
+| [Publishing](docs/explanation/publishing.md) | Release artifacts, draft releases, PyPI publishing, and verification. |
 | [Configuration and automation](docs/reference/configuration.md) | Make targets, CI workflows, Docker checks, docs, and SBOM generation. |
 
 The MkDocs site builds in strict mode and generates API reference pages from the

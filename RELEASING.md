@@ -1,28 +1,35 @@
 # Release policy
 
-benchmatrix uses [Semantic Versioning](https://semver.org/).
+benchmatrix uses [Semantic Versioning](https://semver.org/). The detailed
+release checklist lives in [the release runbook](docs/runbooks/release.md), and
+the publishing model is documented in [Publishing](docs/explanation/publishing.md).
 
-## Compatibility
+## Compatibility summary
 
-While the project is pre-1.0:
+benchmatrix is currently pre-1.0:
 
-* patch releases contain compatible fixes and documentation improvements;
-* minor releases may introduce breaking API changes;
-* breaking changes should be called out clearly in the changelog.
+* patch releases should preserve documented public behavior except for urgent
+  security or correctness fixes;
+* minor releases may include breaking public API changes;
+* breaking changes, deprecations, Python support changes, and migration notes
+  should be called out in the changelog and release notes.
 
-Starting with 1.0, incompatible public API changes require a major release.
-The supported public API is the set of names exported from
-`benchmatrix.__init__`. Private modules and names beginning with an underscore
-are not covered by the compatibility guarantee.
+Starting with 1.0, incompatible changes to the stable public API require a major
+release. The stable public API is the set of names exported from
+`benchmatrix.__init__` and documented in the generated API reference; private
+modules and private names are not stable extension points.
 
-Python version support may change in a minor release before 1.0 and in a major
-release after 1.0. Dropping a Python version will be documented in advance when
-practical.
+For the full policy, see [Compatibility](docs/reference/compatibility.md),
+[Lifecycle](docs/explanation/lifecycle.md), and
+[Deprecations](docs/explanation/deprecations.md).
 
-Release branches are not maintained as standing support branches. The active
-support branch is `main`; temporary release or security branches may be used for
-coordination and retired after release.
+## Release operations
 
-## Release process
+Use [docs/runbooks/release.md](docs/runbooks/release.md) when preparing and
+publishing a release. The runbook covers version preparation, changelog updates,
+release pull request automation, tag creation, draft GitHub Release review, PyPI
+publication through Trusted Publishing, and post-publication verification.
 
-See the detailed operational checklist in `docs/runbooks/release.md`.
+Release notes come from [CHANGELOG.md](CHANGELOG.md). Keep user-visible changes
+under `## Unreleased` until release preparation moves them into a dated version
+section.
