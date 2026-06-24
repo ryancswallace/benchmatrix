@@ -1,5 +1,8 @@
-blank_issues_enabled: true
+blank_issues_enabled: false
 contact_links:
+  - name: Documentation
+    url: https://github.com/ryancswallace/benchmatrix#documentation
+    about: Start with the guides, references, and runbooks in the project documentation.
   - name: Security report
     url: https://github.com/ryancswallace/benchmatrix/blob/main/SECURITY.md
     about: Learn how to report suspected vulnerabilities privately.

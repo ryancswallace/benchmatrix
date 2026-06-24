@@ -106,8 +106,8 @@ release:
           - "docs/runbooks/release.md"
           - "docs/explanation/publishing.md"
           - "docs/explanation/first-release.md"
-  - base-branch:
-      - "^main$"
+  - head-branch:
+      - "^(release|prepare-release)/"
 
 performance:
   - changed-files:

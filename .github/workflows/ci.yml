@@ -61,6 +61,9 @@ jobs:
       - name: Run spelling checks
         run: make spellcheck
 
+      - name: Run Dockerfile lint
+        run: make docker-lint
+
       - name: Run secret scanning
         run: make secrets
 

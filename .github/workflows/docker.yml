@@ -5,6 +5,7 @@ on:
     paths:
       - Dockerfile
       - .dockerignore
+      - .devcontainer/Dockerfile
       - package.json
       - package-lock.json
       - pyproject.toml

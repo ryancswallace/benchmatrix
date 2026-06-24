@@ -3,11 +3,21 @@ description: Report reproducible incorrect behavior in benchmatrix
 title: "bug: "
 labels:
   - bug
+  - needs-triage
 body:
   - type: markdown
     attributes:
       value: |
         Thanks for reporting a bug. For security vulnerabilities, follow SECURITY.md instead of filing a public issue.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I have searched existing issues for the same problem.
+          required: true
+        - label: This report does not include secrets, tokens, or private benchmark data.
+          required: true
   - type: input
     id: version
     attributes:
@@ -20,6 +30,13 @@ body:
     attributes:
       label: Python version
       placeholder: "3.14.0"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "Ubuntu 24.04, macOS 15, Windows 2025"
     validations:
       required: true
   - type: textarea
@@ -42,6 +59,12 @@ body:
     attributes:
       label: Output or traceback
       render: shell
+  - type: textarea
+    id: benchmark_json
+    attributes:
+      label: Relevant benchmark JSON
+      description: Include a minimal sanitized excerpt when the issue involves parsing pytest-benchmark output.
+      render: json
   - type: textarea
     id: context
     attributes:

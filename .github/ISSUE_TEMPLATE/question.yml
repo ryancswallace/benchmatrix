@@ -1,0 +1,19 @@
+name: Question
+description: Ask a usage or clarification question
+title: "question: "
+labels:
+  - question
+  - needs-triage
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What are you trying to understand or decide?
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Include the relevant code, command, benchmark JSON shape, or documentation page.

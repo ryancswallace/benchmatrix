@@ -279,7 +279,7 @@ workflow-env-lint: npm-install
 	npm run workflow-env-lint
 
 spellcheck: npm-install
-	npx cspell .
+	npx cspell . .github
 
 # -----------------------------------------------------------------------------
 # Dependencies and security
