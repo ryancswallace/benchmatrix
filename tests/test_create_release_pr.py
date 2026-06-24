@@ -2,36 +2,17 @@
 
 from __future__ import annotations
 
-import importlib.util
-import sys
 from pathlib import Path
-from types import ModuleType
-from typing import Any, cast
 
 import pytest
 
+from _helpers import load_script_module
+
 pytestmark = pytest.mark.unit
-
-_PROJECT_ROOT = Path(__file__).resolve().parents[1]
-
-
-def _load_create_release_pr() -> Any:
-    """Load the release PR helper script as a module."""
-    scripts_dir = _PROJECT_ROOT / "scripts"
-    script_path = scripts_dir / "create_release_pr.py"
-    if str(scripts_dir) not in sys.path:
-        sys.path.insert(0, str(scripts_dir))
-    spec = importlib.util.spec_from_file_location("create_release_pr", script_path)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(cast(ModuleType, module))
-    return module
 
 
 def test_release_pr_plan_uses_standard_release_metadata() -> None:
-    release_pr = _load_create_release_pr()
+    release_pr = load_script_module("create_release_pr")
 
     plan = release_pr.release_pr_plan("v1.2.3", "main")
 
@@ -45,7 +26,7 @@ def test_release_pr_plan_uses_standard_release_metadata() -> None:
 
 
 def test_changed_release_files_rejects_unrelated_changes(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    release_pr = _load_create_release_pr()
+    release_pr = load_script_module("create_release_pr")
 
     monkeypatch.setattr(release_pr, "status_paths", lambda root: {"CHANGELOG.md", "docs/runbooks/release.md"})
 
@@ -54,7 +35,7 @@ def test_changed_release_files_rejects_unrelated_changes(monkeypatch: pytest.Mon
 
 
 def test_changed_release_files_returns_release_files(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    release_pr = _load_create_release_pr()
+    release_pr = load_script_module("create_release_pr")
 
     monkeypatch.setattr(release_pr, "status_paths", lambda root: {"uv.lock", "CHANGELOG.md"})
 
@@ -62,7 +43,7 @@ def test_changed_release_files_returns_release_files(monkeypatch: pytest.MonkeyP
 
 
 def test_release_version_arg_validates_env_version(monkeypatch: pytest.MonkeyPatch) -> None:
-    release_pr = _load_create_release_pr()
+    release_pr = load_script_module("create_release_pr")
 
     assert release_pr.release_version_arg("v1.2.3") == "1.2.3"
 
@@ -76,3 +57,33 @@ def test_release_version_arg_validates_env_version(monkeypatch: pytest.MonkeyPat
     monkeypatch.setenv("BENCHMATRIX_RELEASE_VERSION", "")
     with pytest.raises(release_pr.ReleaseError, match="Set BENCHMATRIX_RELEASE_VERSION"):
         release_pr.release_version_arg(None)
+
+
+def test_create_release_pr_reuses_existing_pull_request(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    release_pr = load_script_module("create_release_pr")
+    plan = release_pr.release_pr_plan("1.2.3", "main")
+    calls: list[str] = []
+
+    monkeypatch.setattr(release_pr, "ensure_tools", lambda: calls.append("ensure_tools"))
+    monkeypatch.setattr(release_pr, "validate_release", lambda root, version: calls.append("validate_release"))
+    monkeypatch.setattr(release_pr, "changed_release_files", lambda root: [])
+    monkeypatch.setattr(release_pr, "ensure_branch", lambda root, branch: calls.append("ensure_branch"))
+    monkeypatch.setattr(
+        release_pr,
+        "commit_release_changes",
+        lambda root, release_plan, changed_files: False,
+    )
+    monkeypatch.setattr(release_pr, "push_branch", lambda root, branch: calls.append("push_branch"))
+    monkeypatch.setattr(release_pr, "existing_pr_url", lambda root, branch: "https://example.test/pull/1")
+    monkeypatch.setattr(release_pr, "create_pr", lambda root, release_plan, draft: pytest.fail("created a new PR"))
+
+    url = release_pr.create_release_pr(tmp_path, plan, draft=True)
+
+    assert url == "https://example.test/pull/1"
+    assert calls == ["ensure_tools", "validate_release", "ensure_branch", "push_branch"]
+    output = capsys.readouterr()
+    assert "Release pull request already exists" in output.out

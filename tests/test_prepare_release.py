@@ -2,28 +2,14 @@
 
 from __future__ import annotations
 
-import importlib.util
 import textwrap
 from pathlib import Path
-from types import ModuleType
-from typing import Any, cast
 
 import pytest
 
+from _helpers import load_script_module
+
 pytestmark = pytest.mark.unit
-
-_PROJECT_ROOT = Path(__file__).resolve().parents[1]
-
-
-def _load_prepare_release() -> Any:
-    """Load the release helper script as a module."""
-    script_path = _PROJECT_ROOT / "scripts" / "prepare_release.py"
-    spec = importlib.util.spec_from_file_location("prepare_release", script_path)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(cast(ModuleType, module))
-    return module
 
 
 def _write_release_files(root: Path) -> None:
@@ -78,7 +64,7 @@ def _write_release_files(root: Path) -> None:
 
 
 def test_prepare_updates_release_metadata_and_runs_uv_lock(tmp_path: Path) -> None:
-    release = _load_prepare_release()
+    release = load_script_module("prepare_release")
     _write_release_files(tmp_path)
     lock_roots: list[Path] = []
 
@@ -104,7 +90,7 @@ def test_prepare_updates_release_metadata_and_runs_uv_lock(tmp_path: Path) -> No
 
 
 def test_validate_rejects_inconsistent_release_metadata(tmp_path: Path) -> None:
-    release = _load_prepare_release()
+    release = load_script_module("prepare_release")
     _write_release_files(tmp_path)
 
     exit_code = release.main(["--repo-root", str(tmp_path), "validate", "1.2.3"])
@@ -113,7 +99,7 @@ def test_validate_rejects_inconsistent_release_metadata(tmp_path: Path) -> None:
 
 
 def test_validate_release_version_requires_env_style_version() -> None:
-    release = _load_prepare_release()
+    release = load_script_module("prepare_release")
 
     assert release.validate_release_version("1.2.3") == "1.2.3"
 
@@ -128,7 +114,7 @@ def test_validate_release_version_requires_env_style_version() -> None:
 
 
 def test_validate_version_cli_reports_missing_or_malformed_versions(capsys: pytest.CaptureFixture[str]) -> None:
-    release = _load_prepare_release()
+    release = load_script_module("prepare_release")
 
     assert release.main(["validate-version", ""]) == 1
     missing = capsys.readouterr()
@@ -141,3 +127,23 @@ def test_validate_version_cli_reports_missing_or_malformed_versions(capsys: pyte
     assert release.main(["validate-version", "1.2.3"]) == 0
     valid = capsys.readouterr()
     assert "Release version is 1.2.3." in valid.out
+
+
+def test_notes_cli_prints_and_writes_release_notes(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    release = load_script_module("prepare_release")
+    _write_release_files(tmp_path)
+
+    assert release.main(["--repo-root", str(tmp_path), "prepare", "v1.2.3", "--date", "2026-06-23", "--no-lock"]) == 0
+    _ = capsys.readouterr()
+
+    output_path = tmp_path / "release-notes.md"
+
+    assert release.main(["--repo-root", str(tmp_path), "notes", "1.2.3", "--output", str(output_path)]) == 0
+    assert "* New release helper." in output_path.read_text(encoding="utf-8")
+
+    assert release.main(["--repo-root", str(tmp_path), "notes", "v1.2.3"]) == 0
+    printed = capsys.readouterr()
+    assert "* Release preparation is shorter." in printed.out

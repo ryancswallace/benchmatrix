@@ -2,37 +2,18 @@
 
 from __future__ import annotations
 
-import importlib.util
 import shutil
-import sys
 from pathlib import Path
-from types import ModuleType
-from typing import Any, cast
 
 import pytest
 
+from _helpers import load_script_module
+
 pytestmark = pytest.mark.unit
-
-_PROJECT_ROOT = Path(__file__).resolve().parents[1]
-
-
-def _load_release_preflight() -> Any:
-    """Load the release preflight helper script as a module."""
-    scripts_dir = _PROJECT_ROOT / "scripts"
-    script_path = scripts_dir / "release_preflight.py"
-    if str(scripts_dir) not in sys.path:
-        sys.path.insert(0, str(scripts_dir))
-    spec = importlib.util.spec_from_file_location("release_preflight", script_path)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(cast(ModuleType, module))
-    return module
 
 
 def test_tool_check_reports_missing_tools(monkeypatch: pytest.MonkeyPatch) -> None:
-    release_preflight = _load_release_preflight()
+    release_preflight = load_script_module("release_preflight")
 
     monkeypatch.setattr(shutil, "which", lambda tool: "/usr/bin/git" if tool == "git" else None)
 
@@ -44,7 +25,7 @@ def test_tool_check_reports_missing_tools(monkeypatch: pytest.MonkeyPatch) -> No
 
 
 def test_local_changes_check_allows_release_files(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    release_preflight = _load_release_preflight()
+    release_preflight = load_script_module("release_preflight")
 
     monkeypatch.setattr(release_preflight, "status_paths", lambda root: {"CHANGELOG.md", "uv.lock"})
 
@@ -55,7 +36,7 @@ def test_local_changes_check_allows_release_files(monkeypatch: pytest.MonkeyPatc
 
 
 def test_local_changes_check_rejects_unrelated_files(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    release_preflight = _load_release_preflight()
+    release_preflight = load_script_module("release_preflight")
 
     monkeypatch.setattr(release_preflight, "status_paths", lambda root: {"CHANGELOG.md", "README.md"})
 
@@ -66,7 +47,7 @@ def test_local_changes_check_rejects_unrelated_files(monkeypatch: pytest.MonkeyP
 
 
 def test_github_token_check_requires_api_token(monkeypatch: pytest.MonkeyPatch) -> None:
-    release_preflight = _load_release_preflight()
+    release_preflight = load_script_module("release_preflight")
 
     monkeypatch.setenv("GH_TOKEN", "")
     monkeypatch.setenv("GITHUB_TOKEN", "")
@@ -84,7 +65,7 @@ def test_github_token_check_requires_api_token(monkeypatch: pytest.MonkeyPatch) 
 
 
 def test_release_version_arg_validates_env_version(monkeypatch: pytest.MonkeyPatch) -> None:
-    release_preflight = _load_release_preflight()
+    release_preflight = load_script_module("release_preflight")
 
     assert release_preflight.release_version_arg("v1.2.3") == "1.2.3"
 
@@ -94,3 +75,34 @@ def test_release_version_arg_validates_env_version(monkeypatch: pytest.MonkeyPat
     monkeypatch.setenv("BENCHMATRIX_RELEASE_VERSION", "v1.2.3")
     with pytest.raises(release_preflight.ReleaseError, match="without a leading v"):
         release_preflight.release_version_arg(None)
+
+
+def test_run_preflight_treats_warning_checks_as_non_blocking(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    release_preflight = load_script_module("release_preflight")
+    ok = release_preflight.CheckResult
+
+    monkeypatch.setattr(release_preflight, "tool_check", lambda *tools: ok("tools", True, "ok"))
+    monkeypatch.setattr(release_preflight, "git_branch_check", lambda root, base: ok("branch", True, "ok"))
+    monkeypatch.setattr(release_preflight, "local_changes_check", lambda root: ok("local changes", True, "ok"))
+    monkeypatch.setattr(release_preflight, "base_sync_check", lambda root, base: ok("base sync", True, "ok"))
+    monkeypatch.setattr(release_preflight, "gh_auth_check", lambda root: ok("GitHub auth", True, "ok"))
+    monkeypatch.setattr(release_preflight, "github_token_check", lambda: ok("GitHub API token", True, "ok"))
+    monkeypatch.setattr(release_preflight, "tag_absence_check", lambda root, tag: ok("release tag", True, "ok"))
+    monkeypatch.setattr(
+        release_preflight,
+        "github_release_absence_check",
+        lambda root, tag: ok("GitHub Release", True, "ok"),
+    )
+    monkeypatch.setattr(
+        release_preflight,
+        "pypi_environment_check",
+        lambda root: ok("pypi environment", False, "not visible", warning=True),
+    )
+
+    assert release_preflight.run_preflight(tmp_path, "v1.2.3", "main") == 0
+    output = capsys.readouterr()
+    assert "WARN pypi environment: not visible" in output.out

@@ -539,6 +539,19 @@ def test_run_benchmark_metric_rejects_unsupported_metric() -> None:
         )
 
 
+def test_run_benchmark_metric_rejects_non_string_metric() -> None:
+    with pytest.raises(TypeError, match="metric name"):
+        _ = run_benchmark_metric(
+            _RecordingBenchmark(),
+            cast(MetricName, cast(object, None)),
+            "impl",
+            _noop,
+            "case-id",
+            BenchmarkCase("input"),
+            config=BenchmarkConfig(stream_progress=False),
+        )
+
+
 @pytest.mark.parametrize(
     ("implementation_name", "case_name", "message"),
     [
@@ -603,6 +616,18 @@ def test_make_benchmark_parameters_generates_cross_product_with_stable_ids() -> 
     assert _parameter_set(parameters[-1]).id == "batch_throughput::impl-b::second"
 
 
+def test_make_benchmark_parameters_defaults_to_all_supported_metrics() -> None:
+    case = BenchmarkCase("case")
+
+    parameters = make_benchmark_parameters({"impl": _noop}, [case])
+
+    assert [_parameter_set(parameter).id for parameter in parameters] == [
+        "single_call_latency::impl::case",
+        "batch_throughput::impl::case",
+        "tail_latency::impl::case",
+    ]
+
+
 def test_make_benchmark_parameters_accepts_mapping_case_names() -> None:
     case = BenchmarkCase("internal-name")
 
@@ -622,12 +647,13 @@ def test_make_benchmark_parameters_accepts_mapping_case_names() -> None:
     [
         ({}, [BenchmarkCase("case")], ("single_call_latency",), "implementations"),
         ({"impl": _noop}, [], ("single_call_latency",), "cases"),
+        ({"impl": _noop}, {}, ("single_call_latency",), "cases"),
         ({"impl": _noop}, [BenchmarkCase("case")], (), "metrics"),
     ],
 )
 def test_make_benchmark_parameters_rejects_empty_matrix_inputs(
     implementations: Mapping[str, Callable[..., object]],
-    cases: list[BenchmarkCase],
+    cases: Mapping[str, BenchmarkCase] | list[BenchmarkCase],
     metrics: tuple[MetricName, ...],
     message: str,
 ) -> None:
@@ -641,6 +667,24 @@ def test_make_benchmark_parameters_rejects_unsupported_metrics() -> None:
             {"impl": _noop},
             [BenchmarkCase("case")],
             metrics=(cast(MetricName, cast(object, "not-a-metric")),),
+        )
+
+
+def test_make_benchmark_parameters_rejects_non_string_metrics() -> None:
+    with pytest.raises(TypeError, match="metric name"):
+        _ = make_benchmark_parameters(
+            {"impl": _noop},
+            [BenchmarkCase("case")],
+            metrics=(cast(MetricName, cast(object, None)),),
+        )
+
+
+def test_make_benchmark_parameters_rejects_empty_implementation_names() -> None:
+    with pytest.raises(ValueError, match="implementation name"):
+        _ = make_benchmark_parameters(
+            {"": _noop},
+            [BenchmarkCase("case")],
+            metrics=("single_call_latency",),
         )
 
 
@@ -670,6 +714,17 @@ def test_make_benchmark_parameters_rejects_non_case_mapping_values() -> None:
     cases = cast(Mapping[str, BenchmarkCase], {"external": object()})
 
     with pytest.raises(TypeError, match="Benchmark case 'external'"):
+        _ = make_benchmark_parameters(
+            {"impl": _noop},
+            cases,
+            metrics=("single_call_latency",),
+        )
+
+
+def test_make_benchmark_parameters_rejects_non_string_mapping_case_names() -> None:
+    cases = cast(Mapping[str, BenchmarkCase], {None: BenchmarkCase("case")})
+
+    with pytest.raises(TypeError, match="case name"):
         _ = make_benchmark_parameters(
             {"impl": _noop},
             cases,
