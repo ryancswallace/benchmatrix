@@ -9,9 +9,9 @@ make check
 ```
 
 It verifies the lockfile, Ruff, Markdown, Dockerfiles, GitHub Actions workflows,
-spelling, secret scanning, Bandit, deptry, pip-audit, tests and coverage,
-minimum direct dependency versions, basedpyright, documentation links,
-distribution metadata, and SBOM generation.
+repository workflow environment references, spelling, secret scanning, Bandit,
+deptry, pip-audit, tests and coverage, minimum direct dependency versions,
+basedpyright, documentation links, distribution metadata, and SBOM generation.
 
 ## Dependency groups
 
@@ -45,6 +45,15 @@ make docs-linkcheck
 `make docs-linkcheck` runs `mkdocs build --strict` and then checks the generated
 site with LinkChecker. API pages under `reference/api/` are generated from
 package docstrings during the build.
+
+MkDocs is configured to treat documentation warnings as failures. Navigation
+entries, local links, anchors, and generated API reference pages must stay in
+sync with the source tree. The local development server also watches
+`src/benchmatrix/` so docstring changes can refresh generated reference pages.
+
+Spelling checks include regular repository files and hidden GitHub configuration
+under `.github/`, so issue templates, workflow names, and pull request template
+text stay covered by the same `make spellcheck` target.
 
 ## Repository settings
 
@@ -82,6 +91,8 @@ locally:
 * `.github/workflows/workflow-lint.yml` runs actionlint and zizmor for workflow
     configuration changes, using `.github/zizmor.yml` for project-specific audit
     policy.
+* `.github/workflows/labeler.yml` applies pull request labels from
+    `.github/labeler.yml` without checking out untrusted pull request code.
 * `.github/workflows/codeql.yml`, `.github/workflows/dependency-review.yml`,
     and `.github/workflows/scorecard.yml` provide GitHub-native security and
     supply-chain checks.

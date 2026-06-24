@@ -1,0 +1,47 @@
+/*
+ * Make the primary navigation hierarchy easier to scan.
+ *
+ * Material for MkDocs keeps every layer visually close by default. These rules
+ * emphasize section labels, then progressively reduce weight and indent nested
+ * page links in the left navigation only.
+ */
+
+.md-sidebar--primary .md-nav--primary > .md-nav__list > .md-nav__item > .md-nav__link,
+.md-sidebar--primary .md-nav--primary > .md-nav__list > .md-nav__item > .md-nav__container > .md-nav__link {
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.md-sidebar--primary .md-nav--primary > .md-nav__list > .md-nav__item--section > .md-nav__link,
+.md-sidebar--primary .md-nav--primary > .md-nav__list > .md-nav__item--section > .md-nav__container > .md-nav__link {
+    margin-top: 0.55rem;
+    padding-left: 0;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0;
+}
+
+.md-sidebar--primary .md-nav[data-md-level="1"] > .md-nav__list > .md-nav__item > .md-nav__link,
+.md-sidebar--primary .md-nav[data-md-level="1"] > .md-nav__list > .md-nav__item > .md-nav__container > .md-nav__link {
+    padding-left: 0.45rem;
+    font-size: 0.72rem;
+    font-weight: 500;
+}
+
+.md-sidebar--primary .md-nav[data-md-level="2"] > .md-nav__list > .md-nav__item > .md-nav__link,
+.md-sidebar--primary .md-nav[data-md-level="2"] > .md-nav__list > .md-nav__item > .md-nav__container > .md-nav__link {
+    padding-left: 0.45rem;
+    font-size: 0.68rem;
+    font-weight: 400;
+}
+
+.md-sidebar--primary .md-nav[data-md-level="3"] > .md-nav__list > .md-nav__item > .md-nav__link,
+.md-sidebar--primary .md-nav[data-md-level="3"] > .md-nav__list > .md-nav__item > .md-nav__container > .md-nav__link {
+    padding-left: 0.45rem;
+    font-size: 0.66rem;
+    font-weight: 300;
+}
+
+.md-sidebar--primary .md-nav__item .md-nav__link--active {
+    font-weight: 700;
+}

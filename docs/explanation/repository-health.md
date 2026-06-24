@@ -7,10 +7,12 @@ current dependencies, and useful documentation.
 
 * `make check` passes locally and in CI.
 * `make test-matrix` passes before compatibility-sensitive changes.
+* Documentation builds in strict mode and generated-site link checks pass.
 * Issues and pull requests have enough labels or descriptions to triage.
 * Dependabot pull requests are reviewed regularly instead of accumulating.
 * Security reports receive private acknowledgement before public disclosure.
-* Documentation covers installation, usage, API reference, and maintainer tasks.
+* Documentation covers installation, usage, API reference, automation, and
+    maintainer tasks.
 
 ## Maintenance cadence
 

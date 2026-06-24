@@ -10,6 +10,23 @@ docs_dir: docs
 site_dir: site
 strict: true
 
+watch:
+  - src/benchmatrix
+
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+    absolute_links: warn
+  links:
+    not_found: warn
+    absolute_links: warn
+    unrecognized_links: warn
+    anchors: warn
+
+extra_css:
+  - stylesheets/navigation.css
+
 theme:
   name: material
   locale: en
@@ -73,8 +90,10 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Tutorials:
+      - Overview: tutorials/index.md
       - First benchmark: tutorials/first-benchmark.md
   - How-to guides:
+      - Overview: how-to/index.md
       - Create a benchmark matrix: how-to/create-benchmark-matrix.md
       - Parse benchmark results: how-to/parse-results.md
       - Run with Docker: how-to/run-with-docker.md
@@ -89,6 +108,7 @@ nav:
       - Compatibility: reference/compatibility.md
       - Configuration and automation: reference/configuration.md
   - Explanation:
+      - Overview: explanation/index.md
       - Architecture: explanation/architecture.md
       - Performance model: explanation/performance.md
       - Threat model: explanation/threat-model.md
@@ -115,6 +135,7 @@ nav:
       - Ownership transfer: runbooks/ownership-transfer.md
       - External repository setup: runbooks/repository-setup.md
   - Project:
-      - Development: development.md
-      - Contributing: contributing.md
-      - Changelog: changelog.md
+      - project/index.md
+      - Development: project/development.md
+      - Contributing: project/contributing.md
+      - Changelog: project/changelog.md

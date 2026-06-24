@@ -17,6 +17,18 @@ Use this site by task type:
 * **Maintainer runbooks** are operational checklists for releases, incidents,
     dependency updates, and repository administration.
 
+## Install
+
+```bash
+uv add benchmatrix
+```
+
+If the project does not use uv, install it with pip instead:
+
+```bash
+python -m pip install benchmatrix
+```
+
 ## Quick start
 
 ```python

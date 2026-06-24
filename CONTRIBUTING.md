@@ -3,7 +3,8 @@
 Thanks for considering a contribution.
 
 For contribution expectations, see the docs site pages for
-[Contributing](docs/contributing.md) and [Development](docs/development.md).
+[Contributing](docs/project/contributing.md) and
+[Development](docs/project/development.md).
 Those pages are the canonical place for the local setup, focused test commands,
 and repository layout.
 

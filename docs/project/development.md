@@ -1,7 +1,7 @@
 # Development
 
 Use this page for local setup, focused checks, and the test layout. For the full
-automation map, see [Configuration and automation](reference/configuration.md).
+automation map, see [Configuration and automation](../reference/configuration.md).
 
 ## Setup
 
@@ -27,14 +27,18 @@ make test
 make lint
 make typecheck
 make docs
+make markdownlint
+make spellcheck
 make workflow-lint
+make workflow-env-lint
+make docker-lint
 ```
 
 `make check` is the authoritative local validation command. It checks the uv
-lockfile, Ruff, Markdown, Dockerfiles, GitHub Actions workflows, spelling,
-secrets, Bandit, deptry, pip-audit, tests and coverage, minimum dependency
-versions, basedpyright, documentation links, built distributions, and CycloneDX
-SBOM generation.
+lockfile, Ruff, Markdown, Dockerfiles, GitHub Actions workflows and
+environments, spelling, secrets, Bandit, deptry, pip-audit, tests and coverage,
+minimum dependency versions, basedpyright, documentation links, built
+distributions, and CycloneDX SBOM generation.
 
 ## Testing
 
@@ -93,8 +97,26 @@ Edit files under `docs/`, then run:
 make docs
 ```
 
-API reference pages are generated from docstrings, so update package docstrings
-when public behavior changes.
+`make docs` runs MkDocs in strict mode. It fails on broken navigation entries,
+broken internal links, missing anchors, and Markdown warnings. Before changing
+navigation or moving pages, use links relative to the current Markdown file so
+MkDocs can validate them during the build.
+
+Check the generated site links with:
+
+```bash
+make docs-linkcheck
+```
+
+Preview the site locally with:
+
+```bash
+make serve-docs
+```
+
+API reference pages under `reference/api/` are generated from package
+docstrings by `docs/_scripts/gen_api_reference.py`; do not create those pages by
+hand. Update public docstrings and exports when public behavior changes.
 
 ## Working locations
 

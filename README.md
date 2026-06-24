@@ -112,7 +112,7 @@ and runbooks live in the MkDocs documentation.
 | [Create a benchmark matrix](docs/how-to/create-benchmark-matrix.md) | Cases, work units, fresh inputs, and synchronous target wrappers. |
 | [Parse benchmark results](docs/how-to/parse-results.md) | Loading and displaying benchmatrix-tagged pytest-benchmark JSON. |
 | [Performance model](docs/explanation/performance.md) | What the metrics mean and what they do not prove. |
-| [Development](docs/development.md) | Local setup, test commands, and repository layout. |
+| [Development](docs/project/development.md) | Local setup, test commands, and repository layout. |
 | [Compatibility](docs/reference/compatibility.md) | Supported Python versions, API stability, and support policy. |
 | [Publishing](docs/explanation/publishing.md) | Release artifacts, draft releases, PyPI publishing, and verification. |
 | [Configuration and automation](docs/reference/configuration.md) | Make targets, CI workflows, Docker checks, docs, and SBOM generation. |
