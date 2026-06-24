@@ -8,11 +8,13 @@ FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv-bin
 
 FROM mcr.microsoft.com/devcontainers/python:${PYTHON_VERSION}-${DEBIAN_VERSION}
 
+ARG DEBIAN_FRONTEND=noninteractive
+
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     UV_LINK_MODE=copy
 
-# The base image may include a Yarn APT source with a stale/missing key.
-# Remove it because this project does not need Yarn from dl.yarnpkg.com.
+# The base image may include a Yarn APT source with a stale or missing key.
+# Node is installed by the devcontainer feature, so keep it out of apt updates.
 RUN rm -f /etc/apt/sources.list.d/yarn.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -20,8 +22,13 @@ RUN rm -f /etc/apt/sources.list.d/yarn.list \
         ca-certificates \
         curl \
         git \
+        jq \
+        less \
         make \
+        openssh-client \
+        procps \
         ripgrep \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=uv-bin /uv /uvx /usr/local/bin/
