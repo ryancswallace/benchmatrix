@@ -2,24 +2,50 @@ minimum_pre_commit_version: "4.6.0"
 default_install_hook_types:
   - pre-commit
   - pre-push
+default_stages:
+  - pre-commit
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
       - id: check-added-large-files
+        stages:
+          - pre-commit
       - id: check-case-conflict
+        stages:
+          - pre-commit
       - id: check-json
+        stages:
+          - pre-commit
       - id: check-merge-conflict
+        stages:
+          - pre-commit
+      - id: check-shebang-scripts-are-executable
+        stages:
+          - pre-commit
       - id: check-toml
+        stages:
+          - pre-commit
       - id: check-yaml
+        stages:
+          - pre-commit
+      - id: destroyed-symlinks
+        stages:
+          - pre-commit
       - id: end-of-file-fixer
+        stages:
+          - pre-commit
       - id: mixed-line-ending
         args:
           - --fix=lf
+        stages:
+          - pre-commit
       - id: trailing-whitespace
         args:
           - --markdown-linebreak-ext=md
+        stages:
+          - pre-commit
 
   - repo: local
     hooks:
@@ -37,8 +63,9 @@ repos:
           - python
       - id: markdownlint
         name: Markdownlint
-        entry: npx markdownlint-cli2 --no-globs
+        entry: npx markdownlint-cli2
         language: system
+        pass_filenames: false
         types:
           - markdown
       - id: detect-secrets
@@ -48,13 +75,33 @@ repos:
         types:
           - text
         exclude: ^(package-lock\.json|uv\.lock|notebooks/demo\.ipynb)$
+      - id: zizmor
+        name: Zizmor
+        entry: uv run zizmor --offline --min-severity medium .github/workflows
+        language: system
+        files: ^\.github/workflows/.*\.ya?ml$
+        pass_filenames: false
+      - id: make-check
+        name: make check
+        entry: make check
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages:
+          - pre-push
 
   - repo: https://github.com/rhysd/actionlint
     rev: v1.7.12
     hooks:
       - id: actionlint
+        stages:
+          - pre-commit
 
   - repo: meta
     hooks:
       - id: check-hooks-apply
+        stages:
+          - pre-commit
       - id: check-useless-excludes
+        stages:
+          - pre-commit

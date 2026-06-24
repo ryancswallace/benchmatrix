@@ -37,7 +37,7 @@ RELEASE_TAG_BASE ?= main
 .PHONY: docker-lint docker-ready docker-build docker-build-test docker-test docker-smoke docker-scan docker-check
 .PHONY: lock-check deps secrets security audit
 .PHONY: release-version-check release-preflight prepare-release release-pr-ready release-pr release-tag sbom smoke-dist validate-dist build
-.PHONY: check check-all ca precommit fresh-precommit
+.PHONY: check check-all ca precommit prepush fresh-precommit
 
 # -----------------------------------------------------------------------------
 # Help
@@ -110,7 +110,8 @@ help:
 	@echo "  check                 Run the full local validation suite"
 	@echo "  check-all             Run every local, matrix, hook, and Docker check"
 	@echo "  ca                    Alias for check-all"
-	@echo "  precommit             Run all pre-commit hooks against all files"
+	@echo "  precommit             Run pre-commit-stage hooks against all files"
+	@echo "  prepush               Run pre-push-stage hooks"
 	@echo "  fresh-precommit       Clean caches, install dependencies, run hooks and checks"
 
 # -----------------------------------------------------------------------------
@@ -268,14 +269,10 @@ workflow-lint: install
 		workflow_files=""; \
 	fi; \
 	if [ -n "$$workflow_files" ]; then \
-		uv run pre-commit run actionlint --files $$workflow_files; \
+		uv run pre-commit run --hook-stage pre-commit actionlint --files $$workflow_files && \
+		uv run pre-commit run --hook-stage pre-commit zizmor --files $$workflow_files; \
 	else \
-		echo "No GitHub Actions workflow files found; skipping actionlint."; \
-	fi
-	@if [ -d .github/workflows ]; then \
-		uv run zizmor --min-severity medium .github/workflows; \
-	else \
-		echo "No GitHub Actions workflow directory found; skipping zizmor."; \
+		echo "No GitHub Actions workflow files found; skipping workflow lint."; \
 	fi
 
 workflow-env-lint: npm-install
@@ -480,7 +477,10 @@ check-all: bootstrap
 ca: check-all
 
 precommit: install npm-install
-	uv run pre-commit run $(PRECOMMIT_ARGS)
+	uv run pre-commit run --hook-stage pre-commit $(PRECOMMIT_ARGS)
+
+prepush: install npm-install
+	uv run pre-commit run --hook-stage pre-push $(PRECOMMIT_ARGS)
 
 fresh-precommit:
 	@for step in clean install npm-install precommit check; do \

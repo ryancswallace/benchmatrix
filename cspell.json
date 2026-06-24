@@ -99,6 +99,7 @@
         "pathlib",
         "pipaudit",
         "posargs",
+        "prepush",
         "pycache",
         "pygments",
         "pymdownx",
