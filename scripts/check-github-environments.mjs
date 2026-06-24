@@ -61,7 +61,16 @@ function environmentName(environment) {
 }
 
 async function workflowFiles() {
-    const entries = await readdir(WORKFLOW_DIR, {withFileTypes: true});
+    let entries;
+    try {
+        entries = await readdir(WORKFLOW_DIR, {withFileTypes: true});
+    } catch (error) {
+        if (error?.code === "ENOENT") {
+            return [];
+        }
+        throw error;
+    }
+
     return entries
         .filter(entry => entry.isFile() && /\.ya?ml$/.test(entry.name))
         .map(entry => path.join(WORKFLOW_DIR, entry.name))
@@ -95,7 +104,16 @@ async function referencedEnvironments() {
 }
 
 async function declaredSettingsEnvironments() {
-    const content = await readFile(".github/settings.yml", "utf8");
+    let content;
+    try {
+        content = await readFile(".github/settings.yml", "utf8");
+    } catch (error) {
+        if (error?.code === "ENOENT") {
+            return new Set();
+        }
+        throw error;
+    }
+
     const settings = yaml.load(content);
     return new Set((settings?.environments ?? [])
         .map(environment => environment?.name)
@@ -104,7 +122,7 @@ async function declaredSettingsEnvironments() {
 }
 
 async function fetchGitHubEnvironments(repository) {
-    const token = process.env.GITHUB_TOKEN;
+    const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
     const headers = {
         Accept: "application/vnd.github+json",
         "X-GitHub-Api-Version": API_VERSION,

@@ -189,6 +189,14 @@ def validate_release_version(raw_version: str | None) -> str:
     return match.group("version")
 
 
+def release_version_arg(cli_version: str | None) -> str:
+    """Return a release version from a CLI argument or environment."""
+    if cli_version is not None:
+        return normalize_version(cli_version)
+
+    return validate_release_version(os.environ.get("BENCHMATRIX_RELEASE_VERSION"))
+
+
 def validate_version(args: argparse.Namespace) -> int:
     """Validate and print the release version used by Make targets."""
     version = validate_release_version(args.version)

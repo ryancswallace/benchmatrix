@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -80,3 +81,21 @@ def test_create_release_tag_rejects_existing_local_tag(monkeypatch: pytest.Monke
         release_tag.create_release_tag(tmp_path, release_tag.release_tag_plan("1.2.3", "main"))
 
     assert commands == [["git", "pull", "--ff-only", "origin", "main"]]
+
+
+def test_remote_tag_exists_reports_lookup_errors(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    release_tag = load_script_module("create_release_tag")
+
+    def fail(
+        command: list[str],
+        *,
+        cwd: Path,
+        capture: bool = False,
+        check: bool = True,
+    ) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(command, 128, "", "remote unavailable")
+
+    monkeypatch.setattr(release_tag, "run_command", fail)
+
+    with pytest.raises(release_tag.ReleaseError, match="Could not check remote tag"):
+        release_tag.remote_tag_exists(tmp_path, "v1.2.3")

@@ -4,14 +4,13 @@
 from __future__ import annotations
 
 import argparse
-import os
 import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from prepare_release import ReleaseError, normalize_version, validate_release, validate_release_version
+from prepare_release import ReleaseError, normalize_version, release_version_arg, validate_release
 
 RELEASE_FILES = ("pyproject.toml", "CITATION.cff", "CHANGELOG.md", "uv.lock")
 
@@ -26,13 +25,6 @@ class ReleasePrPlan:
     commit_message: str
     title: str
     body: str
-
-
-def release_version_arg(cli_version: str | None) -> str:
-    """Return a version from the CLI argument or BENCHMATRIX_RELEASE_VERSION."""
-    if cli_version is not None:
-        return normalize_version(cli_version)
-    return validate_release_version(os.environ.get("BENCHMATRIX_RELEASE_VERSION"))
 
 
 def release_pr_plan(raw_version: str, base: str) -> ReleasePrPlan:

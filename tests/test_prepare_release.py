@@ -113,6 +113,19 @@ def test_validate_release_version_requires_env_style_version() -> None:
         release.validate_release_version("1.2")
 
 
+def test_release_version_arg_accepts_cli_or_env_version(monkeypatch: pytest.MonkeyPatch) -> None:
+    release = load_script_module("prepare_release")
+
+    assert release.release_version_arg("v1.2.3") == "1.2.3"
+
+    monkeypatch.setenv("BENCHMATRIX_RELEASE_VERSION", "1.2.3")
+    assert release.release_version_arg(None) == "1.2.3"
+
+    monkeypatch.setenv("BENCHMATRIX_RELEASE_VERSION", "v1.2.3")
+    with pytest.raises(release.ReleaseError, match="without a leading v"):
+        release.release_version_arg(None)
+
+
 def test_validate_version_cli_reports_missing_or_malformed_versions(capsys: pytest.CaptureFixture[str]) -> None:
     release = load_script_module("prepare_release")
 

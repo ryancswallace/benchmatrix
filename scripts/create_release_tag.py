@@ -4,14 +4,13 @@
 from __future__ import annotations
 
 import argparse
-import os
 import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from prepare_release import ReleaseError, normalize_version, validate_release, validate_release_version
+from prepare_release import ReleaseError, normalize_version, release_version_arg, validate_release
 
 
 @dataclass(frozen=True)
@@ -22,13 +21,6 @@ class ReleaseTagPlan:
     tag: str
     base: str
     message: str
-
-
-def release_version_arg(cli_version: str | None) -> str:
-    """Return a version from the CLI argument or BENCHMATRIX_RELEASE_VERSION."""
-    if cli_version is not None:
-        return normalize_version(cli_version)
-    return validate_release_version(os.environ.get("BENCHMATRIX_RELEASE_VERSION"))
 
 
 def release_tag_plan(raw_version: str, base: str) -> ReleaseTagPlan:
@@ -83,15 +75,27 @@ def switch_to_base(root: Path, base: str) -> None:
 
 def local_tag_exists(root: Path, tag: str) -> bool:
     """Return whether the release tag exists locally."""
-    result = run_command(["git", "show-ref", "--verify", "--quiet", f"refs/tags/{tag}"], cwd=root, check=False)
+    result = run_command(
+        ["git", "show-ref", "--verify", "--quiet", f"refs/tags/{tag}"],
+        cwd=root,
+        capture=True,
+        check=False,
+    )
+    if result.returncode not in {0, 1}:
+        raise ReleaseError(f"Could not check local tag {tag}: {result.stderr.strip()}")
     return result.returncode == 0
 
 
 def remote_tag_exists(root: Path, tag: str) -> bool:
     """Return whether the release tag exists on origin."""
     result = run_command(
-        ["git", "ls-remote", "--exit-code", "--tags", "origin", f"refs/tags/{tag}"], cwd=root, check=False
+        ["git", "ls-remote", "--exit-code", "--tags", "origin", f"refs/tags/{tag}"],
+        cwd=root,
+        capture=True,
+        check=False,
     )
+    if result.returncode not in {0, 2}:
+        raise ReleaseError(f"Could not check remote tag {tag}: {result.stderr.strip()}")
     return result.returncode == 0
 
 

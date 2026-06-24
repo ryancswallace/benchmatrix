@@ -12,14 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from create_release_pr import RELEASE_FILES, current_branch, status_paths
-from prepare_release import ReleaseError, normalize_version, validate_release_version
-
-
-def release_version_arg(cli_version: str | None) -> str:
-    """Return a version from the CLI argument or BENCHMATRIX_RELEASE_VERSION."""
-    if cli_version is not None:
-        return normalize_version(cli_version)
-    return validate_release_version(os.environ.get("BENCHMATRIX_RELEASE_VERSION"))
+from prepare_release import ReleaseError, normalize_version, release_version_arg
 
 
 @dataclass(frozen=True)

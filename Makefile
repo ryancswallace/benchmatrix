@@ -147,7 +147,7 @@ install: bootstrap
 	uv sync --locked
 
 hooks-install: install npm-install
-	uv run pre-commit install --install-hooks
+	uv run pre-commit install --install-hooks --hook-type pre-commit --hook-type pre-push
 
 ready:
 	@for step in install check; do \
@@ -262,8 +262,21 @@ markdownlint: npm-install
 	npx markdownlint-cli2
 
 workflow-lint: install
-	uv run pre-commit run actionlint --files $$(find .github/workflows -type f \( -name '*.yml' -o -name '*.yaml' \))
-	uv run zizmor --min-severity medium .github/workflows
+	@if [ -d .github/workflows ]; then \
+		workflow_files=$$(find .github/workflows -type f \( -name '*.yml' -o -name '*.yaml' \)); \
+	else \
+		workflow_files=""; \
+	fi; \
+	if [ -n "$$workflow_files" ]; then \
+		uv run pre-commit run actionlint --files $$workflow_files; \
+	else \
+		echo "No GitHub Actions workflow files found; skipping actionlint."; \
+	fi
+	@if [ -d .github/workflows ]; then \
+		uv run zizmor --min-severity medium .github/workflows; \
+	else \
+		echo "No GitHub Actions workflow directory found; skipping zizmor."; \
+	fi
 
 workflow-env-lint: npm-install
 	npm run workflow-env-lint
