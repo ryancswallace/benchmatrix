@@ -20,6 +20,46 @@ additional pre-1.0 compatibility expectations described in
 
 ### Security
 
+## 0.3.0 - 2026-06-24
+
+### Added
+
+* Add runtime validation for benchmark metric names, implementation names, case
+    names, work-unit names, empty matrices, non-callable implementations, and
+    invalid case values.
+* Add runnable factorial examples documentation and tests that verify example
+    benchmark matrices remain collectable.
+* Add docs section landing pages, a Project docs section, improved MkDocs
+    navigation styling, and a prominent README link to the published docs site.
+* Add pre-push `make check` automation and expanded workflow linting through
+    pre-commit.
+
+### Changed
+
+* Reorganize project documentation under `docs/project/` and align README,
+    package metadata, docs navigation, and runbook indexes with the published
+    documentation site.
+* Expand Ruff, basedpyright, pytest, coverage, spelling, and ignored-directory
+    configuration to cover examples, scripts, docs helpers, and repository
+    automation more consistently.
+* Improve Docker, `.dockerignore`, and devcontainer setup for reproducible uv,
+    Node, Docker, and Codex-compatible development workflows.
+* Harden release helper scripts and tests around release-note output, existing
+    release PR reuse, duplicate local tag detection, and warning-only preflight
+    checks.
+
+### Removed
+
+* Remove local-only devcontainer mounts and run arguments from the shared
+    devcontainer configuration.
+
+### Fixed
+
+* Prefer pytest-benchmark `name` with `fullname` as a fallback when parsing
+    benchmark JSON rows.
+* Handle repositories without GitHub Actions workflow files when running
+    workflow linting.
+
 ## 0.2.4 - 2026-06-24
 
 ### Fixed
