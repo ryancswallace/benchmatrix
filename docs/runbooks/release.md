@@ -89,8 +89,7 @@ especially the `pypi` environment and PyPI Trusted Publishing checklist.
 
 2. Open the draft GitHub Release created by
     `.github/workflows/draft-release.yml`. Confirm the tag, title, notes, source
-    distribution, wheel, and SBOM are correct. GitHub also shows its automatic
-    source code archives on the release page.
+    distribution, wheel, and SBOM are correct.
 
     If the draft workflow fails before assets are attached, rerun the
     `Draft release` workflow manually with the same `vX.Y.Z` tag after fixing
