@@ -15,6 +15,17 @@
 **Benchmark matrices for Python projects that need performance data they can
 trust, compare, and parse.**
 
+<!-- markdownlint-disable MD033 -->
+<p align="center">
+  <a href="https://ryancswallace.github.io/benchmatrix/">
+    <img
+      alt="Open the benchmatrix documentation"
+      src="https://img.shields.io/badge/Open%20the%20docs-benchmatrix%20documentation-0f766e?style=for-the-badge&logo=githubpages&logoColor=white"
+    >
+  </a>
+</p>
+<!-- markdownlint-enable MD033 -->
+
 benchmatrix sits on top of
 [pytest-benchmark](https://pytest-benchmark.readthedocs.io/) and adds the layer
 that benchmark suites usually grow by hand: implementation-by-case matrices,
@@ -27,7 +38,7 @@ saved benchmark runs.
 
 ## Quick Start
 
-Create a benchmark matrix from ordinary synchronous callables:
+Create a benchmark matrix from ordinary synchronous callables in a pytest file:
 
 ```python
 from benchmatrix import BenchmarkCase, make_benchmark_test
@@ -80,24 +91,38 @@ benchmatrix is intentionally narrow: it benchmarks synchronous Python callables.
 It is not a load-testing framework, production latency monitor, or replacement
 for pytest-benchmark.
 
+## Interpreting Results
+
+Benchmark output is environment-specific. Compare results only between runs from
+controlled environments, and keep the pytest-benchmark JSON output with the
+hardware, Python, dependency, and CI context that produced it.
+
+Use metric names as part of every comparison:
+
+* single-call latency compares one completed synchronous target call;
+* batch throughput compares logical work per second when `work_units` is
+    meaningful and consistent;
+* tail-latency summaries describe local distribution shape for a benchmark run,
+    not production service latency.
+
 ## Install
 
-For local development from this repository:
-
-```bash
-make ready
-```
-
-To install the latest release from PyPI:
+Install the released package with uv:
 
 ```bash
 uv add benchmatrix
 ```
 
-or
+or with pip:
 
 ```bash
-pip install benchmatrix
+python -m pip install benchmatrix
+```
+
+For local development from this repository:
+
+```bash
+make ready
 ```
 
 ## Documentation
