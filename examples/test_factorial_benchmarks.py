@@ -2,6 +2,7 @@
 
 Run from the repository root with:
 
+    mkdir -p examples/benchmark_results
     uv run pytest examples/test_factorial_benchmarks.py --no-cov \
         --benchmark-json examples/benchmark_results/factorial-benchmark.json
 """
