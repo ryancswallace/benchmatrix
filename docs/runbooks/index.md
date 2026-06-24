@@ -6,11 +6,13 @@ happens and the next action should be concrete.
 ## Available runbooks
 
 * [Release](release.md)
+* [Container release](container-release.md)
 * [Dependency update](dependency-update.md)
 * [Security report](security-report.md)
 * [Incident response](incident-response.md)
 * [Failed CI](failed-ci.md)
 * [Ownership transfer](ownership-transfer.md)
+* [External repository setup](repository-setup.md)
 
 ## Runbook rule
 

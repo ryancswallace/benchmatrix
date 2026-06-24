@@ -16,6 +16,8 @@ Use this site by task type:
     tradeoffs.
 * **Maintainer runbooks** are operational checklists for releases, incidents,
     dependency updates, and repository administration.
+* **Project** covers local development, contribution expectations, and changelog
+    maintenance.
 
 ## Install
 

@@ -42,7 +42,7 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/ryancswallace/benchmatrix"
 Changelog = "https://github.com/ryancswallace/benchmatrix/blob/main/CHANGELOG.md"
-Documentation = "https://github.com/ryancswallace/benchmatrix#readme"
+Documentation = "https://ryancswallace.github.io/benchmatrix/"
 Issues = "https://github.com/ryancswallace/benchmatrix/issues"
 Source = "https://github.com/ryancswallace/benchmatrix"
 
