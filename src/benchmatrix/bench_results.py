@@ -142,12 +142,7 @@ def load_benchmark_json(path: str | Path) -> list[ParsedBenchmarkRow]:
 
         rows.append(
             ParsedBenchmarkRow(
-                benchmark_name=_stringify_name(
-                    entry.get(
-                        JSON_KEY_NAME,
-                        entry.get(JSON_KEY_FULLNAME, ""),
-                    )
-                ),
+                benchmark_name=_benchmark_name(entry),
                 metric_name=metric_name,
                 implementation_name=_require_string(
                     extra_info.get(KEY_IMPLEMENTATION_NAME),
@@ -485,6 +480,15 @@ def _require_string(value: object, *, path: str) -> str:
         raise BenchmarkJsonError(f"Expected string at {path}, got {type(value).__name__}.")
 
     return value
+
+
+def _benchmark_name(entry: Mapping[str, object]) -> str:
+    """Return the best available pytest-benchmark entry name."""
+    name = entry.get(JSON_KEY_NAME)
+    if name is None:
+        name = entry.get(JSON_KEY_FULLNAME, "")
+
+    return _stringify_name(name)
 
 
 def _require_int(value: object, *, path: str) -> int:

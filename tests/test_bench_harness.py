@@ -191,7 +191,7 @@ def test_benchmark_config_accepts_valid_boundary_values() -> None:
     assert not config.stream_progress
 
 
-@pytest.mark.parametrize("name", ["", None])
+@pytest.mark.parametrize("name", ["", None, 123])
 def test_benchmark_case_rejects_empty_or_non_string_name(name: object) -> None:
     with pytest.raises((TypeError, ValueError)):
         _ = BenchmarkCase(cast(str, name))
@@ -201,6 +201,11 @@ def test_benchmark_case_rejects_empty_or_non_string_name(name: object) -> None:
 def test_benchmark_case_rejects_invalid_work_unit_names(work_unit_name: str) -> None:
     with pytest.raises(ValueError, match="work_unit_name"):
         _ = BenchmarkCase("case", work_unit_name=work_unit_name)
+
+
+def test_benchmark_case_rejects_non_string_work_unit_name() -> None:
+    with pytest.raises(TypeError, match="work_unit_name"):
+        _ = BenchmarkCase("case", work_unit_name=cast(str, None))
 
 
 @pytest.mark.parametrize("work_units", [0, -1, math.inf, -math.inf, math.nan, "bad", object()])
@@ -534,6 +539,29 @@ def test_run_benchmark_metric_rejects_unsupported_metric() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    ("implementation_name", "case_name", "message"),
+    [
+        ("", "case-id", "implementation name"),
+        ("impl", "", "case name"),
+    ],
+)
+def test_benchmark_helpers_reject_empty_metadata_names(
+    implementation_name: str,
+    case_name: str,
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        _ = benchmark_single_call_latency(
+            _RecordingBenchmark(),
+            implementation_name,
+            _noop,
+            case_name,
+            BenchmarkCase("input"),
+            config=BenchmarkConfig(stream_progress=False),
+        )
+
+
 async def _async_target() -> None:
     """Async target used to verify rejection."""
 
@@ -587,6 +615,66 @@ def test_make_benchmark_parameters_accepts_mapping_case_names() -> None:
     parameter = _parameter_set(parameters[0])
     assert parameter.values == ("tail_latency", "impl", _noop, "external-name", case)
     assert parameter.id == "tail_latency::impl::external-name"
+
+
+@pytest.mark.parametrize(
+    ("implementations", "cases", "metrics", "message"),
+    [
+        ({}, [BenchmarkCase("case")], ("single_call_latency",), "implementations"),
+        ({"impl": _noop}, [], ("single_call_latency",), "cases"),
+        ({"impl": _noop}, [BenchmarkCase("case")], (), "metrics"),
+    ],
+)
+def test_make_benchmark_parameters_rejects_empty_matrix_inputs(
+    implementations: Mapping[str, Callable[..., object]],
+    cases: list[BenchmarkCase],
+    metrics: tuple[MetricName, ...],
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        _ = make_benchmark_parameters(implementations, cases, metrics=metrics)
+
+
+def test_make_benchmark_parameters_rejects_unsupported_metrics() -> None:
+    with pytest.raises(ValueError, match="Unsupported benchmark metric"):
+        _ = make_benchmark_parameters(
+            {"impl": _noop},
+            [BenchmarkCase("case")],
+            metrics=(cast(MetricName, cast(object, "not-a-metric")),),
+        )
+
+
+def test_make_benchmark_parameters_rejects_non_callable_implementations() -> None:
+    implementations = cast(Mapping[str, Callable[..., object]], {"impl": object()})
+
+    with pytest.raises(TypeError, match="must be callable"):
+        _ = make_benchmark_parameters(
+            implementations,
+            [BenchmarkCase("case")],
+            metrics=("single_call_latency",),
+        )
+
+
+def test_make_benchmark_parameters_rejects_non_case_iterables() -> None:
+    cases = cast(list[BenchmarkCase], [object()])
+
+    with pytest.raises(TypeError, match="Benchmark cases"):
+        _ = make_benchmark_parameters(
+            {"impl": _noop},
+            cases,
+            metrics=("single_call_latency",),
+        )
+
+
+def test_make_benchmark_parameters_rejects_non_case_mapping_values() -> None:
+    cases = cast(Mapping[str, BenchmarkCase], {"external": object()})
+
+    with pytest.raises(TypeError, match="Benchmark case 'external'"):
+        _ = make_benchmark_parameters(
+            {"impl": _noop},
+            cases,
+            metrics=("single_call_latency",),
+        )
 
 
 def test_make_benchmark_test_generates_executable_parametrized_test() -> None:

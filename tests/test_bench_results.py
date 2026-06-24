@@ -200,6 +200,15 @@ def test_load_benchmark_json_uses_fullname_fallback_and_stringifies_names(tmp_pa
     assert row.benchmark_name == "['module', 'test_name']"
 
 
+def test_load_benchmark_json_uses_fullname_when_name_is_null(tmp_path: Path) -> None:
+    entry = _benchmark_entry("single_call_latency", name=None)
+    entry["fullname"] = "module::test_name"
+
+    row = _load_entry(tmp_path, entry)
+
+    assert row.benchmark_name == "module::test_name"
+
+
 def test_load_benchmark_json_returns_multiple_rows(tmp_path: Path) -> None:
     payload = {
         "benchmarks": [

@@ -44,6 +44,7 @@ from ._schema import (
     KEY_THROUGHPUT_UNIT,
     KEY_WORK_UNIT_NAME,
     KEY_WORK_UNITS,
+    KNOWN_METRICS,
     METRIC_BATCH_THROUGHPUT,
     METRIC_SINGLE_CALL_LATENCY,
     METRIC_TAIL_LATENCY,
@@ -260,10 +261,9 @@ class BenchmarkCase:
 
     def __post_init__(self) -> None:
         """Validate benchmark case fields after initialization."""
-        if not self.name:
-            raise ValueError("Benchmark case name must not be empty.")
+        object.__setattr__(self, "name", _validate_name(self.name, field="case name"))
 
-        _validate_work_unit_name(self.work_unit_name)
+        object.__setattr__(self, "work_unit_name", _validate_work_unit_name(self.work_unit_name))
 
         if self.work_units is not None and not callable(self.work_units):
             _ = _validate_work_units(self.work_units)
@@ -616,8 +616,9 @@ def run_benchmark_metric(
         ValueError: If ``metric_name`` is unsupported.
     """
     resolved_config = _resolve_config(config)
+    resolved_metric_name = _validate_metric_name(metric_name)
 
-    if metric_name == METRIC_SINGLE_CALL_LATENCY:
+    if resolved_metric_name == METRIC_SINGLE_CALL_LATENCY:
         return benchmark_single_call_latency(
             benchmark,
             implementation_name,
@@ -628,7 +629,7 @@ def run_benchmark_metric(
             stream=stream,
         )
 
-    if metric_name == METRIC_BATCH_THROUGHPUT:
+    if resolved_metric_name == METRIC_BATCH_THROUGHPUT:
         return benchmark_batch_throughput(
             benchmark,
             implementation_name,
@@ -639,7 +640,7 @@ def run_benchmark_metric(
             stream=stream,
         )
 
-    if metric_name == METRIC_TAIL_LATENCY:
+    if resolved_metric_name == METRIC_TAIL_LATENCY:
         return benchmark_tail_latency(
             benchmark,
             implementation_name,
@@ -650,7 +651,7 @@ def run_benchmark_metric(
             stream=stream,
         )
 
-    raise ValueError(f"Unsupported benchmark metric: {metric_name!r}")
+    raise ValueError(f"Unsupported benchmark metric: {resolved_metric_name!r}")
 
 
 def make_benchmark_parameters(
@@ -670,13 +671,14 @@ def make_benchmark_parameters(
     Returns:
         A list of values suitable for ``pytest.mark.parametrize``.
     """
-    resolved_metrics = DEFAULT_METRICS if metrics is None else tuple(metrics)
+    resolved_metrics = _metric_items(metrics)
+    implementation_items = _implementation_items(implementations)
     case_items = _case_items(cases)
     pytest = _load_pytest()
     parameters: list[_BenchmarkParameter] = []
 
     for metric_name in resolved_metrics:
-        for implementation_name, function in implementations.items():
+        for implementation_name, function in implementation_items:
             for case_name, case in case_items:
                 parameters.append(
                     pytest.param(
@@ -880,8 +882,22 @@ def _validate_work_units(value: object) -> float:
     return numeric_value
 
 
-def _validate_work_unit_name(value: str) -> None:
+def _validate_name(value: object, *, field: str) -> str:
+    """Validate and return a non-empty benchmark name field."""
+    if not isinstance(value, str):
+        raise TypeError(f"Benchmark {field} must be a string.")
+
+    if not value:
+        raise ValueError(f"Benchmark {field} must not be empty.")
+
+    return value
+
+
+def _validate_work_unit_name(value: object) -> str:
     """Validate a throughput work-unit name."""
+    if not isinstance(value, str):
+        raise TypeError("Benchmark work_unit_name must be a string.")
+
     if not value:
         raise ValueError("Benchmark work_unit_name must not be empty.")
 
@@ -892,6 +908,19 @@ def _validate_work_unit_name(value: str) -> None:
         )
         raise ValueError(message)
 
+    return value
+
+
+def _validate_metric_name(value: object) -> MetricName:
+    """Validate and return a supported metric name."""
+    if not isinstance(value, str):
+        raise TypeError("Benchmark metric name must be a string.")
+
+    if value not in KNOWN_METRICS:
+        raise ValueError(f"Unsupported benchmark metric: {value!r}")
+
+    return cast(MetricName, value)
+
 
 def _make_base_extra_info(
     metric_name: MetricName,
@@ -900,12 +929,16 @@ def _make_base_extra_info(
     case: BenchmarkCase,
 ) -> dict[str, object]:
     """Build raw metadata common to every benchmark metric."""
+    resolved_metric_name = _validate_metric_name(metric_name)
+    resolved_implementation_name = _validate_name(implementation_name, field="implementation name")
+    resolved_case_name = _validate_name(case_name, field="case name")
+
     extra_info: dict[str, object] = {
         KEY_PRODUCER: PRODUCER,
         KEY_SCHEMA_VERSION: SCHEMA_VERSION,
-        KEY_METRIC_NAME: metric_name,
-        KEY_IMPLEMENTATION_NAME: implementation_name,
-        KEY_CASE_NAME: case_name,
+        KEY_METRIC_NAME: resolved_metric_name,
+        KEY_IMPLEMENTATION_NAME: resolved_implementation_name,
+        KEY_CASE_NAME: resolved_case_name,
         KEY_CASE_FRESH_INPUTS: case.fresh_inputs,
     }
 
@@ -957,9 +990,67 @@ def _case_items(
     """Normalize case inputs into named case pairs."""
     if isinstance(cases, Mapping):
         mapping = cast(Mapping[str, BenchmarkCase], cases)
-        return list(mapping.items())
+        case_items = list(mapping.items())
+        if not case_items:
+            raise ValueError("Benchmark cases must not be empty.")
 
-    return [(case.name, case) for case in cases]
+        return [
+            (_validate_name(case_name, field="case name"), _validate_case(case, label=case_name))
+            for case_name, case in case_items
+        ]
+
+    resolved_cases = list(cases)
+    if not resolved_cases:
+        raise ValueError("Benchmark cases must not be empty.")
+
+    resolved_items: list[tuple[str, BenchmarkCase]] = []
+    for case in resolved_cases:
+        resolved_case = _validate_case(case)
+        resolved_items.append((_validate_name(resolved_case.name, field="case name"), resolved_case))
+
+    return resolved_items
+
+
+def _implementation_items(implementations: Mapping[str, TargetFunction]) -> list[tuple[str, TargetFunction]]:
+    """Normalize implementation inputs into named function pairs."""
+    implementation_items = list(implementations.items())
+    if not implementation_items:
+        raise ValueError("Benchmark implementations must not be empty.")
+
+    resolved_items: list[tuple[str, TargetFunction]] = []
+    for implementation_name, function in implementation_items:
+        resolved_name = _validate_name(implementation_name, field="implementation name")
+        if not callable(function):
+            raise TypeError(f"Benchmark implementation {resolved_name!r} must be callable.")
+
+        resolved_items.append((resolved_name, function))
+
+    return resolved_items
+
+
+def _metric_items(metrics: Iterable[MetricName] | None) -> tuple[MetricName, ...]:
+    """Normalize metric inputs into supported metric names."""
+    resolved_metrics: tuple[MetricName, ...]
+    if metrics is None:
+        resolved_metrics = DEFAULT_METRICS
+    else:
+        resolved_metrics = tuple(_validate_metric_name(metric) for metric in metrics)
+
+    if not resolved_metrics:
+        raise ValueError("Benchmark metrics must not be empty.")
+
+    return resolved_metrics
+
+
+def _validate_case(case: object, *, label: object | None = None) -> BenchmarkCase:
+    """Validate and return a benchmark case."""
+    if isinstance(case, BenchmarkCase):
+        return case
+
+    if label is None:
+        raise TypeError("Benchmark cases must contain BenchmarkCase instances.")
+
+    raise TypeError(f"Benchmark case {label!r} must be a BenchmarkCase instance.")
 
 
 def _coerce_json_mapping(
