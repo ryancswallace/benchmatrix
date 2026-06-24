@@ -20,6 +20,12 @@ additional pre-1.0 compatibility expectations described in
 
 ### Security
 
+## 0.2.4 - 2026-06-24
+
+### Fixed
+
+* Check out repository for context of `release` workflow
+
 ## 0.2.3 - 2026-06-23
 
 ### Fixed
