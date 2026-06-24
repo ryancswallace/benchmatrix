@@ -123,7 +123,7 @@ def test_validate_release_version_requires_env_style_version() -> None:
     with pytest.raises(release.ReleaseError, match="without a leading v"):
         release.validate_release_version("v1.2.3")
 
-    with pytest.raises(release.ReleaseError, match="must be X.Y.Z"):
+    with pytest.raises(release.ReleaseError, match=r"must be X\.Y\.Z"):
         release.validate_release_version("1.2")
 
 

@@ -172,13 +172,14 @@ def _parameter_set(value: object) -> _ParameterSet:
     ],
 )
 def test_benchmark_config_rejects_invalid_values(field_name: str, value: int, message: str) -> None:
+    constructors: dict[str, Callable[[int], BenchmarkConfig]] = {
+        "pedantic_iterations": lambda invalid: BenchmarkConfig(pedantic_iterations=invalid),
+        "pedantic_rounds": lambda invalid: BenchmarkConfig(pedantic_rounds=invalid),
+        "warmup_rounds": lambda invalid: BenchmarkConfig(warmup_rounds=invalid),
+    }
+
     with pytest.raises(ValueError, match=message):
-        if field_name == "pedantic_rounds":
-            _ = BenchmarkConfig(pedantic_rounds=value)
-        elif field_name == "warmup_rounds":
-            _ = BenchmarkConfig(warmup_rounds=value)
-        else:
-            _ = BenchmarkConfig(pedantic_iterations=value)
+        _ = constructors[field_name](value)
 
 
 def test_benchmark_config_accepts_valid_boundary_values() -> None:

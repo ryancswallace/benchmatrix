@@ -30,7 +30,9 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: Implementation :: CPython",
+    "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Software Development :: Testing",
+    "Typing :: Typed",
 ]
 dependencies = [
     "pytest>=9.1.1",
@@ -122,6 +124,7 @@ packages = ["src/benchmatrix"]
 minversion = "8.4"
 testpaths = ["tests"]
 pythonpath = ["src"]
+empty_parameter_set_mark = "fail_at_collect"
 xfail_strict = true
 required_plugins = [
     "pytest-benchmark>=5.2.3",
@@ -134,6 +137,9 @@ addopts = [
     "--cov=benchmatrix",
     "--cov-report=term-missing",
 ]
+filterwarnings = [
+    "error",
+]
 markers = [
     "integration: tests that exercise installed packages or third-party runtime integrations",
     "numpy: tests that require NumPy",
@@ -141,25 +147,53 @@ markers = [
     "slow: tests that do packaging, subprocess, or otherwise slower work",
     "unit: fast isolated tests for local package behavior",
 ]
+norecursedirs = [
+    "*.egg",
+    "*.egg-info",
+    ".git",
+    ".hypothesis",
+    ".mypy_cache",
+    ".nox",
+    ".pyright",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".tox",
+    ".venv",
+    "build",
+    "dist",
+    "env",
+    "htmlcov",
+    "node_modules",
+    "reports",
+    "site",
+    "venv",
+]
 
 [tool.coverage.run]
 branch = true
 relative_files = true
 source = ["benchmatrix"]
 
+[tool.coverage.paths]
+source = [
+    "src/benchmatrix",
+    "*/site-packages/benchmatrix",
+]
+
 [tool.coverage.report]
 fail_under = 95
 precision = 2
 show_missing = true
+skip_empty = true
 skip_covered = true
 
 [tool.ruff]
 line-length = 120
-src = ["src", "tests"]
+src = ["src", "tests", "examples", "scripts", "docs/_scripts"]
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["B", "E", "F", "I", "UP"]
+select = ["B", "C4", "E", "F", "I", "PIE", "PT", "RET", "RUF", "SIM", "UP"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["benchmatrix"]
@@ -168,7 +202,7 @@ known-first-party = ["benchmatrix"]
 line-ending = "lf"
 
 [tool.basedpyright]
-include = ["src", "tests", "examples", "noxfile.py"]
+include = ["src", "tests", "examples", "scripts", "docs/_scripts", "noxfile.py"]
 exclude = [".venv", "build", "dist", "node_modules"]
 pythonVersion = "3.11"
 typeCheckingMode = "standard"

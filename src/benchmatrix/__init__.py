@@ -32,7 +32,6 @@ except PackageNotFoundError:
     __version__ = "0.0.0+unknown"
 
 __all__ = [
-    "__version__",
     "BenchmarkCase",
     "BenchmarkConfig",
     "BenchmarkFixture",
@@ -43,6 +42,7 @@ __all__ = [
     "MetricName",
     "ParsedBenchmarkRow",
     "TargetFunction",
+    "__version__",
     "benchmark_batch_throughput",
     "benchmark_single_call_latency",
     "benchmark_tail_latency",
