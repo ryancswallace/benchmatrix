@@ -4,5 +4,5 @@ FROM mcr.microsoft.com/devcontainers/python:3.14-bookworm
 # Remove it because this project does not need Yarn from dl.yarnpkg.com.
 RUN rm -f /etc/apt/sources.list.d/yarn.list \
     && apt-get update \
-    && apt-get install -y --no-install-recommends ripgrep \
+    && apt-get install -y --no-install-recommends bubblewrap ripgrep \
     && rm -rf /var/lib/apt/lists/*
