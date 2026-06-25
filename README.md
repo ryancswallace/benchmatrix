@@ -1,11 +1,10 @@
-# benchmatrix
-
 <!-- markdownlint-disable MD033 -->
 <p align="center">
   <a href="https://ryancswallace.github.io/benchmatrix/">
     <img
       alt="benchmatrix"
       src="docs/assets/benchmatrix-logo.svg"
+      style="padding-bottom: 25px;"
       width="760"
     >
   </a>
