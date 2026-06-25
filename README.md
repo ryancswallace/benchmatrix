@@ -36,9 +36,16 @@
     trust, compare, and parse
   </strong>
 </p>
-<!-- markdownlint-enable MD033 -->
 
-<!-- markdownlint-disable MD033 -->
+<p align="center">
+  <img
+    alt=""
+    height="7.5"
+    src="docs/assets/readme-logo-spacer.svg"
+    width="1"
+  >
+</p>
+
 <p align="center">
   <a href="https://ryancswallace.github.io/benchmatrix/">
     <img
@@ -46,6 +53,15 @@
       src="https://img.shields.io/badge/Open%20the%20docs-benchmatrix%20documentation-0f766e?style=for-the-badge&logo=githubpages&logoColor=white"
     >
   </a>
+</p>
+
+<p align="center">
+  <img
+    alt=""
+    height="7.5"
+    src="docs/assets/readme-logo-spacer.svg"
+    width="1"
+  >
 </p>
 <!-- markdownlint-enable MD033 -->
 
