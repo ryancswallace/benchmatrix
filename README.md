@@ -4,7 +4,7 @@
     <img
       alt="benchmatrix"
       src="docs/assets/benchmatrix-logo.svg"
-      style="padding-bottom: 25px;"
+      style="padding-bottom: 100px;"
       width="760"
     >
   </a>
