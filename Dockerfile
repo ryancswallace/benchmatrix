@@ -36,7 +36,7 @@ FROM python-base AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/ryancswallace/benchmatrix" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.description="Build pytest-benchmark matrices and parse benchmark results with lightweight Python utilities."
+      org.opencontainers.image.description="Build pytest-benchmark matrices and parse benchmark results with lightweight Python utilities"
 
 COPY --from=builder --chown=benchmatrix:benchmatrix /app/.venv /app/.venv
 COPY --chown=benchmatrix:benchmatrix README.md LICENSE ./

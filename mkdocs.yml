@@ -1,5 +1,5 @@
 site_name: benchmatrix
-site_description: Build pytest-benchmark matrices and parse benchmark results with lightweight Python utilities.
+site_description: Build pytest-benchmark matrices and parse benchmark results with lightweight Python utilities
 site_author: Ryan Wallace
 site_url: https://ryancswallace.github.io/benchmatrix/
 repo_name: ryancswallace/benchmatrix
