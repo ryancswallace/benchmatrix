@@ -40,7 +40,7 @@
 <p align="center">
   <img
     alt=""
-    height="7.5"
+    height="0.5"
     src="docs/assets/readme-logo-spacer.svg"
     width="1"
   >
@@ -58,7 +58,7 @@
 <p align="center">
   <img
     alt=""
-    height="7.5"
+    height="0.5"
     src="docs/assets/readme-logo-spacer.svg"
     width="1"
   >
