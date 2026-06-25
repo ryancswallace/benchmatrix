@@ -37,14 +37,7 @@
   </strong>
 </p>
 
-<p align="center">
-  <img
-    alt=""
-    height="0.5"
-    src="docs/assets/readme-logo-spacer.svg"
-    width="1"
-  >
-</p>
+<br>
 
 <p align="center">
   <a href="https://ryancswallace.github.io/benchmatrix/">
@@ -55,14 +48,7 @@
   </a>
 </p>
 
-<p align="center">
-  <img
-    alt=""
-    height="0.5"
-    src="docs/assets/readme-logo-spacer.svg"
-    width="1"
-  >
-</p>
+<br>
 <!-- markdownlint-enable MD033 -->
 
 benchmatrix sits on top of
