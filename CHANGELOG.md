@@ -10,6 +10,8 @@ additional pre-1.0 compatibility expectations described in
 
 ### Added
 
+* Add a benchmatrix SVG logo to the README and documentation home page.
+
 ### Changed
 
 ### Deprecated

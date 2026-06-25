@@ -1,5 +1,17 @@
 # benchmatrix
 
+<!-- markdownlint-disable MD033 -->
+<p align="center">
+  <a href="https://ryancswallace.github.io/benchmatrix/">
+    <img
+      alt="benchmatrix"
+      src="docs/assets/benchmatrix-logo.svg"
+      width="760"
+    >
+  </a>
+</p>
+<!-- markdownlint-enable MD033 -->
+
 [![CI](https://github.com/ryancswallace/benchmatrix/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ryancswallace/benchmatrix/actions/workflows/ci.yml)
 [![Documentation](https://github.com/ryancswallace/benchmatrix/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/ryancswallace/benchmatrix/actions/workflows/docs.yml)
 [![Docker](https://github.com/ryancswallace/benchmatrix/actions/workflows/docker.yml/badge.svg?branch=main)](https://github.com/ryancswallace/benchmatrix/actions/workflows/docker.yml)

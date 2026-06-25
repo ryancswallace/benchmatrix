@@ -1,5 +1,7 @@
 # benchmatrix documentation
 
+![benchmatrix logo](assets/benchmatrix-logo.svg)
+
 benchmatrix is a small layer on top of pytest-benchmark. It helps you define
 repeatable benchmark matrices, attach strict JSON-safe metadata to benchmark
 invocations, and parse pytest-benchmark JSON output into metric-aware result
