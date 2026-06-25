@@ -4,10 +4,16 @@
     <img
       alt="benchmatrix"
       src="docs/assets/benchmatrix-logo.svg"
-      style="padding-bottom: 100px;"
       width="760"
     >
   </a>
+  <br>
+  <img
+    alt=""
+    height="20"
+    src="docs/assets/readme-logo-spacer.svg"
+    width="1"
+  >
 </p>
 <!-- markdownlint-enable MD033 -->
 
