@@ -29,8 +29,14 @@
 [![Coverage gate: 95%](https://img.shields.io/badge/coverage%20gate-%E2%89%A595%25-2e7d32)](https://github.com/ryancswallace/benchmatrix/blob/main/pyproject.toml)
 [![SBOM: CycloneDX 1.6](https://img.shields.io/badge/SBOM-CycloneDX%201.6-6f42c1)](https://cyclonedx.org/)
 
-**Benchmark matrices for Python projects that need performance data they can
-trust, compare, and parse.**
+<!-- markdownlint-disable MD033 -->
+<p align="center">
+  <strong>
+    Benchmark matrices for Python projects that need performance data they can
+    trust, compare, and parse
+  </strong>
+</p>
+<!-- markdownlint-enable MD033 -->
 
 <!-- markdownlint-disable MD033 -->
 <p align="center">
