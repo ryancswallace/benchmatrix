@@ -90,16 +90,16 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Tutorials:
-      - Overview: tutorials/index.md
+      - Tutorials overview: tutorials/index.md
       - First benchmark: tutorials/first-benchmark.md
   - How-to guides:
-      - Overview: how-to/index.md
+      - How-to guides overview: how-to/index.md
       - Create a benchmark matrix: how-to/create-benchmark-matrix.md
       - Parse benchmark results: how-to/parse-results.md
       - Run with Docker: how-to/run-with-docker.md
       - Troubleshooting: how-to/troubleshooting.md
   - Reference:
-      - Overview: reference/index.md
+      - Reference overview: reference/index.md
       - API:
           - Package: reference/api/index.md
           - Benchmark harness: reference/api/bench_harness.md
@@ -108,7 +108,7 @@ nav:
       - Compatibility: reference/compatibility.md
       - Configuration and automation: reference/configuration.md
   - Explanation:
-      - Overview: explanation/index.md
+      - Explanation overview: explanation/index.md
       - Architecture: explanation/architecture.md
       - Performance model: explanation/performance.md
       - Threat model: explanation/threat-model.md
@@ -125,7 +125,7 @@ nav:
       - Publishing: explanation/publishing.md
       - First release: explanation/first-release.md
   - Maintainer runbooks:
-      - Overview: runbooks/index.md
+      - Maintainer runbooks overview: runbooks/index.md
       - Release: runbooks/release.md
       - Container release: runbooks/container-release.md
       - Dependency update: runbooks/dependency-update.md
@@ -135,7 +135,7 @@ nav:
       - Ownership transfer: runbooks/ownership-transfer.md
       - External repository setup: runbooks/repository-setup.md
   - Project:
-      - project/index.md
+      - Project overview: project/index.md
       - Development: project/development.md
       - Contributing: project/contributing.md
       - Changelog: project/changelog.md
