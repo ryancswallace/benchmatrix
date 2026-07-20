@@ -7,7 +7,7 @@
     "devDependencies": {
         "cspell": "^10.0.1",
         "dockerfile-utils": "^0.16.3",
-        "markdownlint-cli2": "^0.23.0"
+        "markdownlint-cli2": "^0.23.1"
     },
     "overrides": {
         "js-yaml": "4.2.0",
