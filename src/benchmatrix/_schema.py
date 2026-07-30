@@ -15,6 +15,15 @@ JsonValue: TypeAlias = JsonPrimitive | list["JsonValue"] | dict[str, "JsonValue"
 
 PRODUCER = "benchmatrix"
 SCHEMA_VERSION = 1
+BENCHMARK_SCHEMA_READ_VERSIONS = frozenset({1})
+RUN_GROUP_KIND = "benchmark_run_group"
+RUN_GROUP_SCHEMA_VERSION = 2
+RUN_GROUP_SCHEMA_READ_VERSIONS = frozenset({1, 2})
+COMPARISON_REPORT_KIND = "benchmark_comparison"
+COMPARISON_REPORT_SCHEMA_VERSION = 1
+COMPARISON_REPORT_SCHEMA_READ_VERSIONS = frozenset({1})
+POLICY_INSPECTION_KIND = "benchmark_policy"
+POLICY_INSPECTION_SCHEMA_VERSION = 1
 
 METRIC_SINGLE_CALL_LATENCY: MetricName = "single_call_latency"
 METRIC_BATCH_THROUGHPUT: MetricName = "batch_throughput"
@@ -61,6 +70,10 @@ JSON_KEY_EXTRA_INFO = "extra_info"
 JSON_KEY_DATA = "data"
 JSON_KEY_NAME = "name"
 JSON_KEY_FULLNAME = "fullname"
+JSON_KEY_DATETIME = "datetime"
+JSON_KEY_VERSION = "version"
+JSON_KEY_MACHINE_INFO = "machine_info"
+JSON_KEY_COMMIT_INFO = "commit_info"
 
 STAT_MEAN = "mean"
 STAT_MEDIAN = "median"

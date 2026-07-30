@@ -11,3 +11,11 @@ class MetadataSerializationError(BenchmatrixError, ValueError):
 
 class BenchmarkJsonError(BenchmatrixError, ValueError):
     """Raised when pytest-benchmark JSON cannot be parsed as benchmatrix output."""
+
+
+class BenchmarkCollectionError(BenchmatrixError, RuntimeError):
+    """Raised when a repeated-run collection cannot be created."""
+
+
+class BenchmarkPolicyError(BenchmatrixError, ValueError):
+    """Raised when benchmark policy configuration is invalid."""
