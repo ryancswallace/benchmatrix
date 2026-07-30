@@ -61,11 +61,14 @@ git update-index --no-skip-worktree .devcontainer/devcontainer.json
 
 Add your machine-specific settings to `.devcontainer/devcontainer.json`. The
 following snippet mounts your host `.gitconfig`, mounts in a local environment
-variable file, and sets `seccomp=unconfined` (e.g., for Codex sandboxing).
+variable file, a Codex auth file, and sets `seccomp=unconfined` (e.g., for Codex
+sandboxing).
 
 ```json
 "mounts": [
-    "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,type=bind,consistency=cached"
+    "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.local/share/devcontainer-bin,target=/home/vscode/.local/share/host-bin,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.codex-devcontainer,target=/home/vscode/.codex,type=bind,consistency=cached"
 ],
 "runArgs": [
     "--env-file",
