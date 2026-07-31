@@ -150,6 +150,13 @@ Compare collection directories for a trust-aware local review or CI decision:
 benchmatrix compare baseline-runs candidate-runs
 ```
 
+For a compact terminal view that omits per-cell evidence details but retains
+the matrix decisions and overall result, add `--summary`:
+
+```bash
+benchmatrix compare baseline-runs candidate-runs --summary
+```
+
 Manifest paths and individual repeated files are also accepted:
 
 ```bash

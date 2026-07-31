@@ -137,6 +137,50 @@ def test_compare_cli_displays_text_summary(tmp_path: Path, capsys: pytest.Captur
     assert "Overall: PASS" in output.out
 
 
+def test_compare_cli_summary_omits_cell_evidence_details(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    baseline = _write_run(tmp_path, "baseline.json", {("impl", "small"): 1.0})
+    candidate = _write_run(tmp_path, "candidate.json", {("impl", "small"): 1.1})
+
+    exit_code = main(
+        [
+            "compare",
+            str(baseline),
+            str(candidate),
+            "--minimum-runs",
+            "1",
+            "--summary",
+        ]
+    )
+
+    output = capsys.readouterr()
+    assert exit_code == 0
+    assert output.err == ""
+    assert "impl | small | single_call_latency | regressed | -10.00% | 5.00%" in output.out
+    assert "Summary: 0 improved, 0 unchanged, 1 regressed, 0 not comparable" in output.out
+    assert "Overall: FAIL" in output.out
+    assert "baseline evidence:" not in output.out
+    assert "candidate evidence:" not in output.out
+    assert "repeated effect range:" not in output.out
+
+
+def test_compare_cli_summary_rejects_non_text_format(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    baseline = _write_run(tmp_path, "baseline.json", {("impl", "small"): 1.0})
+    candidate = _write_run(tmp_path, "candidate.json", {("impl", "small"): 1.0})
+
+    exit_code = main(["compare", str(baseline), str(candidate), "--summary", "--format", "json"])
+
+    output = capsys.readouterr()
+    assert exit_code == 2
+    assert output.out == ""
+    assert "--summary requires --format text" in output.err
+
+
 def test_compare_cli_failure_gate_honors_percentage_threshold(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],

@@ -147,7 +147,7 @@ commands and options are stable in 1.x:
 | --- | --- |
 | `collect` | `--runs`, required `--output`, `--resume`, `--retry-failed`, `--format` with `text` or `json`, and the pytest command after `--` |
 | `measure` | one or more pytest targets, the collection options, `--inherit-pytest-addopts`, and optional pytest arguments after `--` |
-| `compare` | baseline and candidate sources, repeatable `--baseline-run` and `--candidate-run`, `--threshold`, `--compatibility` with `strict`, `permissive`, or `off`; `--format` with `text`, `json`, or `markdown`; `--github-summary`, `--fail-on-regression`, `--minimum-runs`, `--minimum-samples`, and mutually exclusive `--config` or `--no-config` |
+| `compare` | baseline and candidate sources, repeatable `--baseline-run` and `--candidate-run`, `--threshold`, `--compatibility` with `strict`, `permissive`, or `off`; `--format` with `text`, `json`, or `markdown`; text-only `--summary`; `--github-summary`, `--fail-on-regression`, `--minimum-runs`, `--minimum-samples`, and mutually exclusive `--config` or `--no-config` |
 | `policy show` | mutually exclusive `--config` or `--no-config`, `--search-from`, and `--format` with `text` or `json` |
 | `policy validate` | the `policy show` options plus `--quiet` |
 

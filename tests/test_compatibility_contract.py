@@ -325,6 +325,7 @@ _CLI_SURFACE = {
             ("--threshold",),
             ("--compatibility",),
             ("--format",),
+            ("--summary",),
             ("--github-summary",),
             ("--fail-on-regression",),
             ("--minimum-runs",),
@@ -476,6 +477,7 @@ def test_cli_defaults_and_choices_match_v1_contract() -> None:
     assert compare.threshold is None
     assert compare.compatibility is None
     assert compare.format == "text"
+    assert compare.summary is False
     assert compare.github_summary is False
     assert compare.fail_on_regression is False
     assert compare.minimum_runs is None

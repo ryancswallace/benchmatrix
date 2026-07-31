@@ -12,6 +12,7 @@ compatibility expectations described in [the release policy](RELEASING.md).
 * Add `benchmatrix measure` as a managed pytest workflow with isolated pytest
     defaults, repeated-run collection, resumable manifests, and advanced pytest
     argument forwarding.
+* Add compact text comparison summaries through `benchmatrix compare --summary`.
 
 ### Changed
 

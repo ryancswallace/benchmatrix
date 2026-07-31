@@ -181,6 +181,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Output format (default: text).",
     )
     compare_parser.add_argument(
+        "--summary",
+        action="store_true",
+        help="Omit per-cell evidence diagnostics from text output.",
+    )
+    compare_parser.add_argument(
         "--github-summary",
         action="store_true",
         help="Append the Markdown report to the path in GITHUB_STEP_SUMMARY.",
@@ -463,6 +468,10 @@ def _run_compare(
     output = sys.stdout if stdout is None else stdout
     error_output = sys.stderr if stderr is None else stderr
 
+    if bool(args.summary) and args.format != "text":
+        print("benchmatrix: error: --summary requires --format text.", file=error_output)
+        return _EXIT_USAGE_ERROR
+
     try:
         policy_context = _resolve_policy_context(args)
         baseline_paths = (cast(Path, args.baseline), *cast(list[Path], args.baseline_run))
@@ -502,6 +511,7 @@ def _run_compare(
             baseline_side=baseline_side,
             candidate_side=candidate_side,
             policy_context=policy_context,
+            summary=bool(args.summary),
             stream=output,
         )
 
@@ -670,6 +680,7 @@ def _display_text(
     baseline_side: _LoadedRunSide,
     candidate_side: _LoadedRunSide,
     policy_context: _PolicyContext,
+    summary: bool,
     stream: TextIO,
 ) -> None:
     """Display a concise human-readable comparison."""
@@ -717,16 +728,17 @@ def _display_text(
             ),
             file=stream,
         )
-        _display_evidence("baseline", cell.baseline_evidence, stream=stream)
-        _display_evidence("candidate", cell.candidate_evidence, stream=stream)
-        if cell.improvement_low_percent is not None and cell.improvement_high_percent is not None:
-            print(
-                "    repeated effect range: "
-                + f"{cell.improvement_low_percent:+.2f}% to {cell.improvement_high_percent:+.2f}%",
-                file=stream,
-            )
-        if cell.reason is not None:
-            print(f"    diagnostic: {cell.reason}", file=stream)
+        if not summary:
+            _display_evidence("baseline", cell.baseline_evidence, stream=stream)
+            _display_evidence("candidate", cell.candidate_evidence, stream=stream)
+            if cell.improvement_low_percent is not None and cell.improvement_high_percent is not None:
+                print(
+                    "    repeated effect range: "
+                    + f"{cell.improvement_low_percent:+.2f}% to {cell.improvement_high_percent:+.2f}%",
+                    file=stream,
+                )
+            if cell.reason is not None:
+                print(f"    diagnostic: {cell.reason}", file=stream)
 
     print("", file=stream)
     print(
