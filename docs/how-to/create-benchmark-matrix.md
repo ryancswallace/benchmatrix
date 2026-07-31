@@ -56,7 +56,71 @@ returns a coroutine, future, generator, query plan, or other lazy object, resolv
 or consume it inside a synchronous wrapper so the benchmark measures completed
 work.
 
-## Validate correctness separately
+## Validate every implementation result
 
-Benchmark tests should not be the only correctness signal. Add ordinary unit
-tests that compare implementation outputs before relying on performance data.
+Use an untimed result validator to reject benchmark entries that do not match a
+reference implementation:
+
+```python
+from benchmatrix import BenchmarkConfig, BenchmarkHookContext
+
+
+def validate_sum(context: BenchmarkHookContext, result: object) -> None:
+    args, kwargs = context.case.make_call()
+    expected = sum(*args, **kwargs)
+    if result != expected:
+        raise AssertionError(
+            f"{context.implementation_name} returned {result!r}; "
+            f"expected {expected!r}"
+        )
+
+
+config = BenchmarkConfig(validate_result=validate_sum)
+test_sum_matrix = make_benchmark_test(
+    implementations,
+    cases,
+    config=config,
+)
+```
+
+The validator receives the result returned by pytest-benchmark after timing, so
+the validation itself is not measured. One shared validator applies the same
+reference behavior to every metric, implementation, and case. If the validator
+raises, the benchmark test fails and its performance result should not be
+trusted.
+
+When an implementation mutates inputs, use `fresh_inputs=True` so the reference
+call receives independent values. Keep ordinary unit tests too: an untimed
+benchmark validator is a guardrail for the matrix, not a replacement for a
+focused correctness suite.
+
+## Prepare and clean up benchmark resources
+
+Configure lifecycle hooks for resources that should exist for the whole
+pytest-benchmark invocation:
+
+```python
+from benchmatrix import BenchmarkConfig, BenchmarkHookContext
+
+
+def open_resources(context: BenchmarkHookContext) -> None:
+    resource_pool.open_for(context.case_name)
+
+
+def close_resources(context: BenchmarkHookContext) -> None:
+    resource_pool.close_for(context.case_name)
+
+
+config = BenchmarkConfig(
+    before_benchmark=open_resources,
+    after_benchmark=close_resources,
+)
+```
+
+Both hooks run outside pytest-benchmark's timed target body.
+`after_benchmark` runs when the target or validator raises, provided
+`before_benchmark` completed successfully. If setup itself raises, cleanup is
+not called.
+
+Lifecycle hooks wrap the complete benchmark entry, not each calibrated call or
+pedantic round. Use `fresh_inputs=True` for per-round input reconstruction.

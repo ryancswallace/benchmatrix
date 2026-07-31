@@ -7,13 +7,7 @@
       width="760"
     >
   </a>
-  <br>
-  <img
-    alt=""
-    height="20"
-    src="docs/assets/readme-logo-spacer.svg"
-    width="1"
-  >
+
 </p>
 <!-- markdownlint-enable MD033 -->
 
@@ -37,18 +31,10 @@
   </strong>
 </p>
 
-<br>
+> [!TIP]
+> **Read the [benchmatrix documentation](https://ryancswallace.github.io/benchmatrix/)**
+> for the quickstart, usage guides, and API reference.
 
-<p align="center">
-  <a href="https://ryancswallace.github.io/benchmatrix/">
-    <img
-      alt="Open the benchmatrix documentation"
-      src="https://img.shields.io/badge/Open%20the%20docs-benchmatrix%20documentation-0f766e?style=for-the-badge&logo=githubpages&logoColor=white"
-    >
-  </a>
-</p>
-
-<br>
 <!-- markdownlint-enable MD033 -->
 
 benchmatrix sits on top of
@@ -91,13 +77,107 @@ Run it with pytest-benchmark and keep the machine-readable output:
 uv run pytest tests/test_sum_benchmark.py --benchmark-json benchmark.json
 ```
 
-Read the tagged rows back later:
+Read the run back and compare it with a controlled baseline:
 
 ```python
-from benchmatrix import display_benchmark_rows, load_benchmark_json
+from benchmatrix import display_benchmark_rows, load_benchmark_run
 
-rows = load_benchmark_json("benchmark.json")
-display_benchmark_rows(rows)
+baseline = load_benchmark_run("baseline.json")
+candidate = load_benchmark_run("benchmark.json")
+
+display_benchmark_rows(candidate.rows)
+comparison = baseline.compare_to(candidate)
+
+if not comparison.passed:
+    for cell in comparison.regressed:
+        print(cell.implementation_name, cell.case_name, cell.metric_name)
+```
+
+Collect a controlled repeated-run group without managing output names by hand:
+
+```bash
+benchmatrix collect --runs 5 --output benchmark-runs -- \
+    uv run pytest tests/test_sum_benchmark.py
+```
+
+The collection directory contains numbered pytest-benchmark JSON files and an
+atomic `benchmatrix-manifest.json`. Collection can recover without discarding
+its audit trail:
+
+```bash
+# Continue attempts after an interrupted process.
+benchmatrix collect --resume --output benchmark-runs
+
+# Append bounded retries while preserving every failed attempt.
+benchmatrix collect --retry-failed --output benchmark-runs
+```
+
+The manifest command and working directory are reused, accepted files are
+revalidated, and retry attempts append to the audit trail instead of replacing
+failures.
+
+Compare collection directories directly:
+
+```bash
+benchmatrix compare baseline-runs candidate-runs \
+    --threshold 5% \
+    --fail-on-regression
+```
+
+Existing automation can still combine individual repeated files:
+
+```bash
+benchmatrix compare baseline-1.json candidate-1.json \
+    --baseline-run baseline-2.json \
+    --candidate-run candidate-2.json \
+    --threshold 5% \
+    --fail-on-regression
+```
+
+Keep comparison policy under review with the benchmark suite:
+
+```toml
+[tool.benchmatrix.evidence]
+minimum_runs = 3
+
+[tool.benchmatrix.regression]
+default_threshold_percent = 5.0
+
+[tool.benchmatrix.regression.by_metric]
+tail_latency = 8.0
+```
+
+`benchmatrix compare` discovers the nearest `pyproject.toml`. CLI policy
+options override their corresponding configured scalar without discarding
+per-metric, implementation, case, or exact-cell thresholds.
+
+Inspect or validate that policy without running benchmarks:
+
+```bash
+benchmatrix policy show
+benchmatrix policy validate --quiet
+```
+
+Comparison JSON is a strict, versioned decision record that can be archived and
+loaded independently of the original timing files:
+
+```bash
+benchmatrix compare baseline-runs candidate-runs \
+    --format json > comparison.json
+```
+
+```python
+from benchmatrix import load_comparison_report
+
+report = load_comparison_report("comparison.json")
+print(report.schema_version, report.passed, len(report.regressed))
+```
+
+Publish the same report as Markdown or a GitHub Actions step summary:
+
+```bash
+benchmatrix compare baseline-runs candidate-runs --format markdown
+benchmatrix compare baseline-runs candidate-runs --github-summary
 ```
 
 ## Why It Exists
@@ -107,10 +187,10 @@ JSON export. benchmatrix owns the repeatable structure around those timings.
 
 | Need | benchmatrix gives you |
 | --- | --- |
-| Compare multiple implementations | One generated pytest benchmark matrix instead of repeated parametrization code. |
+| Compare multiple implementations | One generated pytest benchmark matrix with optional untimed output validation. |
 | Track what each timing means | JSON-safe invocation metadata with implementation, case, and metric identity. |
 | Report different metric views | Single-call latency, logical-work throughput, and local tail-latency summaries. |
-| Reuse benchmark output | Parsers and display helpers for pytest-benchmark JSON produced by benchmatrix tests. |
+| Reuse benchmark output | Manifest-backed collection, repeated-run evidence diagnostics, environment checks, regression policies, and matrix comparisons. |
 
 benchmatrix is intentionally narrow: it benchmarks synchronous Python callables.
 It is not a load-testing framework, production latency monitor, or replacement
