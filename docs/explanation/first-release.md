@@ -1,7 +1,8 @@
-# First release
+# Version 1 release readiness
 
-Before the first public release, confirm the project has enough operational
-structure to support users after publication.
+Before the first stable major release, confirm the project has enough
+operational structure to honor its compatibility and support commitments after
+publication.
 
 ## Checklist
 
@@ -16,10 +17,12 @@ structure to support users after publication.
 * `pyproject.toml`, `CITATION.cff`, the Git tag, and release notes use the same
     version;
 * security and support policies are present;
+* stable Python API, CLI, configuration, and artifact-schema commitments are
+    documented;
 * the GitHub `pypi` environment exists with trusted maintainer reviewers;
 * PyPI Trusted Publishing is configured for `release.yml` and the `pypi`
     environment;
 * a maintainer knows how to verify the package after PyPI publication.
 
-If any item is missing, fix it before uploading artifacts. A delayed first
-release is easier to recover from than a broken first release.
+If any item is missing, fix it before uploading artifacts. A delayed stable
+release is easier to recover from than a broken compatibility promise.

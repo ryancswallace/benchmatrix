@@ -9,5 +9,5 @@ For each user-visible change:
 3. mention compatibility or migration notes when behavior changes;
 4. move entries into a versioned section during release preparation.
 
-The project follows Semantic Versioning with the pre-1.0 expectations described
-in the release policy.
+The project follows Semantic Versioning and the compatibility expectations
+described in the release policy.

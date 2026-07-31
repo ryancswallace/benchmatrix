@@ -9,12 +9,12 @@ Use this when preparing and publishing a benchmatrix release.
 * The GitHub `pypi` environment exists and has the intended reviewers.
 * PyPI Trusted Publishing is configured for `release.yml` and the `pypi`
   environment.
-* You know the exact version being released, such as `0.2.0`.
+* You know the exact version being released, such as `1.0.0`.
 * The GitHub CLI is authenticated with permission to push branches and open
   pull requests, and `GH_TOKEN` or `GITHUB_TOKEN` is exported for GitHub API
   checks.
 
-Before the first public release, complete the external repository setup runbook,
+Before each major release, complete the external repository setup runbook,
 especially the `pypi` environment and PyPI Trusted Publishing checklist.
 
 ## Prepare the release pull request
@@ -29,8 +29,8 @@ especially the `pypi` environment and PyPI Trusted Publishing checklist.
     Use:
 
     * patch for compatible fixes and documentation;
-    * minor for new features or pre-1.0 breaking changes;
-    * major for post-1.0 breaking public API changes.
+    * minor for backward-compatible features and deprecations;
+    * major for breaking public API changes.
 
 3. Update the `CHANGELOG.md` entries **under `## Unreleased`**.
 4. Prepare release metadata, validate the release, and open the pull request:
