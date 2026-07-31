@@ -47,3 +47,5 @@ TODO.md
 
 # Generated example benchmark output
 examples/benchmark_results/
+/demo-baseline/
+/demo-candidate/
