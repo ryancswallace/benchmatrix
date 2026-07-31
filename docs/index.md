@@ -33,7 +33,7 @@ If the project does not use uv, install it with pip instead:
 python -m pip install benchmatrix
 ```
 
-## Quick start
+## Quickstart
 
 ```python
 from benchmatrix import BenchmarkCase, make_benchmark_test

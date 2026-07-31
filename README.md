@@ -26,8 +26,7 @@
 <!-- markdownlint-disable MD033 -->
 <p align="center">
   <strong>
-    Benchmark matrices for Python projects that need performance data they can
-    trust, compare, and parse
+    Build Python benchmark matrices with results you can trust, compare, and automate.
   </strong>
 </p>
 
@@ -37,19 +36,28 @@
 
 <!-- markdownlint-enable MD033 -->
 
-benchmatrix sits on top of
-[pytest-benchmark](https://pytest-benchmark.readthedocs.io/) and adds the layer
-that benchmark suites usually grow by hand: implementation-by-case matrices,
-strict JSON-safe metadata, metric-aware result parsing, and concise display of
-saved benchmark runs.
+benchmatrix is a small layer on top of
+[pytest-benchmark](https://pytest-benchmark.readthedocs.io/) for projects that
+need more than one-off timings. benchmatrix lets you define implementations and
+cases once, collect repeated runs, and compare the same matrix over time. Before
+reporting a slowdown, benchmatrix checks that both runs measured the same things
+under comparable conditions and collected enough data.
 
-| Build repeatable suites | Keep metrics honest | Parse saved runs |
-| --- | --- | --- |
-| Generate pytest benchmark tests across implementations, cases, and metric views. | Separate latency, throughput, and local distribution comparisons instead of mixing unlike numbers. | Load benchmatrix-tagged pytest-benchmark JSON rows into structured Python objects. |
+## Install
 
-## Quick Start
+```bash
+uv add benchmatrix
+```
 
-Create a benchmark matrix from ordinary synchronous callables in a pytest file:
+or:
+
+```bash
+python -m pip install benchmatrix
+```
+
+## Quickstart
+
+Create a benchmark matrix from callables in a pytest file:
 
 ```python
 from benchmatrix import BenchmarkCase, make_benchmark_test
@@ -71,52 +79,46 @@ cases = [
 test_sum_matrix = make_benchmark_test(implementations, cases)
 ```
 
-Run it with pytest-benchmark and keep the machine-readable output:
+Run it with pytest-benchmark:
 
 ```bash
 uv run pytest tests/test_sum_benchmark.py --benchmark-json benchmark.json
 ```
 
-Read the run back and compare it with a controlled baseline:
+The result is normal pytest-benchmark JSON enhanced with benchmatrix metadata.
+Load and compare it with a baseline to check for regressions:
 
 ```python
-from benchmatrix import display_benchmark_rows, load_benchmark_run
+from benchmatrix import load_benchmark_run
 
 baseline = load_benchmark_run("baseline.json")
 candidate = load_benchmark_run("benchmark.json")
-
-display_benchmark_rows(candidate.rows)
 comparison = baseline.compare_to(candidate)
 
-if not comparison.passed:
-    for cell in comparison.regressed:
-        print(cell.implementation_name, cell.case_name, cell.metric_name)
+for cell in comparison.regressed:
+    print(cell.implementation_name, cell.case_name, cell.metric_name)
 ```
 
-Collect a controlled repeated-run group without managing output names by hand:
+For regression decisions, collect several runs instead of relying on one noisy
+percentage:
 
 ```bash
 benchmatrix collect --runs 5 --output benchmark-runs -- \
     uv run pytest tests/test_sum_benchmark.py
 ```
 
-The collection directory contains numbered pytest-benchmark JSON files and an
-atomic `benchmatrix-manifest.json`. Collection can recover without discarding
-its audit trail:
+The output directory contains numbered JSON files and a
+`benchmatrix-manifest.json`.
+
+Interrupted and failed collections can continue without overwriting earlier
+attempts:
 
 ```bash
-# Continue attempts after an interrupted process.
 benchmatrix collect --resume --output benchmark-runs
-
-# Append bounded retries while preserving every failed attempt.
 benchmatrix collect --retry-failed --output benchmark-runs
 ```
 
-The manifest command and working directory are reused, accepted files are
-revalidated, and retry attempts append to the audit trail instead of replacing
-failures.
-
-Compare collection directories directly:
+Compare a baseline collection with a candidate:
 
 ```bash
 benchmatrix compare baseline-runs candidate-runs \
@@ -124,17 +126,19 @@ benchmatrix compare baseline-runs candidate-runs \
     --fail-on-regression
 ```
 
-Existing automation can still combine individual repeated files:
+## Metrics
 
-```bash
-benchmatrix compare baseline-1.json candidate-1.json \
-    --baseline-run baseline-2.json \
-    --candidate-run candidate-2.json \
-    --threshold 5% \
-    --fail-on-regression
-```
+benchmatrix supports three ways to measure each benchmark:
 
-Keep comparison policy under review with the benchmark suite:
+| Metric | Meaning | Better result |
+| --- | --- | --- |
+| Single-call latency | Time required to complete one function call. | Lower |
+| Batch throughput | Number of declared work units completed per second. | Higher |
+| Tail latency | The slower end of the timing distribution (e.g., 95th percentile). | Lower |
+
+## Comparison policy
+
+Keep project-wide comparison rules in `pyproject.toml`:
 
 ```toml
 [tool.benchmatrix.evidence]
@@ -147,19 +151,25 @@ default_threshold_percent = 5.0
 tail_latency = 8.0
 ```
 
-`benchmatrix compare` discovers the nearest `pyproject.toml`. CLI policy
-options override their corresponding configured scalar without discarding
-per-metric, implementation, case, or exact-cell thresholds.
+Thresholds can also target an
+implementation, case, or exact matrix cell. A CLI option overrides only the
+corresponding setting; it does not discard the more specific rules.
 
-Inspect or validate that policy without running benchmarks:
+Inspect or validate the effective policy without running a benchmark:
 
 ```bash
 benchmatrix policy show
 benchmatrix policy validate --quiet
 ```
 
-Comparison JSON is a strict, versioned decision record that can be archived and
-loaded independently of the original timing files:
+See [Configuration and automation](docs/reference/configuration.md) for the full
+schema and precedence rules.
+
+## Reports and CI
+
+benchmatrix's text output is intended for human readers. Complementary machine-
+readable, versioned JSON reports can be generated and loaded later
+programmatically:
 
 ```bash
 benchmatrix compare baseline-runs candidate-runs \
@@ -173,92 +183,31 @@ report = load_comparison_report("comparison.json")
 print(report.schema_version, report.passed, len(report.regressed))
 ```
 
-Publish the same report as Markdown or a GitHub Actions step summary:
+The same decision can be rendered as Markdown or appended to a GitHub Actions
+step summary:
 
 ```bash
 benchmatrix compare baseline-runs candidate-runs --format markdown
 benchmatrix compare baseline-runs candidate-runs --github-summary
 ```
 
-## Why It Exists
+## Comparison checks
 
-pytest-benchmark owns timing, calibration, statistics, terminal reporting, and
-JSON export. benchmatrix owns the repeatable structure around those timings.
+Before classifying a change, benchmatrix checks that both sides contain
+compatible environments and matching matrix cells.
 
-| Need | benchmatrix gives you |
-| --- | --- |
-| Compare multiple implementations | One generated pytest benchmark matrix with optional untimed output validation. |
-| Track what each timing means | JSON-safe invocation metadata with implementation, case, and metric identity. |
-| Report different metric views | Single-call latency, logical-work throughput, and local tail-latency summaries. |
-| Reuse benchmark output | Manifest-backed collection, repeated-run evidence diagnostics, environment checks, regression policies, and matrix comparisons. |
+For repeated runs it also reports rounds, iterations, sample counts, IQR,
+coefficient of variation, and outliers. If the evidence is too thin or the runs
+disagree, the result is marked inconclusive rather than a regression.
 
-benchmatrix is intentionally narrow: it benchmarks synchronous Python callables.
-It is not a load-testing framework, production latency monitor, or replacement
-for pytest-benchmark.
+## Design goals and non-goals
 
-## Interpreting Results
+When using benchmatrix, pytest-benchmark still handles timing, calibration,
+statistics, terminal output, and JSON export. benchmatrix adds the matrix,
+collection, and comparison layer.
 
-Benchmark output is environment-specific. Compare results only between runs from
-controlled environments, and keep the pytest-benchmark JSON output with the
-hardware, Python, dependency, and CI context that produced it.
-
-Use metric names as part of every comparison:
-
-* single-call latency compares one completed synchronous target call;
-* batch throughput compares logical work per second when `work_units` is
-    meaningful and consistent;
-* tail-latency summaries describe local distribution shape for a benchmark run,
-    not production service latency.
-
-## Install
-
-Install the released package with uv:
-
-```bash
-uv add benchmatrix
-```
-
-or with pip:
-
-```bash
-python -m pip install benchmatrix
-```
-
-For local development from this repository:
-
-```bash
-make ready
-```
-
-## Documentation
-
-The documentation source lives under [`docs/`](docs/). The top-level Markdown
-files are short project entry points; detailed guides, explanations, references,
-and runbooks live in the MkDocs documentation.
-
-| Start here | Use it for |
-| --- | --- |
-| [First benchmark](docs/tutorials/first-benchmark.md) | A complete first benchmark from test file to parsed JSON. |
-| [Create a benchmark matrix](docs/how-to/create-benchmark-matrix.md) | Cases, work units, fresh inputs, and synchronous target wrappers. |
-| [Parse benchmark results](docs/how-to/parse-results.md) | Loading and displaying benchmatrix-tagged pytest-benchmark JSON. |
-| [Performance model](docs/explanation/performance.md) | What the metrics mean and what they do not prove. |
-| [Development](docs/project/development.md) | Local setup, test commands, and repository layout. |
-| [Compatibility](docs/reference/compatibility.md) | Supported Python versions, API stability, and support policy. |
-| [Publishing](docs/explanation/publishing.md) | Release artifacts, draft releases, PyPI publishing, and verification. |
-| [Configuration and automation](docs/reference/configuration.md) | Make targets, CI workflows, Docker checks, docs, and SBOM generation. |
-
-The MkDocs site builds in strict mode and generates API reference pages from the
-package docstrings.
-
-## Project Links
-
-* [Examples](examples/)
-* [Contributing](CONTRIBUTING.md)
-* [Changelog](CHANGELOG.md)
-* [Security policy](SECURITY.md)
-* [Release policy](RELEASING.md)
-* [Code of conduct](CODE_OF_CONDUCT.md)
-* [Citation metadata](CITATION.cff)
+benchmatrix supports synchronous Python callables; it is _not_ a load-testing
+tool or a production latency monitor.
 
 ## License
 
