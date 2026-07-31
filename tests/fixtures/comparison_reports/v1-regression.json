@@ -1,0 +1,81 @@
+{
+  "baseline": "baseline.json",
+  "baseline_collections": [],
+  "baselines": [
+    "baseline.json"
+  ],
+  "candidate": "candidate.json",
+  "candidate_collections": [],
+  "candidates": [
+    "candidate.json"
+  ],
+  "comparison_passed": false,
+  "comparisons": [
+    {
+      "baseline_evidence": null,
+      "baseline_value": 1.0,
+      "candidate_evidence": null,
+      "candidate_value": 1.1,
+      "case_name": "small",
+      "direction": "lower_is_better",
+      "implementation_name": "impl",
+      "improvement_high_percent": null,
+      "improvement_low_percent": null,
+      "improvement_percent": -10.0,
+      "metric_name": "single_call_latency",
+      "percent_change": 10.0,
+      "ratio": 1.1,
+      "reason": null,
+      "regression": "regressed",
+      "statistic": "latency_mean",
+      "status": "matched",
+      "threshold_percent": 5.0,
+      "threshold_source": {
+        "field": "regression.default_threshold_percent",
+        "origin": "built_in",
+        "scope": "default"
+      },
+      "unit": "seconds"
+    }
+  ],
+  "compatibility": {
+    "findings": [],
+    "is_compatible": true,
+    "mode": "permissive",
+    "pairs_checked": 1
+  },
+  "evidence_policy": {
+    "maximum_cv": null,
+    "maximum_outlier_fraction": null,
+    "minimum_runs": 1,
+    "minimum_samples_per_run": 0,
+    "require_iterations": false,
+    "require_rounds": false
+  },
+  "has_regressions": true,
+  "is_comparable": true,
+  "kind": "benchmark_comparison",
+  "passed": false,
+  "policy": {
+    "cli_overrides": [],
+    "configuration_file": null,
+    "configured_fields": [],
+    "regression": {
+      "by_case": {},
+      "by_cell": [],
+      "by_implementation": {},
+      "by_metric": {},
+      "default_threshold_percent": 5.0
+    },
+    "selection": "defaults"
+  },
+  "producer": "benchmatrix",
+  "schema_version": 1,
+  "summary": {
+    "improved": 0,
+    "inconclusive": 0,
+    "not_comparable": 0,
+    "regressed": 1,
+    "unchanged": 0
+  }
+}
