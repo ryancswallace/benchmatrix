@@ -69,10 +69,7 @@ def validate_sum(context: BenchmarkHookContext, result: object) -> None:
     args, kwargs = context.case.make_call()
     expected = sum(*args, **kwargs)
     if result != expected:
-        raise AssertionError(
-            f"{context.implementation_name} returned {result!r}; "
-            f"expected {expected!r}"
-        )
+        raise AssertionError(f"{context.implementation_name} returned {result!r}; expected {expected!r}")
 
 
 config = BenchmarkConfig(validate_result=validate_sum)
