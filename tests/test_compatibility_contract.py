@@ -305,6 +305,18 @@ _CLI_SURFACE = {
         ),
         ("pytest_command",),
     ),
+    "benchmatrix measure": (
+        (
+            ("-h", "--help"),
+            ("--runs",),
+            ("--output",),
+            ("--resume",),
+            ("--retry-failed",),
+            ("--format",),
+            ("--inherit-pytest-addopts",),
+        ),
+        ("pytest_arguments",),
+    ),
     "benchmatrix compare": (
         (
             ("-h", "--help"),
@@ -349,6 +361,7 @@ _CLI_SURFACE = {
 _CLI_CHOICES = {
     "benchmatrix": {},
     "benchmatrix collect": {"format": ("text", "json")},
+    "benchmatrix measure": {"format": ("text", "json")},
     "benchmatrix compare": {
         "compatibility": ("strict", "permissive", "off"),
         "format": ("text", "json", "markdown"),
@@ -436,6 +449,7 @@ def test_cli_commands_options_and_positionals_match_v1_contract() -> None:
 def test_cli_defaults_and_choices_match_v1_contract() -> None:
     parser = build_parser()
     collect = parser.parse_args(["collect", "--output", "runs", "--", "pytest"])
+    measure = parser.parse_args(["measure", "--output", "runs", "benchmarks.py"])
     compare = parser.parse_args(["compare", "baseline.json", "candidate.json"])
     policy_show = parser.parse_args(["policy", "show"])
     policy_validate = parser.parse_args(["policy", "validate"])
@@ -446,6 +460,14 @@ def test_cli_defaults_and_choices_match_v1_contract() -> None:
     assert collect.retry_failed is False
     assert collect.format == "text"
     assert collect.pytest_command == ["--", "pytest"]
+
+    assert measure.runs is None
+    assert measure.output == Path("runs")
+    assert measure.resume is False
+    assert measure.retry_failed is False
+    assert measure.format == "text"
+    assert measure.inherit_pytest_addopts is False
+    assert measure.pytest_arguments == ["benchmarks.py"]
 
     assert compare.baseline == Path("baseline.json")
     assert compare.candidate == Path("candidate.json")

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 from typing import cast
@@ -89,9 +91,11 @@ def _run_payload(
 def _install_collection_runner(
     monkeypatch: pytest.MonkeyPatch,
     values: Sequence[float | None],
-) -> None:
+) -> tuple[list[tuple[str, ...]], list[str | None]]:
     """Install a subprocess runner that emits deterministic benchmark files."""
     call_count = 0
+    commands: list[tuple[str, ...]] = []
+    pytest_addopts: list[str | None] = []
 
     def runner(
         command: Sequence[str],
@@ -102,6 +106,8 @@ def _install_collection_runner(
         nonlocal call_count
         assert check is False
         assert cwd == Path.cwd().resolve()
+        commands.append(tuple(command))
+        pytest_addopts.append(os.environ.get("PYTEST_ADDOPTS"))
         value = values[call_count]
         call_count += 1
         if value is None:
@@ -113,6 +119,7 @@ def _install_collection_runner(
         return subprocess.CompletedProcess(list(command), 0)
 
     monkeypatch.setattr(collection_module.subprocess, "run", runner)
+    return commands, pytest_addopts
 
 
 def test_compare_cli_displays_text_summary(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -858,6 +865,148 @@ def test_collect_cli_creates_first_class_group_and_json_summary(
     cells = cast(list[dict[str, object]], payload["expected_cells"])
     assert cells
     assert all(set(cell) == {"implementation_name", "case_name", "metric_name"} for cell in cells)
+
+
+def test_measure_cli_builds_isolated_pytest_command_and_forwards_arguments(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("PYTEST_ADDOPTS", "--cov=benchmatrix")
+    commands, child_addopts = _install_collection_runner(monkeypatch, (1.0, 1.01))
+    output = tmp_path / "measure"
+
+    exit_code = main(
+        [
+            "measure",
+            "--runs",
+            "2",
+            "--output",
+            str(output),
+            "--format",
+            "json",
+            "benchmarks.py",
+            "other_benchmarks.py",
+            "--",
+            "-k",
+            "small",
+        ]
+    )
+
+    assert exit_code == 0
+    expected = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "-q",
+        "--benchmark-quiet",
+        "-o",
+        "addopts=",
+        "benchmarks.py",
+        "other_benchmarks.py",
+        "-k",
+        "small",
+    ]
+    payload = cast(dict[str, object], json.loads(capsys.readouterr().out))
+    assert payload["command"] == expected
+    assert [list(command[:-1]) for command in commands] == [expected, expected]
+    assert child_addopts == [None, None]
+    assert os.environ["PYTEST_ADDOPTS"] == "--cov=benchmatrix"
+
+
+def test_measure_cli_can_inherit_pytest_addopts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("PYTEST_ADDOPTS", "-ra")
+    _, child_addopts = _install_collection_runner(monkeypatch, (1.0,))
+
+    exit_code = main(
+        [
+            "measure",
+            "--runs",
+            "1",
+            "--output",
+            str(tmp_path / "inherited"),
+            "--format",
+            "json",
+            "--inherit-pytest-addopts",
+            "benchmarks.py",
+        ]
+    )
+
+    assert exit_code == 0
+    payload = cast(dict[str, object], json.loads(capsys.readouterr().out))
+    assert payload["command"] == [
+        sys.executable,
+        "-m",
+        "pytest",
+        "-q",
+        "--benchmark-quiet",
+        "benchmarks.py",
+    ]
+    assert child_addopts == ["-ra"]
+
+
+@pytest.mark.parametrize("argument", ["--benchmark-json=custom.json", "--benchmark-disable", "--benchmark-skip"])
+def test_measure_cli_rejects_conflicting_pytest_arguments(
+    tmp_path: Path,
+    argument: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(
+        [
+            "measure",
+            "--output",
+            str(tmp_path / "invalid"),
+            "benchmarks.py",
+            "--",
+            argument,
+        ]
+    )
+
+    output = capsys.readouterr()
+    assert exit_code == 2
+    assert output.out == ""
+    assert argument.split("=", maxsplit=1)[0] in output.err
+
+
+def test_measure_cli_requires_a_target_for_new_collection(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["measure", "--output", str(tmp_path / "missing")])
+
+    output = capsys.readouterr()
+    assert exit_code == 2
+    assert output.out == ""
+    assert "At least one pytest target is required" in output.err
+
+
+def test_measure_cli_resumes_without_repeating_targets(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    output = tmp_path / "resume-measure"
+    _install_collection_runner(monkeypatch, (1.0, None))
+    assert main(["measure", "--runs", "2", "--output", str(output), "benchmarks.py"]) == 1
+    _ = capsys.readouterr()
+
+    commands, _ = _install_collection_runner(monkeypatch, (1.01,))
+    assert main(["measure", "--retry-failed", "--output", str(output)]) == 0
+
+    assert list(commands[0][:-1]) == [
+        sys.executable,
+        "-m",
+        "pytest",
+        "-q",
+        "--benchmark-quiet",
+        "-o",
+        "addopts=",
+        "benchmarks.py",
+    ]
 
 
 def test_collect_cli_records_partial_failures_and_exits_one(

@@ -1,4 +1,4 @@
-"""Command-line interface for collecting and comparing benchmark runs."""
+"""Command-line interface for measuring, collecting, and comparing benchmark runs."""
 
 from __future__ import annotations
 
@@ -46,6 +46,40 @@ _EXIT_USAGE_ERROR = 2
 _SelectorName = TypeVar("_SelectorName", bound=str)
 
 
+def _add_collection_options(parser: argparse.ArgumentParser) -> None:
+    """Add options shared by measure and collect."""
+    parser.add_argument(
+        "--runs",
+        type=_positive_integer,
+        default=None,
+        metavar="COUNT",
+        help="Successful-run target (default for new collections: 5; preserved when resuming).",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        required=True,
+        metavar="DIR",
+        help="New or empty directory, or an existing collection directory when resuming.",
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Continue initial attempts that are missing from an existing collection.",
+    )
+    parser.add_argument(
+        "--retry-failed",
+        action="store_true",
+        help="Resume and append one attempt for each successful run still needed.",
+    )
+    parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="Collection summary format (default: text).",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the benchmatrix command-line parser."""
     parser = argparse.ArgumentParser(
@@ -62,41 +96,36 @@ def build_parser() -> argparse.ArgumentParser:
             + "benchmark JSON files in a manifest-backed group."
         ),
     )
-    collect_parser.add_argument(
-        "--runs",
-        type=_positive_integer,
-        default=None,
-        metavar="COUNT",
-        help="Successful-run target (default for new collections: 5; preserved when resuming).",
-    )
-    collect_parser.add_argument(
-        "--output",
-        type=Path,
-        required=True,
-        metavar="DIR",
-        help="New or empty directory, or an existing collection directory when resuming.",
-    )
-    collect_parser.add_argument(
-        "--resume",
-        action="store_true",
-        help="Continue initial attempts that are missing from an existing collection.",
-    )
-    collect_parser.add_argument(
-        "--retry-failed",
-        action="store_true",
-        help="Resume and append one attempt for each successful run still needed.",
-    )
-    collect_parser.add_argument(
-        "--format",
-        choices=("text", "json"),
-        default="text",
-        help="Collection summary format (default: text).",
-    )
+    _add_collection_options(collect_parser)
     collect_parser.add_argument(
         "pytest_command",
         nargs=argparse.REMAINDER,
         metavar="...",
         help="Pytest command after '--'; optional when resuming because the manifest command is reused.",
+    )
+
+    measure_parser = subparsers.add_parser(
+        "measure",
+        help="Measure pytest benchmarks with safe defaults.",
+        description=(
+            "Run pytest benchmarks sequentially with quiet reporting and isolated "
+            + "pytest addopts, then save validated JSON files in a manifest-backed group."
+        ),
+    )
+    _add_collection_options(measure_parser)
+    measure_parser.add_argument(
+        "--inherit-pytest-addopts",
+        action="store_true",
+        help="Use configured and PYTEST_ADDOPTS options instead of isolating the benchmark run.",
+    )
+    measure_parser.add_argument(
+        "pytest_arguments",
+        nargs=argparse.REMAINDER,
+        metavar="TARGET ...",
+        help=(
+            "One or more pytest targets, followed by optional pytest arguments after '--'; "
+            + "targets are optional when resuming because the manifest command is reused."
+        ),
     )
 
     compare_parser = subparsers.add_parser(
@@ -242,6 +271,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "collect":
         return _run_collect(args)
+    if args.command == "measure":
+        return _run_measure(args)
     if args.command == "compare":
         return _run_compare(args)
     if args.command == "policy":
@@ -287,6 +318,87 @@ def _run_collect(
     if command[:1] == ("--",):
         command = command[1:]
 
+    return _collect_and_display(args, command, stdout=output, stderr=error_output)
+
+
+def _run_measure(
+    args: argparse.Namespace,
+    *,
+    stdout: TextIO | None = None,
+    stderr: TextIO | None = None,
+) -> int:
+    """Run the measure subcommand."""
+    output = sys.stdout if stdout is None else stdout
+    error_output = sys.stderr if stderr is None else stderr
+    try:
+        command = _measure_command(
+            cast(list[str], args.pytest_arguments),
+            resume=bool(args.resume or args.retry_failed),
+            inherit_addopts=bool(args.inherit_pytest_addopts),
+        )
+    except BenchmarkCollectionError as exc:
+        print(f"benchmatrix: error: {exc}", file=error_output)
+        return _EXIT_USAGE_ERROR
+
+    if bool(args.inherit_pytest_addopts):
+        return _collect_and_display(args, command, stdout=output, stderr=error_output)
+
+    pytest_addopts = os.environ.pop("PYTEST_ADDOPTS", None)
+    try:
+        return _collect_and_display(args, command, stdout=output, stderr=error_output)
+    finally:
+        if pytest_addopts is not None:
+            os.environ["PYTEST_ADDOPTS"] = pytest_addopts
+
+
+def _measure_command(
+    arguments: Sequence[str],
+    *,
+    resume: bool,
+    inherit_addopts: bool,
+) -> tuple[str, ...]:
+    """Build the managed pytest command used by measure."""
+    raw = tuple(arguments)
+    if "--" in raw:
+        separator = raw.index("--")
+        targets = raw[:separator]
+        forwarded = raw[separator + 1 :]
+    else:
+        targets = raw
+        forwarded = ()
+
+    if not targets:
+        if forwarded:
+            raise BenchmarkCollectionError("At least one pytest target is required before '--'.")
+        if resume:
+            return ()
+        raise BenchmarkCollectionError("At least one pytest target is required.")
+    if any(target.startswith("-") for target in targets):
+        raise BenchmarkCollectionError("Put pytest options after '--', following the pytest targets.")
+
+    for argument in forwarded:
+        if argument == "--benchmark-json" or argument.startswith("--benchmark-json="):
+            raise BenchmarkCollectionError("Do not supply --benchmark-json; benchmatrix assigns one output per run.")
+        if argument in {"--benchmark-disable", "--benchmark-skip"}:
+            raise BenchmarkCollectionError(f"{argument} cannot be used with benchmatrix measure.")
+
+    command = [sys.executable, "-m", "pytest", "-q", "--benchmark-quiet"]
+    if not inherit_addopts:
+        command.extend(("-o", "addopts="))
+    command.extend(targets)
+    command.extend(forwarded)
+    return tuple(command)
+
+
+def _collect_and_display(
+    args: argparse.Namespace,
+    command: Sequence[str],
+    *,
+    stdout: TextIO,
+    stderr: TextIO,
+) -> int:
+    """Collect benchmark runs and display their summary."""
+
     try:
         group = collect_benchmark_runs(
             command,
@@ -296,13 +408,13 @@ def _run_collect(
             retry_failed=bool(args.retry_failed),
         )
     except (BenchmarkCollectionError, BenchmarkJsonError, OSError, TypeError, ValueError) as exc:
-        print(f"benchmatrix: error: {exc}", file=error_output)
+        print(f"benchmatrix: error: {exc}", file=stderr)
         return _EXIT_USAGE_ERROR
 
     if args.format == "json":
-        _display_collection_json(group, stream=output)
+        _display_collection_json(group, stream=stdout)
     else:
-        _display_collection_text(group, stream=output)
+        _display_collection_text(group, stream=stdout)
     return _EXIT_SUCCESS if group.is_complete else _EXIT_POLICY_FAILURE
 
 
