@@ -2,16 +2,17 @@ cff-version: 1.2.0
 message: "If you use benchmatrix in your work, please cite it using this metadata."
 title: "benchmatrix"
 abstract: >-
-  Utilities for building pytest-benchmark benchmark matrices and parsing
-  pytest-benchmark JSON output.
+  Utilities for building pytest-benchmark benchmark matrices, collecting
+  repeated runs, validating benchmark evidence and environments, and producing
+  versioned performance comparison reports.
 type: software
 authors:
   - family-names: "Wallace"
     given-names: "Ryan"
     email: "ryancswallace@gmail.com"
     alias: "ryancswallace"
-version: 0.3.0
-date-released: "2026-06-24"
+version: 1.0.0
+date-released: "2026-07-30"
 license: MIT
 repository-code: "https://github.com/ryancswallace/benchmatrix"
 url: "https://github.com/ryancswallace/benchmatrix"

@@ -106,7 +106,7 @@ wheels = [
 
 [[package]]
 name = "benchmatrix"
-version = "0.3.0"
+version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "pytest" },
@@ -173,7 +173,7 @@ type = [
 
 [package.metadata]
 requires-dist = [
-    { name = "pytest", specifier = ">=9.1.1" },
+    { name = "pytest", specifier = ">=8.4" },
     { name = "pytest-benchmark", specifier = ">=5.2.3" },
 ]
 
