@@ -9,6 +9,20 @@ compatibility expectations described in [the release policy](RELEASING.md).
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## 1.0.0 - 2026-07-30
+
+### Added
+
 * Add a benchmatrix SVG logo to the README and documentation home page.
 * Add first-class `BenchmarkRun` loading with top-level pytest-benchmark
     metadata and matrix dimension accessors.
