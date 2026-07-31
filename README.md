@@ -31,8 +31,8 @@
 </p>
 <!-- markdownlint-enable MD033 -->
 
-benchmatrix adds benchmark matrices, repeated-run collection, and regression
-checks to [pytest-benchmark](https://pytest-benchmark.readthedocs.io/). Define
+benchmatrix adds **benchmark matrices, repeated-run collection, and regression
+checks** to [pytest-benchmark](https://pytest-benchmark.readthedocs.io/). Define
 your implementations and input cases once; benchmatrix measures every
 combination and compares a baseline with a candidate.
 
@@ -114,8 +114,7 @@ For regression decisions, collect several runs instead of relying on one noisy
 percentage:
 
 ```bash
-benchmatrix measure --runs 5 --output benchmark-runs \
-    tests/test_sum_benchmark.py
+benchmatrix measure --runs 5 --output benchmark-runs tests/test_sum_benchmark.py
 ```
 
 The output directory contains numbered JSON files and a
@@ -183,8 +182,7 @@ readable, versioned JSON reports can be generated and loaded later
 programmatically:
 
 ```bash
-benchmatrix compare baseline-runs candidate-runs \
-    --format json > comparison.json
+benchmatrix compare baseline-runs candidate-runs --format json > comparison.json
 ```
 
 ```python
