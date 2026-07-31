@@ -9,6 +9,8 @@ to do and need the shortest reliable path.
     implementations, inputs, and metric views.
 * [Parse benchmark results](parse-results.md), for loading and displaying saved
     pytest-benchmark JSON output.
+* [Gate regressions in GitHub Actions](github-actions.md), for measuring a pull
+    request and its base commit on one runner and publishing the comparison.
 * [Run with Docker](run-with-docker.md), for reproducible local use, CI smoke
     checks, and container image workflows.
 * [Troubleshooting](troubleshooting.md), for common measurement, metadata, and
