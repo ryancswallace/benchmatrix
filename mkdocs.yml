@@ -93,6 +93,7 @@ nav:
   - Tutorials:
       - Tutorials overview: tutorials/index.md
       - First benchmark: tutorials/first-benchmark.md
+      - Basic demo: demo/README.md
   - How-to guides:
       - How-to guides overview: how-to/index.md
       - Create a benchmark matrix: how-to/create-benchmark-matrix.md
