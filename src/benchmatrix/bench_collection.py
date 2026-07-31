@@ -789,7 +789,7 @@ def _parse_record(
 ) -> BenchmarkRunRecord:
     """Parse one run record from a collection manifest."""
     relative = Path(_require_non_empty_string(payload["path"], path=f"{path}.path"))
-    if relative.is_absolute() or ".." in relative.parts:
+    if relative.anchor or ".." in relative.parts:
         raise BenchmarkJsonError(f"Expected a relative in-directory path at {path}.path.")
     status = _require_string(payload["status"], path=f"{path}.status")
     if status not in {"succeeded", "failed"}:
