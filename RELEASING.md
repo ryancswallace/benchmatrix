@@ -6,18 +6,27 @@ the publishing model is documented in [Publishing](docs/explanation/publishing.m
 
 ## Compatibility summary
 
-benchmatrix is currently pre-1.0:
+benchmatrix 1.x follows Semantic Versioning:
 
-* patch releases should preserve documented public behavior except for urgent
-  security or correctness fixes;
-* minor releases may include breaking public API changes;
+* patch releases preserve documented public behavior except for urgent
+    security or correctness fixes;
+* minor releases add backward-compatible behavior and may include
+    deprecations;
+* major releases may include incompatible public API changes;
 * breaking changes, deprecations, Python support changes, and migration notes
-  should be called out in the changelog and release notes.
+    are called out in the changelog and release notes.
 
-Starting with 1.0, incompatible changes to the stable public API require a major
-release. The stable public API is the set of names exported from
+Incompatible changes to the stable Python API, CLI, configuration schema,
+built-in decision defaults, or supported serialized-document readers require a
+major release. The stable Python API is the set of names exported from
 `benchmatrix.__init__` and documented in the generated API reference; private
-modules and private names are not stable extension points.
+modules and private names are not stable extension points. A new serialized
+document version may ship in a minor release when all earlier 1.x document
+versions remain readable.
+
+The latest minor line in the current major series is supported, and users must
+run its latest patch to receive routine correctness and security fixes. The
+project does not maintain standing long-term-support branches.
 
 For the full policy, see [Compatibility](docs/reference/compatibility.md),
 [Lifecycle](docs/explanation/lifecycle.md), and
