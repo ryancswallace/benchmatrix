@@ -1,8 +1,8 @@
 # Lifecycle
 
-benchmatrix is pre-1.0 software. Compatibility matters, but the project may still
-make breaking changes when the API needs to become simpler, safer, or more
-correct.
+benchmatrix 1.x is stable software governed by Semantic Versioning. Documented
+public behavior remains backward compatible throughout a major release series
+unless an urgent security or correctness issue makes that unsafe.
 
 ## Support lifecycle
 
@@ -16,13 +16,15 @@ those branches are retired after the release is complete.
 
 ## Version support
 
-The latest released version is the supported version. While benchmatrix is
-pre-1.0, older minor versions do not routinely receive backports. Users should
-expect to upgrade to the latest patch or minor release for fixes.
+The latest minor line in the current major series is supported. Users must run
+the latest patch in that line to receive routine correctness, compatibility, and
+security fixes. For example, after `1.2.1` is released, the supported 1.x line is
+`1.2`, and users should upgrade to `1.2.1`.
 
-After 1.0, the project may adopt a broader branch-support policy if usage
-justifies it. Until then, the compatibility page and `SECURITY.md` are the source
-of truth.
+Older minor lines and previous major series do not receive routine backports.
+The project does not maintain standing long-term-support releases. A narrowly
+scoped backport may be made when impact and adoption justify it, but it is not
+part of the support guarantee.
 
 ## Change stages
 
@@ -38,12 +40,10 @@ of truth.
 
 ## Public API stability
 
-Before 1.0, minor releases may include breaking public API changes. Patch
-releases should preserve documented public behavior unless a security or
-correctness issue makes that unsafe.
-
-Starting with 1.0, incompatible changes to the stable public API require a major
-release. Private implementation details remain outside the compatibility
+Patch releases preserve documented public behavior except for urgent security
+or correctness fixes. Minor releases add backward-compatible behavior and may
+introduce deprecations. Incompatible changes to the stable public API require a
+major release. Private implementation details remain outside the compatibility
 contract.
 
 ## Release signal
