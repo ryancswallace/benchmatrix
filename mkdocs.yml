@@ -25,6 +25,7 @@ validation:
     anchors: warn
 
 extra_css:
+  - stylesheets/theme.css
   - stylesheets/navigation.css
 
 theme:
@@ -46,14 +47,14 @@ theme:
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: teal
+      primary: custom
       accent: amber
       toggle:
         icon: material/weather-night
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: teal
+      primary: custom
       accent: amber
       toggle:
         icon: material/weather-sunny

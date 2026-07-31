@@ -203,8 +203,8 @@ disagree, the result is marked inconclusive rather than a regression.
 ## Design goals and non-goals
 
 When using benchmatrix, pytest-benchmark still handles timing, calibration,
-statistics, terminal output, and JSON export. benchmatrix adds the matrix,
-collection, and comparison layer.
+statistics, terminal output, and JSON export. benchmatrix adds the **matrix,
+collection, and comparison layer**.
 
 benchmatrix supports synchronous Python callables; it is _not_ a load-testing
 tool or a production latency monitor.
