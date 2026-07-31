@@ -31,21 +31,34 @@ from benchmatrix import display_benchmark_rows
 display_benchmark_rows(rows)
 ```
 
-## Collect repeated runs
+## Measure repeated runs
 
-Use `collect` to execute one pytest command sequentially and retain the complete
-collection lifecycle:
+Use `measure` to run pytest sequentially and retain the complete collection
+lifecycle:
 
 ```bash
-benchmatrix collect --runs 5 --output candidate-runs -- \
-    uv run pytest tests/test_benchmarks.py
+benchmatrix measure --runs 5 --output candidate-runs \
+    tests/test_benchmarks.py
 ```
 
 `--runs` is the successful-run target. benchmatrix initially makes that many
-attempts and appends a unique `--benchmark-json` path to each invocation. Do not
-supply that option in the pytest command. The output directory must be new or
-empty for a new collection so an existing result cannot be overwritten
-accidentally.
+attempts, runs pytest through the current Python interpreter, and assigns a
+unique `--benchmark-json` path to each invocation. It suppresses pytest's
+configured `addopts`, the `PYTEST_ADDOPTS` environment variable, and the normal
+pytest-benchmark table so coverage or parallel-test settings do not affect the
+measurement. Pass `--inherit-pytest-addopts` when those settings are required.
+The output directory must be new or empty for a new collection so an existing
+result cannot be overwritten accidentally.
+
+Put advanced pytest arguments after `--`:
+
+```bash
+benchmatrix measure --runs 5 --output candidate-runs \
+    tests/test_benchmarks.py -- -k small --benchmark-min-rounds=20
+```
+
+benchmatrix owns `--benchmark-json` and rejects options that disable benchmark
+measurement.
 
 Each collection contains numbered `run-001.json` files and an atomically
 updated `benchmatrix-manifest.json`. The manifest records:
@@ -61,25 +74,25 @@ Initial collection continues after a command or validation failure. A run become
 evidence only if its command succeeds, its JSON parses, its matrix matches the
 first successful run, its commit is unchanged, and its environment has no
 blocking compatibility differences. Warning-level environment changes remain
-visible in the manifest. `collect` exits `1` while the successful-run target is
+visible in the manifest. `measure` exits `1` while the successful-run target is
 not met and `2` if collection could not be initialized or resumed.
 
 Resume a process that stopped before all initial attempts were recorded:
 
 ```bash
-benchmatrix collect --resume --output candidate-runs
+benchmatrix measure --resume --output candidate-runs
 ```
 
-The saved command and original working directory are reused. The command may be
-repeated after `--`, but it must match the manifest exactly. Supplying `--runs`
-while resuming is also optional; when supplied, it must equal the saved target.
-Successful files and recorded failures are revalidated before another command
-runs.
+The saved managed pytest command and original working directory are reused. The
+targets and pytest arguments may be repeated, but they must resolve to the exact
+manifest command. Supplying `--runs` while resuming is also optional; when
+supplied, it must equal the saved target. Successful files and recorded failures
+are revalidated before another command runs.
 
 Retry failed or rejected attempts:
 
 ```bash
-benchmatrix collect --retry-failed --output candidate-runs
+benchmatrix measure --retry-failed --output candidate-runs
 ```
 
 `--retry-failed` implies `--resume`. It first fills any initial attempts that
@@ -88,6 +101,14 @@ needed. A retry never replaces a failure record or its file. If a process left
 an unrecorded partial JSON file, that file is preserved and the resumed attempt
 uses a collision-free name. Each retry invocation is bounded; run the command
 again if a retry also fails.
+
+Use `collect` instead when pytest must be launched by another environment
+manager, container, or custom command:
+
+```bash
+benchmatrix collect --runs 5 --output candidate-runs -- \
+    custom-runner pytest tests/test_benchmarks.py
+```
 
 Load the collection in Python:
 

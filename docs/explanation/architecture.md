@@ -24,8 +24,9 @@ replace its calibration, timing, statistics, terminal reporting, or JSON export.
 * `bench_report.py` snapshots comparison decisions, policy and threshold
     provenance, evidence diagnostics, sources, and collection lifecycle state
     in a strict, versioned JSON document.
-* `cli.py` exposes collection and comparison through a dependency-free
-    command-line interface with text and JSON output.
+* `cli.py` exposes managed pytest measurement, generic collection, and
+    comparison through a dependency-free command-line interface with text and
+    JSON output.
 * `exceptions.py` contains package-specific exceptions.
 * `_schema.py` is a private schema constant module shared by implementation
     code.
@@ -51,6 +52,11 @@ evidence. Its manifest still records rejected attempts so missing evidence has
 an auditable cause. The comparison engine consumes the accepted
 `BenchmarkRun` values and treats collection completeness as an additional CLI
 gate.
+
+Managed measurement is a CLI adapter, not a second collector. It constructs an
+isolated pytest command and passes it to the same collection lifecycle used by
+custom commands, so retry, resume, validation, and manifest behavior cannot
+diverge.
 
 Collection completeness is a successful-run target, not an attempt limit.
 Resuming fills initial attempt slots missing after an interruption. Retrying

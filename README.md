@@ -26,22 +26,33 @@
 <!-- markdownlint-disable MD033 -->
 <p align="center">
   <strong>
-    Build Python benchmark matrices with results you can trust, compare, and automate.
+    Compare Python performance across implementations and inputs with fewer false alarms.
   </strong>
 </p>
+<!-- markdownlint-enable MD033 -->
+
+benchmatrix adds benchmark matrices, repeated-run collection, and regression
+checks to [pytest-benchmark](https://pytest-benchmark.readthedocs.io/). Define
+your implementations and input cases once; benchmatrix measures every
+combination and compares a baseline with a candidate.
+
+Before reporting a regression, it checks that both sides ran in compatible
+environments, measured the same matrix, and collected enough evidence. Weak or
+conflicting results are marked inconclusive instead of being called regressions.
+
+```bash
+benchmatrix measure --runs 5 --output baseline tests/test_benchmarks.py
+# Make a change, then measure again.
+benchmatrix measure --runs 5 --output candidate tests/test_benchmarks.py
+benchmatrix compare baseline candidate --fail-on-regression
+```
+
+Results are available as readable terminal output, versioned JSON, Markdown,
+and GitHub Actions summaries.
 
 > [!TIP]
 > **Read the [benchmatrix documentation](https://ryancswallace.github.io/benchmatrix/)**
 > for the quickstart, usage guides, and API reference.
-
-<!-- markdownlint-enable MD033 -->
-
-benchmatrix is a small layer on top of
-[pytest-benchmark](https://pytest-benchmark.readthedocs.io/) for projects that
-need more than one-off timings. benchmatrix lets you define implementations and
-cases once, collect repeated runs, and compare the same matrix over time. Before
-reporting a slowdown, benchmatrix checks that both runs measured the same things
-under comparable conditions and collected enough data.
 
 ## Install
 
@@ -103,8 +114,8 @@ For regression decisions, collect several runs instead of relying on one noisy
 percentage:
 
 ```bash
-benchmatrix collect --runs 5 --output benchmark-runs -- \
-    uv run pytest tests/test_sum_benchmark.py
+benchmatrix measure --runs 5 --output benchmark-runs \
+    tests/test_sum_benchmark.py
 ```
 
 The output directory contains numbered JSON files and a
@@ -114,8 +125,8 @@ Interrupted and failed collections can continue without overwriting earlier
 attempts:
 
 ```bash
-benchmatrix collect --resume --output benchmark-runs
-benchmatrix collect --retry-failed --output benchmark-runs
+benchmatrix measure --resume --output benchmark-runs
+benchmatrix measure --retry-failed --output benchmark-runs
 ```
 
 Compare a baseline collection with a candidate:

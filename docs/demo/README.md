@@ -1,23 +1,22 @@
 # Basic demo
 
-This demo runs inside the benchmatrix repository, where pytest normally checks
-coverage for the complete package. Pass `--no-cov` to the nested pytest command
-so the demo is evaluated as a benchmark instead of as the project's full test
-suite.
+This demo runs inside the benchmatrix repository, where the normal pytest
+configuration checks coverage for the complete package. `measure` isolates
+those project-wide options so they do not distort the benchmark.
 
 Collect the baseline:
 
 ```bash
-uv run benchmatrix collect --runs 3 --output demo-baseline -- \
-    uv run pytest -q --no-cov docs/demo/basic_demo.py
+uv run benchmatrix measure --runs 3 --output demo-baseline \
+    docs/demo/basic_demo.py
 ```
 
 Collect a deliberately slower candidate:
 
 ```bash
 BENCHMATRIX_DEMO_SLOWDOWN=1 \
-uv run benchmatrix collect --runs 3 --output demo-candidate -- \
-    uv run pytest -q --no-cov docs/demo/basic_demo.py
+uv run benchmatrix measure --runs 3 --output demo-candidate \
+    docs/demo/basic_demo.py
 ```
 
 Compare them:
@@ -28,6 +27,5 @@ uv run benchmatrix compare demo-baseline demo-candidate \
     --fail-on-regression
 ```
 
-Collection manifests preserve the pytest command. If a collection was created
-without `--no-cov`, start again with a new output directory or move the failed
-directory aside before using these commands.
+Collection manifests preserve the managed pytest command. Start with new output
+directories, or use `measure --resume` to continue an interrupted collection.

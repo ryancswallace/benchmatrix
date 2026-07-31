@@ -44,10 +44,14 @@ cases = [BenchmarkCase.from_values("small", list(range(100)), work_units=100)]
 test_sum_matrix = make_benchmark_test(implementations, cases)
 ```
 
-Run the generated benchmark with pytest-benchmark:
+Measure it three times with pytest-benchmark:
 
 ```bash
-uv run pytest path/to/test_benchmarks.py --benchmark-json benchmark.json
+uv run benchmatrix measure --runs 3 --output benchmark-runs \
+    path/to/test_benchmarks.py
 ```
+
+The output directory contains the individual JSON results and a manifest that
+records the pytest command and collection lifecycle.
 
 For the full guided path, start with [First benchmark](tutorials/first-benchmark.md).

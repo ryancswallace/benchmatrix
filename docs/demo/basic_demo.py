@@ -14,7 +14,7 @@ def loop_sum(values: list[int]) -> int:
 
     if os.environ.get("BENCHMATRIX_DEMO_SLOWDOWN"):
         # busy work to simulate a slow implementation
-        for index in range(0, len(values), 8):
+        for index in range(0, len(values), 2):
             result += values[index]
             result -= values[index]
 

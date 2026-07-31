@@ -146,11 +146,15 @@ commands and options are stable in 1.x:
 | Command | Arguments and options |
 | --- | --- |
 | `collect` | `--runs`, required `--output`, `--resume`, `--retry-failed`, `--format` with `text` or `json`, and the pytest command after `--` |
+| `measure` | one or more pytest targets, the collection options, `--inherit-pytest-addopts`, and optional pytest arguments after `--` |
 | `compare` | baseline and candidate sources, repeatable `--baseline-run` and `--candidate-run`, `--threshold`, `--compatibility` with `strict`, `permissive`, or `off`; `--format` with `text`, `json`, or `markdown`; `--github-summary`, `--fail-on-regression`, `--minimum-runs`, `--minimum-samples`, and mutually exclusive `--config` or `--no-config` |
 | `policy show` | mutually exclusive `--config` or `--no-config`, `--search-from`, and `--format` with `text` or `json` |
 | `policy validate` | the `policy show` options plus `--quiet` |
 
-Collection defaults to five successful runs for a new group and text output.
+Measurement and collection default to five successful runs for a new group and
+text output. Measurement invokes pytest through the running Python interpreter,
+uses quiet pytest and benchmark output, and ignores configured pytest `addopts`
+unless `--inherit-pytest-addopts` is supplied.
 Comparison defaults to text output and does not fail the process for a reported
 regression unless `--fail-on-regression` is present. Policy commands default to
 text output and normal configuration discovery. Adding an optional command or
@@ -173,9 +177,10 @@ standard-output format.
 Without `--fail-on-regression`, a completed comparison exits `0` even when the
 report's `passed` field is false. Human-readable text and Markdown layout may
 improve within 1.x and must not be parsed as a machine protocol. Comparison JSON
-and policy JSON use the versioned schemas below. `collect --format json` is a
-stable 1.x summary whose existing keys and meanings will not be removed or
-changed; the manifest is the canonical archival record.
+and policy JSON use the versioned schemas below. `measure --format json` and
+`collect --format json` share a stable 1.x summary whose existing keys and
+meanings will not be removed or changed; the manifest is the canonical archival
+record.
 
 ## Configuration compatibility
 
