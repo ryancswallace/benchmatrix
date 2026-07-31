@@ -56,7 +56,7 @@ and GitHub Actions summaries.
     <img
       alt="Preview of benchmatrix collecting and comparing repeated benchmark runs"
       src="docs/assets/basic-demo.png"
-      width="760"
+      width="360"
     >
   </a>
   <br>
