@@ -1,0 +1,19 @@
+{
+    "recommendations": [
+        "charliermarsh.ruff",
+        "davidanson.vscode-markdownlint",
+        "detachhead.basedpyright",
+        "github.vscode-github-actions",
+        "github.vscode-pull-request-github",
+        "mikestead.dotenv",
+        "ms-azuretools.vscode-containers",
+        "ms-python.debugpy",
+        "ms-python.python",
+        "ms-vscode.makefile-tools",
+        "redhat.vscode-yaml",
+        "streetsidesoftware.code-spell-checker",
+        "tamasfe.even-better-toml",
+        "vivaxy.vscode-conventional-commits"
+    ],
+    "unwantedRecommendations": []
+}

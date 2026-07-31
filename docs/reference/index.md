@@ -9,8 +9,8 @@ on stable facts.
     mkdocstrings during the MkDocs build.
 * [Compatibility](compatibility.md), covering supported Python versions and API
     compatibility expectations.
-* [Configuration and automation](configuration.md), covering local development
-    commands and generated artifacts.
+* [Configuration and automation](configuration.md), covering benchmark
+    comparison policy, local development commands, and generated artifacts.
 
 Use tutorials and how-to guides when learning a workflow. Use this section when
 checking names, options, and support boundaries.

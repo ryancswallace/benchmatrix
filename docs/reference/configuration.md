@@ -1,5 +1,145 @@
 # Configuration and automation
 
+## Benchmark comparison policy
+
+Store project-wide comparison rules under `[tool.benchmatrix]` so local and CI
+decisions use the same reviewed policy:
+
+```toml
+[tool.benchmatrix.compatibility]
+mode = "permissive"
+
+[tool.benchmatrix.evidence]
+minimum_runs = 3
+minimum_samples_per_run = 5
+require_rounds = true
+require_iterations = true
+maximum_cv = 0.10
+maximum_outlier_fraction = 0.05
+
+[tool.benchmatrix.regression]
+default_threshold_percent = 5.0
+
+[tool.benchmatrix.regression.by_metric]
+tail_latency = 8.0
+batch_throughput = 4.0
+
+[tool.benchmatrix.regression.by_implementation]
+reference = 3.0
+
+[tool.benchmatrix.regression.by_case]
+large = 10.0
+
+[[tool.benchmatrix.regression.by_cell]]
+implementation = "reference"
+case = "large"
+metric = "tail_latency"
+threshold_percent = 12.0
+```
+
+`benchmatrix compare` searches from the current directory upward and inspects
+the nearest `pyproject.toml`. Discovery stops at that project boundary; it does
+not inherit policy from a parent project when the nearest pyproject has no
+`[tool.benchmatrix]` table. With no selected table, built-in defaults remain:
+
+| Setting | Built-in default |
+| --- | --- |
+| Compatibility mode | `permissive` |
+| Minimum runs per side | `2` |
+| Minimum samples per run and cell | `5` |
+| Require rounds and iterations | `true` |
+| Maximum CV or outlier fraction | No limit |
+| Default regression threshold | `5.0%` |
+
+Threshold precedence is exact cell, case, implementation, metric, then the
+default. Configuration rejects unknown benchmatrix keys, duplicate exact-cell
+rules, unknown metrics, invalid policy values, and negative or non-finite
+thresholds.
+
+Select another TOML file explicitly or disable discovery:
+
+```bash
+benchmatrix compare baseline-runs candidate-runs \
+    --config config/benchmark-policy.toml
+
+benchmatrix compare baseline-runs candidate-runs --no-config
+```
+
+An explicit file uses the same `[tool.benchmatrix]` layout and must contain that
+table. `--config` and `--no-config` are mutually exclusive.
+
+CLI policy options take precedence only for the corresponding scalar:
+
+* `--compatibility` overrides `compatibility.mode`;
+* `--threshold` overrides `regression.default_threshold_percent`;
+* `--minimum-runs` overrides `evidence.minimum_runs`;
+* `--minimum-samples` overrides
+    `evidence.minimum_samples_per_run`.
+
+For example, `--threshold 7%` changes the default while retaining configured
+metric, implementation, case, and exact-cell rules. JSON comparison output
+includes the selected configuration path, configured fields, CLI overrides,
+the effective regression policy, and each cell's threshold scope and origin.
+
+Load the same policy through Python:
+
+```python
+from benchmatrix import load_benchmark_policy
+
+config = load_benchmark_policy()
+
+print(config.source)
+print(config.compatibility)
+print(config.evidence)
+print(config.regression)
+```
+
+## Inspect and validate policy
+
+Inspect the complete effective policy without running a benchmark:
+
+```bash
+benchmatrix policy show
+```
+
+The text output identifies whether configuration was discovered, explicitly
+selected, disabled, or absent. It reports the source, configured fields,
+compatibility mode, evidence requirements, default threshold, and every metric,
+implementation, case, and exact-cell selector.
+
+Use versioned JSON for automation:
+
+```bash
+benchmatrix policy show --format json
+```
+
+The document identifies itself with `producer = "benchmatrix"`,
+`kind = "benchmark_policy"`, and `schema_version = 1`. It includes `valid`,
+`selection`, `source`, `configured_fields`, and the complete effective
+compatibility, evidence, and regression policy.
+
+Validate configuration in CI without collecting or comparing runs:
+
+```bash
+benchmatrix policy validate
+benchmatrix policy validate --config config/benchmark-policy.toml
+benchmatrix policy validate --quiet
+```
+
+A valid policy exits `0`. Invalid TOML, schema keys, selector names, metrics, or
+values exit `2`. `--quiet` suppresses successful output. JSON validation emits
+a versioned document for both outcomes, including `valid = false` and the
+validation error when invalid:
+
+```bash
+benchmatrix policy validate \
+    --config config/benchmark-policy.toml \
+    --format json
+```
+
+Both actions accept `--search-from PATH` to test discovery from another project
+location and `--no-config` to inspect built-in defaults.
+
 ## Authoritative checks
 
 Run the complete local validation suite with:

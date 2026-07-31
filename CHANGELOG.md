@@ -2,15 +2,12 @@
 
 All notable changes to benchmatrix will be documented in this file.
 
-The project follows [Semantic Versioning](https://semver.org/), with the
-additional pre-1.0 compatibility expectations described in
-[the release policy](RELEASING.md).
+The project follows [Semantic Versioning](https://semver.org/) and the
+compatibility expectations described in [the release policy](RELEASING.md).
 
 ## Unreleased
 
 ### Added
-
-* Add a benchmatrix SVG logo to the README and documentation home page.
 
 ### Changed
 
@@ -21,6 +18,65 @@ additional pre-1.0 compatibility expectations described in
 ### Fixed
 
 ### Security
+
+## 1.0.0 - 2026-07-30
+
+### Added
+
+* Add a benchmatrix SVG logo to the README and documentation home page.
+* Add first-class `BenchmarkRun` loading with top-level pytest-benchmark
+    metadata and matrix dimension accessors.
+* Add metric-aware comparison of baseline and candidate matrices, including
+    explicit matched, missing, and incompatible cell results.
+* Add strict, permissive, and disabled run-environment compatibility policies
+    with structured blocking and warning findings.
+* Add configurable regression thresholds by metric, implementation, case, or
+    exact matrix cell, plus aggregate comparison outcomes.
+* Add `benchmatrix compare` and `python -m benchmatrix` command-line entry
+    points with text or JSON output and opt-in CI failure behavior.
+* Add untimed result-validation and benchmark lifecycle hooks with structured
+    invocation context and reliable cleanup after target or validation errors.
+* Add repeated-run comparison groups with median aggregation, pairwise effect
+    agreement, rounds, iterations, sample counts, IQR, CV, outlier diagnostics,
+    cross-run environment checks, and explicit inadequate-evidence outcomes.
+* Add first-class repeated-run collection with sequential
+    `benchmatrix collect` execution, atomic provenance manifests, partial
+    failure records, matrix/commit/environment validation, public
+    `BenchmarkRunGroup` loading, and direct directory or manifest comparison.
+* Add strict, discoverable `[tool.benchmatrix]` policy configuration for
+    compatibility, evidence requirements, and default, metric, implementation,
+    case, or exact-cell regression thresholds, with CLI override and JSON
+    provenance reporting.
+* Add strict, versioned `BenchmarkComparisonReport` decision records with
+    deterministic JSON writing, typed loading, source and collection snapshots,
+    policy and threshold provenance, compatibility and evidence diagnostics,
+    CLI integration, and a golden version 1 compatibility fixture.
+* Add resumable and retryable collection with manifest-command and target
+    validation, original-working-directory reuse, collision-free recovery from
+    partial files, bounded retry batches, retained failure history, retry
+    diagnostics, and backward-compatible loading of version 1 run-group
+    manifests.
+* Add `benchmatrix policy show` and `benchmatrix policy validate` with explicit
+    or discovered configuration, quiet CI validation, complete effective-policy
+    inspection, and versioned text or JSON outcomes.
+* Add deterministic Markdown comparison rendering through the Python API and
+    CLI, plus direct append-only GitHub Actions step-summary delivery that can
+    accompany canonical JSON output.
+
+### Changed
+
+* Harden result parsing for unique matrix cells, non-empty identifiers, strict
+    numeric timing values, non-negative samples, positive work units, and
+    validated run metadata.
+* Declare the stable 1.x compatibility and latest-minor support policy, align
+    the supported pytest floor at 8.4, and refresh package metadata around the
+    complete collection and comparison workflow.
+* Trim low-level constants and literal aliases from the stable package root,
+    retaining primary workflow, policy, result, diagnostic, and provenance
+    types, and remove private aliases from public annotations.
+* Freeze the v1 Python, CLI, configuration, exit-status, exception, and
+    serialized-document compatibility contracts, including explicit schema
+    read-version windows and evolution rules.
 
 ## 0.3.0 - 2026-06-24
 

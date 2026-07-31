@@ -49,8 +49,15 @@ FROM builder AS test
 
 COPY . .
 
+# basedpyright needs Node.js, but not the vulnerable npm payload bundled
+# alongside it by nodejs-wheel-binaries.
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked \
+    && find /app/.venv \
+        -type d \
+        -path "*/nodejs_wheel/lib/node_modules/npm" \
+        -prune \
+        -exec rm -rf -- {} + \
     && chown -R benchmatrix:benchmatrix /app
 
 USER benchmatrix

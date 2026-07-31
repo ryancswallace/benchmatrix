@@ -14,7 +14,7 @@ from typing import Protocol, TypeVar
 
 import pytest
 
-from benchmatrix import BenchmarkCase, BenchmarkConfig, benchmark_batch_throughput
+from benchmatrix import BenchmarkCase, BenchmarkConfig, BenchmarkHookContext, benchmark_batch_throughput
 
 pytestmark = pytest.mark.integration
 
@@ -66,6 +66,13 @@ def _venv_python(venv_path: Path) -> Path:
     return venv_path / "bin" / "python"
 
 
+def _venv_script(venv_path: Path, name: str) -> Path:
+    """Return a console-script path inside a virtual environment."""
+    scripts_dir = "Scripts" if os.name == "nt" else "bin"
+    suffix = ".exe" if os.name == "nt" else ""
+    return venv_path / scripts_dir / f"{name}{suffix}"
+
+
 def _uv() -> str:
     """Return the uv executable path, or skip when unavailable."""
     uv_path = shutil.which("uv")
@@ -78,6 +85,20 @@ def _uv() -> str:
 def test_harness_runs_with_real_pytest_benchmark_fixture(benchmark: _BenchmarkFixture) -> None:
     case = BenchmarkCase.from_values("real", [1, 2, 3], work_units=3, work_unit_name="items", fresh_inputs=True)
     stream = io.StringIO()
+    hook_events: list[str] = []
+
+    def before(context: BenchmarkHookContext) -> None:
+        assert context.case is case
+        hook_events.append("before")
+
+    def validate(context: BenchmarkHookContext, result: object) -> None:
+        assert context.implementation_name == "len"
+        assert result == 3
+        hook_events.append("validate")
+
+    def after(context: BenchmarkHookContext) -> None:
+        assert context.metric_name == "batch_throughput"
+        hook_events.append("after")
 
     record = benchmark_batch_throughput(
         benchmark,
@@ -85,7 +106,14 @@ def test_harness_runs_with_real_pytest_benchmark_fixture(benchmark: _BenchmarkFi
         len,
         "real",
         case,
-        config=BenchmarkConfig(pedantic_rounds=1, warmup_rounds=0, stream_progress=True),
+        config=BenchmarkConfig(
+            pedantic_rounds=1,
+            warmup_rounds=0,
+            stream_progress=True,
+            before_benchmark=before,
+            validate_result=validate,
+            after_benchmark=after,
+        ),
         stream=stream,
     )
 
@@ -96,6 +124,7 @@ def test_harness_runs_with_real_pytest_benchmark_fixture(benchmark: _BenchmarkFi
     assert record.extra_info["work_units"] == 3.0
     assert benchmark.extra_info == record.extra_info
     assert "[benchmark invoked] metric=batch_throughput implementation=len case=real" in stream.getvalue()
+    assert hook_events == ["before", "validate", "after"]
 
 
 def test_make_benchmark_test_is_collected_by_real_pytest(tmp_path: Path) -> None:
@@ -183,3 +212,9 @@ def test_built_wheel_can_be_imported_from_clean_virtualenv(tmp_path: Path) -> No
     _, case_name, pytest_imported = result.stdout.strip().splitlines()
     assert case_name == "case"
     assert pytest_imported == "False"
+
+    cli_result = _run_command(
+        [str(_venv_script(venv_dir, "benchmatrix")), "--help"],
+        cwd=_PROJECT_ROOT,
+    )
+    assert "Collect, parse, and compare benchmatrix pytest-benchmark runs." in cli_result.stdout

@@ -69,7 +69,6 @@ Target functions must perform the work being measured before returning. Async
 functions are rejected. Lazy return values are not forced by the harness.
 """
 
-_BenchmarkParameter: TypeAlias = object
 _ExtraInfo: TypeAlias = dict[str, _JsonValue]
 
 _DEFAULT_PEDANTIC_ROUNDS = 100
@@ -161,6 +160,13 @@ class BenchmarkConfig:
             target-function body.
         stream_progress: Whether benchmark helpers should print one progress
             line per benchmark invocation.
+        before_benchmark: Optional synchronous hook called immediately before
+            pytest-benchmark starts an invocation.
+        validate_result: Optional synchronous correctness hook called with the
+            result returned by pytest-benchmark. The hook should raise when the
+            result is invalid.
+        after_benchmark: Optional synchronous hook called after result
+            validation, or during cleanup if benchmarking or validation raises.
 
     Attributes:
         pedantic_rounds: Number of pedantic benchmark rounds to request.
@@ -169,8 +175,15 @@ class BenchmarkConfig:
             inputs are reused.
         stream_progress: Whether benchmark helpers should print one progress
             line per benchmark invocation.
+        before_benchmark: Optional untimed setup hook for a benchmark
+            invocation.
+        validate_result: Optional untimed correctness hook for the returned
+            target result.
+        after_benchmark: Optional untimed cleanup hook for a benchmark
+            invocation.
 
     Raises:
+        TypeError: If a configured hook is not callable or is asynchronous.
         ValueError: If rounds or iterations are not positive, or if warmup
             rounds are negative.
 
@@ -185,6 +198,9 @@ class BenchmarkConfig:
     warmup_rounds: int = _DEFAULT_WARMUP_ROUNDS
     pedantic_iterations: int = _DEFAULT_PEDANTIC_ITERATIONS
     stream_progress: bool = True
+    before_benchmark: BenchmarkLifecycleHook | None = None
+    validate_result: BenchmarkResultValidator | None = None
+    after_benchmark: BenchmarkLifecycleHook | None = None
 
     def __post_init__(self) -> None:
         """Validate benchmark configuration after initialization."""
@@ -196,6 +212,10 @@ class BenchmarkConfig:
 
         if self.pedantic_iterations <= 0:
             raise ValueError("BenchmarkConfig.pedantic_iterations must be positive.")
+
+        _validate_hook(self.before_benchmark, field="before_benchmark")
+        _validate_hook(self.validate_result, field="validate_result")
+        _validate_hook(self.after_benchmark, field="after_benchmark")
 
 
 @dataclass(frozen=True, slots=True)
@@ -361,6 +381,32 @@ class BenchmarkCase:
 
 
 @dataclass(frozen=True, slots=True)
+class BenchmarkHookContext:
+    """Identity and inputs available to benchmark lifecycle hooks.
+
+    Attributes:
+        metric_name: Metric requested for this benchmark invocation.
+        implementation_name: Name of the implementation under test.
+        case_name: Matrix case name under test.
+        function: Synchronous target function under test.
+        case: Benchmark case definition used by the invocation.
+    """
+
+    metric_name: MetricName
+    implementation_name: str
+    case_name: str
+    function: TargetFunction
+    case: BenchmarkCase
+
+
+BenchmarkLifecycleHook: TypeAlias = Callable[[BenchmarkHookContext], None]
+"""Synchronous setup or cleanup hook for one benchmark invocation."""
+
+BenchmarkResultValidator: TypeAlias = Callable[[BenchmarkHookContext, object], None]
+"""Synchronous correctness hook for one benchmark invocation result."""
+
+
+@dataclass(frozen=True, slots=True)
 class BenchmarkInvocationRecord:
     """Lightweight record returned after one benchmark invocation.
 
@@ -428,7 +474,16 @@ def benchmark_single_call_latency(
         case,
     )
     final_extra_info = _set_extra_info(benchmark, extra_info)
-    _ = _run_target(benchmark, function, case, config=resolved_config, force_pedantic=False)
+    _ = _run_target_with_hooks(
+        benchmark,
+        metric_name,
+        implementation_name,
+        function,
+        case_name,
+        case,
+        config=resolved_config,
+        force_pedantic=False,
+    )
 
     record = BenchmarkInvocationRecord(
         metric_name=metric_name,
@@ -498,7 +553,16 @@ def benchmark_batch_throughput(
         extra_info[KEY_THROUGHPUT_UNIT] = THROUGHPUT_UNIT_WORK_UNITS_PER_SECOND
 
     final_extra_info = _set_extra_info(benchmark, extra_info)
-    _ = _run_target(benchmark, function, case, config=resolved_config, force_pedantic=False)
+    _ = _run_target_with_hooks(
+        benchmark,
+        metric_name,
+        implementation_name,
+        function,
+        case_name,
+        case,
+        config=resolved_config,
+        force_pedantic=False,
+    )
 
     record = BenchmarkInvocationRecord(
         metric_name=metric_name,
@@ -570,7 +634,16 @@ def benchmark_tail_latency(
     extra_info[KEY_TAIL_PERCENTILES] = list(TAIL_PERCENTILES)
 
     final_extra_info = _set_extra_info(benchmark, extra_info)
-    _ = _run_target(benchmark, function, case, config=resolved_config, force_pedantic=True)
+    _ = _run_target_with_hooks(
+        benchmark,
+        metric_name,
+        implementation_name,
+        function,
+        case_name,
+        case,
+        config=resolved_config,
+        force_pedantic=True,
+    )
 
     record = BenchmarkInvocationRecord(
         metric_name=metric_name,
@@ -659,7 +732,7 @@ def make_benchmark_parameters(
     cases: Mapping[str, BenchmarkCase] | Iterable[BenchmarkCase],
     *,
     metrics: Iterable[MetricName] | None = None,
-) -> list[_BenchmarkParameter]:
+) -> list[object]:
     """Create pytest parameters for a metric-by-implementation-by-case matrix.
 
     Args:
@@ -675,7 +748,7 @@ def make_benchmark_parameters(
     implementation_items = _implementation_items(implementations)
     case_items = _case_items(cases)
     pytest = _load_pytest()
-    parameters: list[_BenchmarkParameter] = []
+    parameters: list[object] = []
 
     for metric_name in resolved_metrics:
         for implementation_name, function in implementation_items:
@@ -781,6 +854,47 @@ def _load_pytest() -> _PytestModule:
     return cast(_PytestModule, module)
 
 
+def _run_target_with_hooks(
+    benchmark: BenchmarkFixture,
+    metric_name: MetricName,
+    implementation_name: str,
+    function: TargetFunction,
+    case_name: str,
+    case: BenchmarkCase,
+    *,
+    config: BenchmarkConfig,
+    force_pedantic: bool,
+) -> object:
+    """Run one target with untimed correctness and lifecycle hooks."""
+    context = BenchmarkHookContext(
+        metric_name=metric_name,
+        implementation_name=implementation_name,
+        case_name=case_name,
+        function=function,
+        case=case,
+    )
+    lifecycle_started = config.before_benchmark is None
+
+    if config.before_benchmark is not None:
+        config.before_benchmark(context)
+        lifecycle_started = True
+
+    try:
+        result = _run_target(
+            benchmark,
+            function,
+            case,
+            config=config,
+            force_pedantic=force_pedantic,
+        )
+        if config.validate_result is not None:
+            config.validate_result(context, result)
+        return result
+    finally:
+        if lifecycle_started and config.after_benchmark is not None:
+            config.after_benchmark(context)
+
+
 def _run_target(
     benchmark: BenchmarkFixture,
     function: TargetFunction,
@@ -826,6 +940,18 @@ def _validate_target_function(function: TargetFunction) -> None:
             + "async functions would benchmark coroutine creation rather than execution."
         )
         raise TypeError(message)
+
+
+def _validate_hook(hook: object, *, field: str) -> None:
+    """Reject invalid or asynchronous benchmark hooks."""
+    if hook is None:
+        return
+
+    if not callable(hook):
+        raise TypeError(f"BenchmarkConfig.{field} must be callable.")
+
+    if inspect.iscoroutinefunction(hook) or inspect.iscoroutinefunction(type(hook).__call__):
+        raise TypeError(f"BenchmarkConfig.{field} must be synchronous.")
 
 
 def _warn_if_pedantic_iterations_ignored(config: BenchmarkConfig) -> None:

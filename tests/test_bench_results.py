@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import json
 import math
+from dataclasses import replace
 from pathlib import Path
 from typing import cast
 
@@ -12,11 +13,13 @@ import pytest
 
 from benchmatrix import (
     BenchmarkJsonError,
+    BenchmarkRun,
     MetricName,
     ParsedBenchmarkRow,
     display_benchmark_row,
     display_benchmark_rows,
     load_benchmark_json,
+    load_benchmark_run,
 )
 
 pytestmark = pytest.mark.unit
@@ -175,6 +178,7 @@ def test_load_benchmark_json_derives_tail_latency_percentiles(
 
     for key, value in expected.items():
         assert row.derived[key] == pytest.approx(value)
+    assert row.samples == tuple(data)
 
 
 def test_load_benchmark_json_reads_tail_latency_data_from_stats_mapping(tmp_path: Path) -> None:
@@ -188,16 +192,16 @@ def test_load_benchmark_json_reads_tail_latency_data_from_stats_mapping(tmp_path
 
     assert row.derived["p50"] == 2.0
     assert row.derived["max"] == 3.0
+    assert row.samples == (1.0, 2.0, 3.0)
 
 
-def test_load_benchmark_json_uses_fullname_fallback_and_stringifies_names(tmp_path: Path) -> None:
+def test_load_benchmark_json_rejects_non_string_fullname_fallback(tmp_path: Path) -> None:
     entry = _benchmark_entry("single_call_latency")
     _ = entry.pop("name")
     entry["fullname"] = ["module", "test_name"]
 
-    row = _load_entry(tmp_path, entry)
-
-    assert row.benchmark_name == "['module', 'test_name']"
+    with pytest.raises(BenchmarkJsonError, match=r"Expected string at root\.benchmarks"):
+        _ = _load_entry(tmp_path, entry)
 
 
 def test_load_benchmark_json_uses_fullname_when_name_is_null(tmp_path: Path) -> None:
@@ -223,6 +227,102 @@ def test_load_benchmark_json_returns_multiple_rows(tmp_path: Path) -> None:
     rows = load_benchmark_json(_write_payload(tmp_path, payload))
 
     assert [row.metric_name for row in rows] == ["single_call_latency", "batch_throughput"]
+
+
+def test_load_benchmark_run_preserves_top_level_metadata_and_dimensions(tmp_path: Path) -> None:
+    payload = {
+        "datetime": "2026-07-30T12:00:00",
+        "version": "5.2.3",
+        "machine_info": {"python_version": "3.14.6"},
+        "commit_info": {"id": "abc123"},
+        "benchmarks": [
+            _benchmark_entry("single_call_latency"),
+            _benchmark_entry(
+                "batch_throughput",
+                extra_info=_extra_info(
+                    "batch_throughput",
+                    implementation_name="other",
+                    case_name="large",
+                    throughput_unit="calls_per_second",
+                ),
+            ),
+        ],
+    }
+    path = _write_payload(tmp_path, payload)
+
+    run = load_benchmark_run(path)
+
+    assert isinstance(run, BenchmarkRun)
+    assert run.source == path
+    assert run.implementations == ("impl", "other")
+    assert run.cases == ("large", "small")
+    assert run.metrics == ("batch_throughput", "single_call_latency")
+    assert run.metadata["datetime"] == "2026-07-30T12:00:00"
+    assert run.metadata["machine_info"] == {"python_version": "3.14.6"}
+    with pytest.raises(TypeError):
+        cast(dict[str, object], run.metadata)["other"] = "value"
+
+
+def test_benchmark_run_rejects_duplicate_matrix_cells(tmp_path: Path) -> None:
+    entry = _benchmark_entry("single_call_latency")
+    path = _write_payload(tmp_path, {"benchmarks": [entry, entry]})
+
+    with pytest.raises(BenchmarkJsonError, match="Duplicate benchmark matrix cell"):
+        _ = load_benchmark_run(path)
+
+
+def test_benchmark_run_rejects_an_empty_matrix() -> None:
+    with pytest.raises(BenchmarkJsonError, match="must contain at least one"):
+        _ = BenchmarkRun(rows=(), metadata={})
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("implementation_name", "", "matrix identifiers must not be empty"),
+        ("case_name", "", "matrix identifiers must not be empty"),
+        ("metric_name", "future_metric", "Unsupported benchmatrix metric"),
+    ],
+)
+def test_benchmark_run_validates_manually_constructed_matrix_identity(
+    field: str,
+    value: str,
+    message: str,
+) -> None:
+    row = ParsedBenchmarkRow(
+        benchmark_name="bench",
+        metric_name="single_call_latency",
+        implementation_name="impl",
+        case_name="case",
+        stats={},
+        extra_info={},
+        derived={},
+    )
+    invalid_row = replace(row, **{field: value})
+
+    with pytest.raises(BenchmarkJsonError, match=message):
+        _ = BenchmarkRun(rows=(invalid_row,), metadata={})
+
+
+@pytest.mark.parametrize(
+    ("payload_update", "message"),
+    [
+        ({"datetime": 123}, "Expected string at root.datetime"),
+        ({"version": []}, "Expected string at root.version"),
+        ({"machine_info": []}, "Expected mapping at root.machine_info"),
+        ({"commit_info": "bad"}, "Expected mapping at root.commit_info"),
+    ],
+)
+def test_load_benchmark_run_validates_known_run_metadata(
+    tmp_path: Path,
+    payload_update: dict[str, object],
+    message: str,
+) -> None:
+    payload: dict[str, object] = {"benchmarks": [_benchmark_entry("single_call_latency")]}
+    payload.update(payload_update)
+
+    with pytest.raises(BenchmarkJsonError, match=message):
+        _ = load_benchmark_run(_write_payload(tmp_path, payload))
 
 
 @pytest.mark.parametrize(
@@ -394,7 +494,7 @@ INVALID_PAYLOAD_CASES: list[tuple[object, str]] = [
                 )
             ]
         },
-        "Expected finite numeric value at stats.mean",
+        "Expected finite numeric value at root.benchmarks\\[0\\].stats.mean",
     ),
     (
         {
@@ -416,7 +516,7 @@ INVALID_PAYLOAD_CASES: list[tuple[object, str]] = [
                 )
             ]
         },
-        "Expected finite numeric value at extra_info.work_units",
+        "Expected finite numeric value at root.benchmarks\\[0\\].extra_info.work_units",
     ),
     (
         {
@@ -438,6 +538,88 @@ INVALID_PAYLOAD_CASES: list[tuple[object, str]] = [
             ]
         },
         "Expected finite numeric value at root.benchmarks\\[0\\].data\\[1\\]",
+    ),
+    (
+        {
+            "benchmarks": [
+                _benchmark_entry(
+                    "single_call_latency",
+                    extra_info=_extra_info("single_call_latency", case_fresh_inputs="false"),
+                )
+            ]
+        },
+        "Expected boolean at root.benchmarks\\[0\\].extra_info.case_fresh_inputs",
+    ),
+    (
+        {
+            "benchmarks": [
+                _benchmark_entry(
+                    "single_call_latency",
+                    extra_info=_extra_info("single_call_latency", implementation_name=""),
+                )
+            ]
+        },
+        "Expected non-empty string at root.benchmarks\\[0\\].extra_info.implementation_name",
+    ),
+    (
+        {
+            "benchmarks": [
+                _benchmark_entry(
+                    "single_call_latency",
+                    stats={"mean": True, "median": 1.0, "min": 1.0},
+                )
+            ]
+        },
+        "Expected finite numeric value at root.benchmarks\\[0\\].stats.mean",
+    ),
+    (
+        {
+            "benchmarks": [
+                _benchmark_entry(
+                    "single_call_latency",
+                    stats={"mean": "1.0", "median": 1.0, "min": 1.0},
+                )
+            ]
+        },
+        "Expected finite numeric value at root.benchmarks\\[0\\].stats.mean",
+    ),
+    (
+        {
+            "benchmarks": [
+                _benchmark_entry(
+                    "single_call_latency",
+                    stats={"mean": -1.0, "median": 1.0, "min": 1.0},
+                )
+            ]
+        },
+        "Expected non-negative numeric value at root.benchmarks\\[0\\].stats.mean",
+    ),
+    (
+        {
+            "benchmarks": [
+                _benchmark_entry(
+                    "tail_latency",
+                    data=[1.0, -1.0],
+                )
+            ]
+        },
+        "Expected non-negative numeric value at root.benchmarks\\[0\\].data\\[1\\]",
+    ),
+    (
+        {
+            "benchmarks": [
+                _benchmark_entry(
+                    "batch_throughput",
+                    extra_info=_extra_info(
+                        "batch_throughput",
+                        throughput_unit="work_units_per_second",
+                        work_units=0.0,
+                        work_unit_name="rows",
+                    ),
+                )
+            ]
+        },
+        "Expected positive numeric value at root.benchmarks\\[0\\].extra_info.work_units",
     ),
 ]
 

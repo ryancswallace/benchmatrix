@@ -1,5 +1,5 @@
 site_name: benchmatrix
-site_description: Build pytest-benchmark matrices and parse benchmark results with lightweight Python utilities
+site_description: Build trustworthy pytest-benchmark matrices, collect repeated runs, and detect performance regressions
 site_author: Ryan Wallace
 site_url: https://ryancswallace.github.io/benchmatrix/
 repo_name: ryancswallace/benchmatrix
@@ -102,8 +102,13 @@ nav:
       - Reference overview: reference/index.md
       - API:
           - Package: reference/api/index.md
+          - Benchmark collection: reference/api/bench_collection.md
+          - Benchmark comparison: reference/api/bench_compare.md
           - Benchmark harness: reference/api/bench_harness.md
+          - Benchmark policy: reference/api/bench_policy.md
+          - Benchmark reports: reference/api/bench_report.md
           - Benchmark results: reference/api/bench_results.md
+          - Command-line interface: reference/api/cli.md
           - Exceptions: reference/api/exceptions.md
       - Compatibility: reference/compatibility.md
       - Configuration and automation: reference/configuration.md
@@ -123,7 +128,7 @@ nav:
       - Deployment environments: explanation/deployment-environments.md
       - Repository settings: explanation/repository-settings.md
       - Publishing: explanation/publishing.md
-      - First release: explanation/first-release.md
+      - Version 1 release readiness: explanation/first-release.md
   - Maintainer runbooks:
       - Maintainer runbooks overview: runbooks/index.md
       - Release: runbooks/release.md

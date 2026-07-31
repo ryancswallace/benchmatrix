@@ -128,7 +128,8 @@ for a repository that does not have a Pages site yet. If this step is skipped,
 ## Repository profile
 
 1. Set the repository description to
-    `Build pytest-benchmark matrices and parse benchmark results with lightweight Python utilities`.
+    `Build trustworthy pytest-benchmark matrices, collect repeated runs, and
+    detect performance regressions`.
 2. Set the homepage to `https://ryancswallace.github.io/benchmatrix/` once Pages
     is live.
 3. Set topics:
@@ -141,7 +142,7 @@ for a repository that does not have a Pages site yet. If this step is skipped,
 
 Run this checklist:
 
-* before the first public release;
+* before each major release;
 * after adding, renaming, or removing required CI jobs;
 * after changing publishing or documentation deployment workflows;
 * at least quarterly while the project is active.

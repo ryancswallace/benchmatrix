@@ -135,7 +135,8 @@ store it only as an environment secret.
 
 Set these repository profile fields:
 
-* description: `Build pytest-benchmark matrices and parse benchmark results with lightweight Python utilities`;
+* description: `Build trustworthy pytest-benchmark matrices, collect repeated
+    runs, and detect performance regressions`;
 * homepage: `https://ryancswallace.github.io/benchmatrix/` once Pages is live;
 * topics: `benchmark`, `benchmarking`, `performance`, `pytest`,
     `pytest-benchmark`, `python`.

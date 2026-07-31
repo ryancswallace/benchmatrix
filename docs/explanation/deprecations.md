@@ -1,13 +1,16 @@
 # Deprecations
 
-Deprecations should be rare before 1.0, but they are still useful when users need
-a safe migration path away from documented public API or behavior.
+Deprecations provide a safe migration path away from documented public API or
+behavior while preserving compatibility within the current major release
+series.
 
 ## What requires deprecation
 
 Use a deprecation path for changes to documented public API, especially names
 exported from `benchmatrix.__init__` or behavior described in tutorials,
-how-to guides, or reference documentation.
+how-to guides, or reference documentation. The same rule applies to stable CLI
+commands and options, configuration keys, built-in policy defaults, and
+supported serialized-document versions.
 
 Deprecation is not required for:
 
@@ -19,12 +22,9 @@ Deprecation is not required for:
 
 ## Timing
 
-Before 1.0, deprecated public API should normally remain available until at least
-the next minor release. For example, a deprecation introduced in `0.2.0` should
-normally remain through the `0.2.x` line and may be removed in `0.3.0`.
-
-After 1.0, deprecated public API should normally remain available until the next
-major release unless release notes document a narrower exception.
+Deprecated public API remains available until the next major release unless an
+urgent security or correctness issue requires earlier removal. Every
+deprecation identifies its replacement and is retained in tests until removal.
 
 ## Deprecation checklist
 

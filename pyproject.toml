@@ -1,7 +1,7 @@
 [project]
 name = "benchmatrix"
-version = "0.3.0"
-description = "A pytest-benchmark matrix, metadata, and JSON results layer."
+version = "1.0.0"
+description = "Build trustworthy pytest-benchmark matrices, collect repeated runs, and detect performance regressions."
 readme = "README.md"
 requires-python = ">=3.11,<3.15"
 license = "MIT"
@@ -19,7 +19,7 @@ keywords = [
     "pytest-benchmark",
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Framework :: Pytest",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
@@ -35,9 +35,12 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "pytest>=9.1.1",
+    "pytest>=8.4",
     "pytest-benchmark>=5.2.3",
 ]
+
+[project.scripts]
+benchmatrix = "benchmatrix.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/ryancswallace/benchmatrix"
