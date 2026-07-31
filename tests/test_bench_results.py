@@ -37,6 +37,13 @@ def _extra_info(metric_name: str, **overrides: object) -> dict[str, object]:
         "case_name": "small",
         "case_fresh_inputs": False,
     }
+    if metric_name == "tail_latency":
+        extra_info.update(
+            {
+                "tail_latency_note": "Derived from pytest-benchmark JSON samples.",
+                "tail_percentiles": [0.5, 0.9, 0.95, 0.99],
+            }
+        )
     extra_info.update(overrides)
     return extra_info
 
@@ -88,6 +95,41 @@ def test_load_benchmark_json_reads_representative_fixture() -> None:
 def test_load_benchmark_json_rejects_invalid_fixture() -> None:
     with pytest.raises(BenchmarkJsonError, match="does not contain raw sample data"):
         _ = load_benchmark_json(FIXTURE_DIR / "invalid_tail_missing_data.json")
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"tail_percentiles": None},
+        {"tail_percentiles": [0.5, 0.95, 0.99]},
+        {"tail_percentiles": [0.5, 0.9, 0.95, 1.0]},
+        {"tail_latency_note": ""},
+    ],
+)
+def test_load_benchmark_json_rejects_invalid_tail_metadata(
+    tmp_path: Path,
+    overrides: dict[str, object],
+) -> None:
+    extra_info = _extra_info("tail_latency")
+    extra_info.update(overrides)
+
+    with pytest.raises(BenchmarkJsonError, match="tail_"):
+        _ = _load_entry(
+            tmp_path,
+            _benchmark_entry("tail_latency", extra_info=extra_info, data=[1.0]),
+        )
+
+
+@pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
+def test_load_benchmark_json_rejects_nonstandard_numeric_constants(
+    tmp_path: Path,
+    constant: str,
+) -> None:
+    path = tmp_path / "benchmark.json"
+    _ = path.write_text(f'{{"benchmarks": [], "value": {constant}}}', encoding="utf-8")
+
+    with pytest.raises(BenchmarkJsonError, match="non-standard numeric constant"):
+        _ = load_benchmark_json(path)
 
 
 def test_load_benchmark_json_derives_latency_stats(tmp_path: Path) -> None:

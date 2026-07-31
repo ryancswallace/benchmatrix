@@ -43,7 +43,9 @@
         "metric_name": "tail_latency",
         "implementation_name": "baseline",
         "case_name": "tail",
-        "case_fresh_inputs": false
+        "case_fresh_inputs": false,
+        "tail_latency_note": "Derived from pytest-benchmark JSON samples.",
+        "tail_percentiles": [0.5, 0.9, 0.95, 0.99]
       },
       "stats": {
         "mean": 3.0,

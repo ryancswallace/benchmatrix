@@ -42,6 +42,8 @@ def _tail_payload(samples: list[float]) -> dict[str, object]:
                     "implementation_name": "impl",
                     "case_name": "case",
                     "case_fresh_inputs": False,
+                    "tail_latency_note": "Derived from pytest-benchmark JSON samples.",
+                    "tail_percentiles": [0.5, 0.9, 0.95, 0.99],
                 },
                 "stats": {"mean": samples[0], "median": samples[0], "min": min(samples)},
                 "data": samples,

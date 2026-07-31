@@ -45,6 +45,8 @@ from ._schema import (
     KEY_METRIC_NAME,
     KEY_PRODUCER,
     KEY_SCHEMA_VERSION,
+    KEY_TAIL_LATENCY_NOTE,
+    KEY_TAIL_PERCENTILES,
     KEY_THROUGHPUT_UNIT,
     KEY_WORK_UNIT_NAME,
     KEY_WORK_UNITS,
@@ -60,6 +62,7 @@ from ._schema import (
     STAT_MEAN,
     STAT_MEDIAN,
     STAT_MIN,
+    TAIL_PERCENTILES,
     THROUGHPUT_UNIT_CALLS_PER_SECOND,
     THROUGHPUT_UNIT_WORK_UNITS_PER_SECOND,
     MetricName,
@@ -256,6 +259,11 @@ def load_benchmark_run(path: str | Path) -> BenchmarkRun:
             extra_info.get(KEY_METRIC_NAME),
             path=f"{entry_path}.{JSON_KEY_EXTRA_INFO}.{KEY_METRIC_NAME}",
         )
+        if metric_name == METRIC_TAIL_LATENCY:
+            _validate_tail_metadata(
+                extra_info,
+                path=f"{entry_path}.{JSON_KEY_EXTRA_INFO}",
+            )
         data = _extract_benchmark_data(entry, stats, metric_name, path=entry_path)
         stats_path = f"{entry_path}.{JSON_KEY_STATS}"
         extra_info_path = f"{entry_path}.{JSON_KEY_EXTRA_INFO}"
@@ -488,6 +496,25 @@ def _derive_tail_stats(data: Sequence[float]) -> _BenchmarkStats:
     }
 
 
+def _validate_tail_metadata(extra_info: Mapping[str, object], *, path: str) -> None:
+    """Validate the percentile declaration attached to tail-latency rows."""
+    declared = _require_list(
+        extra_info.get(KEY_TAIL_PERCENTILES),
+        path=f"{path}.{KEY_TAIL_PERCENTILES}",
+    )
+    percentiles = tuple(
+        _require_float(value, path=f"{path}.{KEY_TAIL_PERCENTILES}[{index}]") for index, value in enumerate(declared)
+    )
+    if percentiles != TAIL_PERCENTILES:
+        raise BenchmarkJsonError(
+            f"Expected tail percentiles {list(TAIL_PERCENTILES)!r} at {path}.{KEY_TAIL_PERCENTILES}."
+        )
+    _ = _require_non_empty_string(
+        extra_info.get(KEY_TAIL_LATENCY_NOTE),
+        path=f"{path}.{KEY_TAIL_LATENCY_NOTE}",
+    )
+
+
 def _extract_benchmark_data(
     entry: Mapping[str, object],
     stats: Mapping[str, object],
@@ -717,7 +744,18 @@ def _as_float(value: object) -> float | None:
 
 def _load_json(path: Path) -> object:
     """Load JSON from a file."""
-    return cast(object, json.loads(path.read_text(encoding="utf-8")))
+    return cast(
+        object,
+        json.loads(
+            path.read_text(encoding="utf-8"),
+            parse_constant=_reject_non_finite_json_constant,
+        ),
+    )
+
+
+def _reject_non_finite_json_constant(value: str) -> object:
+    """Reject non-standard NaN and Infinity JSON tokens."""
+    raise BenchmarkJsonError(f"Benchmark JSON contains non-standard numeric constant: {value}.")
 
 
 def _validate_run_metadata(metadata: Mapping[str, object]) -> None:
