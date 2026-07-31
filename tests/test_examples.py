@@ -38,7 +38,7 @@ def test_factorial_examples_collect_expected_matrix(example_module: str) -> None
         capture_output=True,
     )
 
-    assert "12 tests collected" in result.stdout
+    assert "13 tests collected" in result.stdout
     for metric_name, implementation_name, case_name in itertools.product(
         ("single_call_latency", "batch_throughput", "tail_latency"),
         ("iterative", "recursive"),

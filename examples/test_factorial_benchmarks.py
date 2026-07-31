@@ -2,13 +2,14 @@
 
 Run from the repository root with:
 
-    mkdir -p examples/benchmark_results
-    uv run pytest examples/test_factorial_benchmarks.py --no-cov \
-        --benchmark-json examples/benchmark_results/factorial-benchmark.json
+    uv run benchmatrix measure --runs 3 \
+        --output examples/benchmark_results/factorial-explicit \
+        examples/test_factorial_benchmarks.py
 """
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 
 import pytest
@@ -53,6 +54,14 @@ CONFIG = BenchmarkConfig(
     warmup_rounds=3,
     pedantic_iterations=1,
 )
+
+
+def test_factorial_implementations_agree() -> None:
+    """Check correctness separately from benchmark timing."""
+    for value in (0, 1, 10, 75):
+        expected = math.factorial(value)
+        if any(function(value) != expected for function in IMPLEMENTATIONS.values()):
+            raise AssertionError(f"Factorial implementations disagree for {value}.")
 
 
 @pytest.mark.parametrize(

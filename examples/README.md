@@ -1,52 +1,61 @@
 # Examples
 
-These examples are runnable pytest-benchmark benchmark matrices.
+These runnable examples compare iterative and recursive factorial
+implementations across two input cases. Each file also includes an ordinary
+correctness test so a fast but incorrect implementation cannot produce trusted
+benchmark evidence.
 
-## Files
+## Choose an example
 
 * `test_factorial_benchmarks_simplified.py` uses `make_benchmark_test`. Start
-    here when you want benchmatrix to generate the pytest parametrization.
+    here when benchmatrix should generate the pytest parametrization.
 * `test_factorial_benchmarks.py` uses `make_benchmark_parameters` and
-    `run_benchmark_metric` directly. Use this shape when you need custom pytest
-    behavior around each generated benchmark row.
+    `run_benchmark_metric` directly. Use this form for custom pytest behavior
+    around each generated benchmark row.
 
-Both examples benchmark iterative and recursive factorial implementations across
-small and medium cases and every supported benchmatrix metric view.
+## Collect repeated runs
 
-## Run
+From the repository root, collect a baseline with the simplified example:
 
-Create the ignored output directory first:
+```bash
+uv run benchmatrix measure --runs 3 \
+    --output examples/benchmark_results/baseline \
+    examples/test_factorial_benchmarks_simplified.py
+```
+
+After changing an implementation, collect a candidate and compare it:
+
+```bash
+uv run benchmatrix measure --runs 3 \
+    --output examples/benchmark_results/candidate \
+    examples/test_factorial_benchmarks_simplified.py
+
+uv run benchmatrix compare \
+    examples/benchmark_results/baseline \
+    examples/benchmark_results/candidate \
+    --summary
+```
+
+`examples/benchmark_results/` is ignored because benchmark evidence is
+machine-specific.
+
+## Export one raw pytest-benchmark file
+
+Direct pytest invocation remains useful when another tool owns collection:
 
 ```bash
 mkdir -p examples/benchmark_results
-```
-
-Run the generated-test example:
-
-```bash
-uv run pytest examples/test_factorial_benchmarks_simplified.py --no-cov \
-    --benchmark-json examples/benchmark_results/factorial-benchmark-simple.json
-```
-
-Run the explicit-parametrization example:
-
-```bash
 uv run pytest examples/test_factorial_benchmarks.py --no-cov \
     --benchmark-json examples/benchmark_results/factorial-benchmark.json
 ```
 
-`examples/benchmark_results/` is ignored by Git because pytest-benchmark output
-is machine-specific.
-
-## Inspect
-
-Parse and print the generated rows:
+Load and print that file through the Python API:
 
 ```bash
 uv run python - <<'PY'
 from benchmatrix import display_benchmark_rows, load_benchmark_json
 
-rows = load_benchmark_json("examples/benchmark_results/factorial-benchmark-simple.json")
+rows = load_benchmark_json("examples/benchmark_results/factorial-benchmark.json")
 display_benchmark_rows(rows)
 PY
 ```
