@@ -95,6 +95,24 @@ def _empty_metadata() -> dict[str, object]:
     return {}
 
 
+_RESERVED_CASE_METADATA_KEYS = frozenset({"fresh_inputs", "name"})
+_RESERVED_EXTRA_INFO_KEYS = frozenset(
+    {
+        KEY_CASE_FRESH_INPUTS,
+        KEY_CASE_NAME,
+        KEY_IMPLEMENTATION_NAME,
+        KEY_METRIC_NAME,
+        KEY_PRODUCER,
+        KEY_SCHEMA_VERSION,
+        KEY_TAIL_LATENCY_NOTE,
+        KEY_TAIL_PERCENTILES,
+        KEY_THROUGHPUT_UNIT,
+        KEY_WORK_UNIT_NAME,
+        KEY_WORK_UNITS,
+    }
+)
+
+
 class BenchmarkFixture(Protocol):
     """pytest-benchmark fixture surface used by benchmatrix.
 
@@ -183,15 +201,17 @@ class BenchmarkConfig:
             invocation.
 
     Raises:
-        TypeError: If a configured hook is not callable or is asynchronous.
+        TypeError: If a timing control has the wrong type, progress output is
+            not boolean, or a configured hook is not callable or is
+            asynchronous.
         ValueError: If rounds or iterations are not positive, or if warmup
             rounds are negative.
 
     Warning:
         For ``tail_latency`` benchmarks, setting ``pedantic_iterations`` above
-        one means raw samples should be interpreted as per-round aggregate
-        timings rather than clean one-call latency samples. The harness emits a
-        runtime warning for this configuration.
+        one means raw samples are per-round averages of multiple calls rather
+        than individual-call latency samples. The harness emits a runtime
+        warning for this configuration.
     """
 
     pedantic_rounds: int = _DEFAULT_PEDANTIC_ROUNDS
@@ -204,14 +224,23 @@ class BenchmarkConfig:
 
     def __post_init__(self) -> None:
         """Validate benchmark configuration after initialization."""
+        if isinstance(self.pedantic_rounds, bool) or not isinstance(self.pedantic_rounds, int):
+            raise TypeError("BenchmarkConfig.pedantic_rounds must be an integer.")
         if self.pedantic_rounds <= 0:
             raise ValueError("BenchmarkConfig.pedantic_rounds must be positive.")
 
+        if isinstance(self.warmup_rounds, bool) or not isinstance(self.warmup_rounds, int):
+            raise TypeError("BenchmarkConfig.warmup_rounds must be an integer.")
         if self.warmup_rounds < 0:
             raise ValueError("BenchmarkConfig.warmup_rounds must be non-negative.")
 
+        if isinstance(self.pedantic_iterations, bool) or not isinstance(self.pedantic_iterations, int):
+            raise TypeError("BenchmarkConfig.pedantic_iterations must be an integer.")
         if self.pedantic_iterations <= 0:
             raise ValueError("BenchmarkConfig.pedantic_iterations must be positive.")
+
+        if not isinstance(self.stream_progress, bool):
+            raise TypeError("BenchmarkConfig.stream_progress must be a boolean.")
 
         _validate_hook(self.before_benchmark, field="before_benchmark")
         _validate_hook(self.validate_result, field="validate_result")
@@ -283,15 +312,31 @@ class BenchmarkCase:
         """Validate benchmark case fields after initialization."""
         object.__setattr__(self, "name", _validate_name(self.name, field="case name"))
 
+        _validate_case_callable(self.make_args, field="make_args")
+        _validate_case_callable(self.make_kwargs, field="make_kwargs")
+
         object.__setattr__(self, "work_unit_name", _validate_work_unit_name(self.work_unit_name))
 
-        if self.work_units is not None and not callable(self.work_units):
-            _ = _validate_work_units(self.work_units)
+        if self.work_units is not None:
+            if callable(self.work_units):
+                _validate_case_callable(self.work_units, field="work_units")
+            else:
+                _ = _validate_work_units(self.work_units)
+
+        if not isinstance(self.fresh_inputs, bool):
+            raise TypeError("BenchmarkCase.fresh_inputs must be a boolean.")
+
+        if not isinstance(self.metadata, Mapping):
+            raise TypeError("BenchmarkCase.metadata must be a mapping.")
 
         coerced_metadata = _coerce_json_mapping(
             self.metadata,
             path="BenchmarkCase.metadata",
         )
+        reserved_metadata = sorted(_RESERVED_CASE_METADATA_KEYS.intersection(coerced_metadata))
+        if reserved_metadata:
+            formatted = ", ".join(repr(key) for key in reserved_metadata)
+            raise ValueError(f"BenchmarkCase.metadata uses reserved key(s): {formatted}.")
         object.__setattr__(self, "metadata", coerced_metadata)
 
     def make_call(self) -> tuple[tuple[object, ...], dict[str, object]]:
@@ -300,7 +345,17 @@ class BenchmarkCase:
         Returns:
             A tuple containing positional arguments and keyword arguments.
         """
-        return self.make_args(), self.make_kwargs()
+        args = self.make_args()
+        if not isinstance(args, tuple):
+            raise TypeError("BenchmarkCase.make_args must return a tuple.")
+
+        kwargs = self.make_kwargs()
+        if not isinstance(kwargs, dict):
+            raise TypeError("BenchmarkCase.make_kwargs must return a dictionary.")
+        if any(not isinstance(key, str) for key in kwargs):
+            raise TypeError("BenchmarkCase.make_kwargs must return a dictionary with string keys.")
+
+        return args, kwargs
 
     def work_unit_count(self) -> float | None:
         """Return the logical work-unit count for throughput metrics.
@@ -352,6 +407,11 @@ class BenchmarkCase:
         Returns:
             A configured benchmark case.
         """
+
+        if not isinstance(fresh_inputs, bool):
+            raise TypeError("BenchmarkCase.fresh_inputs must be a boolean.")
+        if copier is not None:
+            _validate_case_callable(copier, field="copier")
 
         effective_copier = shallow_copy if fresh_inputs and copier is None else copier
 
@@ -612,9 +672,9 @@ def benchmark_tail_latency(
         load.
 
         If ``case.fresh_inputs`` is false and ``config.pedantic_iterations`` is
-        greater than one, raw samples should be interpreted as per-round
-        aggregate timings rather than clean one-call latency samples. The
-        harness emits a runtime warning for that configuration.
+        greater than one, raw samples are per-round averages of multiple calls,
+        not individual-call latency samples. The harness emits a runtime
+        warning for that configuration.
     """
     resolved_config = _resolve_config(config)
     metric_name = METRIC_TAIL_LATENCY
@@ -629,7 +689,7 @@ def benchmark_tail_latency(
     extra_info[KEY_TAIL_LATENCY_NOTE] = (
         "Use pytest-benchmark JSON data to compute p50/p90/p95/p99. "
         "This is not production p95/p99 under load. If pedantic_iterations is "
-        "greater than one, samples may represent per-round aggregate timings."
+        "greater than one, samples are per-round averages of multiple calls."
     )
     extra_info[KEY_TAIL_PERCENTILES] = list(TAIL_PERCENTILES)
 
@@ -954,6 +1014,15 @@ def _validate_hook(hook: object, *, field: str) -> None:
         raise TypeError(f"BenchmarkConfig.{field} must be synchronous.")
 
 
+def _validate_case_callable(value: object, *, field: str) -> None:
+    """Reject invalid or asynchronous benchmark-case callables."""
+    if not callable(value):
+        raise TypeError(f"BenchmarkCase.{field} must be callable.")
+
+    if inspect.iscoroutinefunction(value) or inspect.iscoroutinefunction(type(value).__call__):
+        raise TypeError(f"BenchmarkCase.{field} must be synchronous.")
+
+
 def _warn_if_pedantic_iterations_ignored(config: BenchmarkConfig) -> None:
     """Warn when pedantic_iterations is ignored for fresh-input cases."""
     if config.pedantic_iterations == _DEFAULT_PEDANTIC_ITERATIONS:
@@ -974,13 +1043,13 @@ def _warn_for_tail_latency_iteration_semantics(
     case: BenchmarkCase,
     config: BenchmarkConfig,
 ) -> None:
-    """Warn when tail-latency samples are not clean one-call samples."""
+    """Warn when tail-latency samples are not individual-call samples."""
     if case.fresh_inputs or config.pedantic_iterations == _DEFAULT_PEDANTIC_ITERATIONS:
         return
 
     message = (
-        "tail_latency with pedantic_iterations greater than one produces per-round aggregate timing samples, not clean "
-        + "one-call latency samples."
+        "tail_latency with pedantic_iterations greater than one produces per-round averages of multiple calls, not "
+        + "individual-call latency samples."
     )
     warnings.warn(
         message,
@@ -991,7 +1060,7 @@ def _warn_for_tail_latency_iteration_semantics(
 
 def _validate_work_units(value: object) -> float:
     """Validate and return a positive finite work-unit count."""
-    if not isinstance(value, str | bytes | bytearray | SupportsFloat | SupportsIndex):
+    if isinstance(value, bool) or not isinstance(value, str | bytes | bytearray | SupportsFloat | SupportsIndex):
         raise ValueError("Benchmark work_units must be numeric.")
 
     try:
@@ -1079,7 +1148,13 @@ def _set_extra_info(
     extra_info: Mapping[str, object],
 ) -> _ExtraInfo:
     """Validate, attach, and return strict JSON-safe benchmark metadata."""
-    final_extra_info = _coerce_json_mapping(extra_info, path="extra_info")
+    retained_extra_info = {
+        key: value
+        for key, value in benchmark.extra_info.items()
+        if key not in _RESERVED_EXTRA_INFO_KEYS and not key.startswith("case_")
+    }
+    retained_extra_info.update(extra_info)
+    final_extra_info = _coerce_json_mapping(retained_extra_info, path="extra_info")
     benchmark.extra_info.clear()
     benchmark.extra_info.update(final_extra_info)
     return final_extra_info
@@ -1134,6 +1209,11 @@ def _case_items(
         resolved_case = _validate_case(case)
         resolved_items.append((_validate_name(resolved_case.name, field="case name"), resolved_case))
 
+    duplicate_names = _duplicate_strings(name for name, _case in resolved_items)
+    if duplicate_names:
+        formatted = ", ".join(repr(name) for name in duplicate_names)
+        raise ValueError(f"Benchmark cases must not contain duplicate names: {formatted}.")
+
     return resolved_items
 
 
@@ -1165,7 +1245,23 @@ def _metric_items(metrics: Iterable[MetricName] | None) -> tuple[MetricName, ...
     if not resolved_metrics:
         raise ValueError("Benchmark metrics must not be empty.")
 
+    duplicate_metrics = _duplicate_strings(resolved_metrics)
+    if duplicate_metrics:
+        formatted = ", ".join(repr(metric) for metric in duplicate_metrics)
+        raise ValueError(f"Benchmark metrics must not contain duplicates: {formatted}.")
+
     return resolved_metrics
+
+
+def _duplicate_strings(values: Iterable[str]) -> tuple[str, ...]:
+    """Return duplicate strings once, preserving first duplicate order."""
+    seen: set[str] = set()
+    duplicates: list[str] = []
+    for value in values:
+        if value in seen and value not in duplicates:
+            duplicates.append(value)
+        seen.add(value)
+    return tuple(duplicates)
 
 
 def _validate_case(case: object, *, label: object | None = None) -> BenchmarkCase:

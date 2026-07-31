@@ -183,6 +183,31 @@ def test_benchmark_config_rejects_invalid_values(field_name: str, value: int, me
         _ = constructors[field_name](value)
 
 
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    [
+        ("pedantic_rounds", True),
+        ("pedantic_rounds", 1.5),
+        ("warmup_rounds", False),
+        ("warmup_rounds", 0.5),
+        ("pedantic_iterations", True),
+        ("pedantic_iterations", 2.5),
+        ("stream_progress", 1),
+        ("stream_progress", "false"),
+    ],
+)
+def test_benchmark_config_rejects_values_with_wrong_types(field_name: str, value: object) -> None:
+    constructors: dict[str, Callable[[object], BenchmarkConfig]] = {
+        "pedantic_iterations": lambda invalid: BenchmarkConfig(pedantic_iterations=cast(int, invalid)),
+        "pedantic_rounds": lambda invalid: BenchmarkConfig(pedantic_rounds=cast(int, invalid)),
+        "stream_progress": lambda invalid: BenchmarkConfig(stream_progress=cast(bool, invalid)),
+        "warmup_rounds": lambda invalid: BenchmarkConfig(warmup_rounds=cast(int, invalid)),
+    }
+
+    with pytest.raises(TypeError, match=field_name):
+        _ = constructors[field_name](value)
+
+
 def test_benchmark_config_accepts_valid_boundary_values() -> None:
     config = BenchmarkConfig(pedantic_rounds=1, warmup_rounds=0, pedantic_iterations=1, stream_progress=False)
 
@@ -251,7 +276,7 @@ def test_benchmark_case_rejects_non_string_work_unit_name() -> None:
         _ = BenchmarkCase("case", work_unit_name=cast(str, None))
 
 
-@pytest.mark.parametrize("work_units", [0, -1, math.inf, -math.inf, math.nan, "bad", object()])
+@pytest.mark.parametrize("work_units", [True, False, 0, -1, math.inf, -math.inf, math.nan, "bad", object()])
 def test_benchmark_case_rejects_invalid_static_work_units(work_units: object) -> None:
     with pytest.raises(ValueError, match="work_units"):
         _ = BenchmarkCase("case", work_units=cast(float, work_units))
@@ -273,6 +298,13 @@ def test_benchmark_case_validates_dynamic_work_units_each_time() -> None:
         _ = case.work_unit_count()
 
 
+def test_benchmark_case_rejects_boolean_dynamic_work_units() -> None:
+    case = BenchmarkCase("case", work_units=cast(Callable[[], float], lambda: True))
+
+    with pytest.raises(ValueError, match="numeric"):
+        _ = case.work_unit_count()
+
+
 def test_benchmark_case_make_call_uses_factories() -> None:
     case = BenchmarkCase(
         "case",
@@ -281,6 +313,114 @@ def test_benchmark_case_make_call_uses_factories() -> None:
     )
 
     assert case.make_call() == ((1, 2), {"scale": 3})
+
+
+@pytest.mark.parametrize("field_name", ["make_args", "make_kwargs"])
+def test_benchmark_case_rejects_non_callable_factories(field_name: str) -> None:
+    constructors: dict[str, Callable[[object], BenchmarkCase]] = {
+        "make_args": lambda factory: BenchmarkCase(
+            "case",
+            make_args=cast(Callable[[], tuple[object, ...]], factory),
+        ),
+        "make_kwargs": lambda factory: BenchmarkCase(
+            "case",
+            make_kwargs=cast(Callable[[], dict[str, object]], factory),
+        ),
+    }
+
+    with pytest.raises(TypeError, match=field_name):
+        _ = constructors[field_name](object())
+
+
+async def _async_args_factory() -> tuple[object, ...]:
+    """Return positional arguments asynchronously."""
+    return ()
+
+
+async def _async_kwargs_factory() -> dict[str, object]:
+    """Return keyword arguments asynchronously."""
+    return {}
+
+
+async def _async_work_units_factory() -> float:
+    """Return work units asynchronously."""
+    return 1.0
+
+
+@pytest.mark.parametrize(
+    "constructor",
+    [
+        lambda: BenchmarkCase(
+            "case",
+            make_args=cast(Callable[[], tuple[object, ...]], _async_args_factory),
+        ),
+        lambda: BenchmarkCase(
+            "case",
+            make_kwargs=cast(Callable[[], dict[str, object]], _async_kwargs_factory),
+        ),
+        lambda: BenchmarkCase(
+            "case",
+            work_units=cast(Callable[[], float], _async_work_units_factory),
+        ),
+    ],
+)
+def test_benchmark_case_rejects_async_factories(constructor: Callable[[], BenchmarkCase]) -> None:
+    with pytest.raises(TypeError, match="synchronous"):
+        _ = constructor()
+
+
+@pytest.mark.parametrize("fresh_inputs", [0, 1, None, "false"])
+def test_benchmark_case_rejects_non_boolean_fresh_inputs(fresh_inputs: object) -> None:
+    with pytest.raises(TypeError, match="fresh_inputs"):
+        _ = BenchmarkCase("case", fresh_inputs=cast(bool, fresh_inputs))
+
+
+def test_from_values_rejects_falsy_non_boolean_fresh_inputs() -> None:
+    with pytest.raises(TypeError, match="fresh_inputs"):
+        _ = BenchmarkCase.from_values("case", fresh_inputs=cast(bool, 0))
+
+
+def test_benchmark_case_rejects_non_mapping_metadata() -> None:
+    with pytest.raises(TypeError, match="metadata"):
+        _ = BenchmarkCase("case", metadata=cast(Mapping[str, object], []))
+
+
+def test_benchmark_case_validates_factory_return_shapes() -> None:
+    bad_args = BenchmarkCase(
+        "args",
+        make_args=cast(Callable[[], tuple[object, ...]], lambda: [1]),
+    )
+    with pytest.raises(TypeError, match=r"make_args.*tuple"):
+        _ = bad_args.make_call()
+
+    bad_kwargs = BenchmarkCase(
+        "kwargs",
+        make_kwargs=cast(Callable[[], dict[str, object]], lambda: [("key", "value")]),
+    )
+    with pytest.raises(TypeError, match=r"make_kwargs.*dictionary"):
+        _ = bad_kwargs.make_call()
+
+    non_string_key = BenchmarkCase(
+        "kwargs-key",
+        make_kwargs=cast(Callable[[], dict[str, object]], lambda: {1: "value"}),
+    )
+    with pytest.raises(TypeError, match="string keys"):
+        _ = non_string_key.make_call()
+
+
+async def _async_copier(value: object) -> object:
+    """Copy a value asynchronously."""
+    return value
+
+
+@pytest.mark.parametrize("copier", [object(), _async_copier])
+def test_from_values_rejects_invalid_copiers(copier: object) -> None:
+    with pytest.raises(TypeError, match="copier"):
+        _ = BenchmarkCase.from_values(
+            "case",
+            1,
+            copier=cast(Callable[[object], object], copier),
+        )
 
 
 def test_from_values_reuses_values_without_fresh_inputs_or_copier() -> None:
@@ -673,7 +813,7 @@ def test_tail_latency_warns_when_iterations_are_aggregate_samples() -> None:
     benchmark = _RecordingBenchmark()
     case = BenchmarkCase.from_values("input", 1)
 
-    with pytest.warns(RuntimeWarning, match="per-round aggregate"):
+    with pytest.warns(RuntimeWarning, match="per-round averages"):
         _ = benchmark_tail_latency(
             benchmark,
             "impl",
@@ -752,6 +892,36 @@ def test_benchmark_helpers_reject_empty_metadata_names(
         )
 
 
+@pytest.mark.parametrize("reserved_key", ["name", "fresh_inputs"])
+def test_benchmark_case_rejects_reserved_metadata_keys(reserved_key: str) -> None:
+    with pytest.raises(ValueError, match="reserved key"):
+        _ = BenchmarkCase.from_values("input", 1, metadata={reserved_key: "spoofed"})
+
+
+def test_benchmark_helpers_preserve_unrelated_fixture_metadata() -> None:
+    benchmark = _RecordingBenchmark(
+        extra_info={
+            "owner": "performance-team",
+            "metric_name": "spoofed",
+            "case_stale": "discarded",
+        }
+    )
+
+    record = benchmark_single_call_latency(
+        benchmark,
+        "impl",
+        _identity,
+        "case-id",
+        BenchmarkCase.from_values("input", 1, metadata={"size": "small"}),
+        config=BenchmarkConfig(stream_progress=False),
+    )
+
+    assert record.extra_info["owner"] == "performance-team"
+    assert record.extra_info["metric_name"] == "single_call_latency"
+    assert record.extra_info["case_size"] == "small"
+    assert "case_stale" not in record.extra_info
+
+
 async def _async_target() -> None:
     """Async target used to verify rejection."""
 
@@ -817,6 +987,26 @@ def test_make_benchmark_parameters_accepts_mapping_case_names() -> None:
     parameter = _parameter_set(parameters[0])
     assert parameter.values == ("tail_latency", "impl", _noop, "external-name", case)
     assert parameter.id == "tail_latency::impl::external-name"
+
+
+def test_make_benchmark_parameters_rejects_duplicate_iterable_case_names() -> None:
+    cases = [BenchmarkCase("duplicate"), BenchmarkCase("duplicate")]
+
+    with pytest.raises(ValueError, match=r"duplicate names.*'duplicate'"):
+        _ = make_benchmark_parameters(
+            {"impl": _noop},
+            cases,
+            metrics=("single_call_latency",),
+        )
+
+
+def test_make_benchmark_parameters_rejects_repeated_metrics() -> None:
+    with pytest.raises(ValueError, match=r"metrics.*duplicates.*'single_call_latency'"):
+        _ = make_benchmark_parameters(
+            {"impl": _noop},
+            [BenchmarkCase("case")],
+            metrics=("single_call_latency", "single_call_latency"),
+        )
 
 
 @pytest.mark.parametrize(

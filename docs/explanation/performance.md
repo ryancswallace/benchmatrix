@@ -27,7 +27,8 @@ p50/p90/p95/p99-style summaries from saved samples so implementations can be
 compared by local timing distribution.
 
 Keep `pedantic_iterations=1` for tail-latency comparisons. Higher values turn
-each sample into an aggregate round timing rather than a clean one-call sample.
+each sample into a per-round average of multiple calls. That averaging hides
+variation between the individual calls in a round.
 
 ## Guardrails
 
