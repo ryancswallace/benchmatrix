@@ -3,7 +3,7 @@
   <a href="https://ryancswallace.github.io/benchmatrix/">
     <img
       alt="benchmatrix"
-      src="docs/assets/benchmatrix-logo.svg"
+      src="https://raw.githubusercontent.com/ryancswallace/benchmatrix/main/docs/assets/benchmatrix-logo.svg"
       width="760"
     >
   </a>
@@ -11,17 +11,11 @@
 </p>
 <!-- markdownlint-enable MD033 -->
 
+[![PyPI](https://img.shields.io/pypi/v/benchmatrix.svg)](https://pypi.org/project/benchmatrix/)
+[![Python](https://img.shields.io/pypi/pyversions/benchmatrix.svg)](https://pypi.org/project/benchmatrix/)
 [![CI](https://github.com/ryancswallace/benchmatrix/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ryancswallace/benchmatrix/actions/workflows/ci.yml)
-[![Documentation](https://github.com/ryancswallace/benchmatrix/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/ryancswallace/benchmatrix/actions/workflows/docs.yml)
-[![Docker](https://github.com/ryancswallace/benchmatrix/actions/workflows/docker.yml/badge.svg?branch=main)](https://github.com/ryancswallace/benchmatrix/actions/workflows/docker.yml)
-[![CodeQL](https://github.com/ryancswallace/benchmatrix/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/ryancswallace/benchmatrix/actions/workflows/codeql.yml)
-[![OpenSSF Scorecard](https://github.com/ryancswallace/benchmatrix/actions/workflows/scorecard.yml/badge.svg?branch=main)](https://github.com/ryancswallace/benchmatrix/actions/workflows/scorecard.yml)
-[![Workflow lint](https://github.com/ryancswallace/benchmatrix/actions/workflows/workflow-lint.yml/badge.svg?branch=main)](https://github.com/ryancswallace/benchmatrix/actions/workflows/workflow-lint.yml)
-[![Python 3.11-3.14](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-3776AB?logo=python&logoColor=white)](https://github.com/ryancswallace/benchmatrix/blob/main/pyproject.toml)
-[![Typed with basedpyright](https://img.shields.io/badge/types-basedpyright-2f6fdd)](https://github.com/DetachHead/basedpyright)
-[![Linted with Ruff](https://img.shields.io/badge/lint-Ruff-46a2f1)](https://docs.astral.sh/ruff/)
-[![Coverage gate: 95%](https://img.shields.io/badge/coverage%20gate-%E2%89%A595%25-2e7d32)](https://github.com/ryancswallace/benchmatrix/blob/main/pyproject.toml)
-[![SBOM: CycloneDX 1.6](https://img.shields.io/badge/SBOM-CycloneDX%201.6-6f42c1)](https://cyclonedx.org/)
+[![Documentation](https://github.com/ryancswallace/benchmatrix/actions/workflows/docs.yml/badge.svg?branch=main)](https://ryancswallace.github.io/benchmatrix/)
+[![License](https://img.shields.io/pypi/l/benchmatrix.svg)](https://github.com/ryancswallace/benchmatrix/blob/main/LICENSE)
 
 <!-- markdownlint-disable MD033 -->
 <p align="center">
@@ -41,10 +35,10 @@ environments, measured the same matrix, and collected enough evidence. Weak or
 conflicting results are marked inconclusive instead of being called regressions.
 
 ```bash
-benchmatrix measure --runs 5 --output baseline tests/test_benchmarks.py
+uv run benchmatrix measure --runs 5 --output baseline tests/test_benchmarks.py
 # Make a change, then measure again.
-benchmatrix measure --runs 5 --output candidate tests/test_benchmarks.py
-benchmatrix compare baseline candidate --fail-on-regression
+uv run benchmatrix measure --runs 5 --output candidate tests/test_benchmarks.py
+uv run benchmatrix compare baseline candidate --fail-on-regression
 ```
 
 Results are available as readable terminal output, versioned JSON, Markdown,
@@ -52,16 +46,16 @@ and GitHub Actions summaries.
 
 <!-- markdownlint-disable MD033 -->
 <p align="center">
-  <a href="https://github.com/ryancswallace/benchmatrix/releases/download/v1.0.0/basic-demo.mp4">
+  <a href="https://ryancswallace.github.io/benchmatrix/demo/">
     <img
       alt="Preview of benchmatrix collecting and comparing repeated benchmark runs"
-      src="docs/assets/basic-demo.png"
+      src="https://raw.githubusercontent.com/ryancswallace/benchmatrix/main/docs/assets/basic-demo.png"
       width="360"
     >
   </a>
   <br>
-  <a href="https://github.com/ryancswallace/benchmatrix/releases/download/v1.0.0/basic-demo.mp4">
-    Watch the one-minute demo
+  <a href="https://ryancswallace.github.io/benchmatrix/demo/">
+    Watch the short demo in your browser
   </a>
 </p>
 <!-- markdownlint-enable MD033 -->
@@ -73,7 +67,7 @@ and GitHub Actions summaries.
 ## Install
 
 ```bash
-uv add benchmatrix
+uv add --dev benchmatrix
 ```
 
 or:
@@ -106,50 +100,45 @@ cases = [
 test_sum_matrix = make_benchmark_test(implementations, cases)
 ```
 
-Run it with pytest-benchmark:
+Keep ordinary correctness tests alongside the generated benchmark; timing a
+wrong answer does not make it useful evidence.
+
+Collect a baseline, make your change, and collect a candidate on the same
+machine:
 
 ```bash
-uv run pytest tests/test_sum_benchmark.py --benchmark-json benchmark.json
+uv run benchmatrix measure --runs 5 --output baseline tests/test_sum_benchmark.py
+# Make the change you want to evaluate.
+uv run benchmatrix measure --runs 5 --output candidate tests/test_sum_benchmark.py
 ```
 
-The result is normal pytest-benchmark JSON enhanced with benchmatrix metadata.
-Load and compare it with a baseline to check for regressions:
+Compare the repeated runs and fail the command when the evidence shows a
+regression:
+
+```bash
+uv run benchmatrix compare baseline candidate --threshold 5% --fail-on-regression
+```
+
+Each output directory contains the individual pytest-benchmark JSON files and
+a manifest recording the command, matrix, environment, and collection
+lifecycle. Resume an interrupted collection without overwriting earlier runs:
+
+```bash
+uv run benchmatrix measure --resume --output candidate
+uv run benchmatrix measure --retry-failed --output candidate
+```
+
+The same run and comparison model is available from Python:
 
 ```python
-from benchmatrix import load_benchmark_run
+from benchmatrix import load_benchmark_run_group
 
-baseline = load_benchmark_run("baseline.json")
-candidate = load_benchmark_run("benchmark.json")
+baseline = load_benchmark_run_group("baseline")
+candidate = load_benchmark_run_group("candidate")
 comparison = baseline.compare_to(candidate)
 
 for cell in comparison.regressed:
     print(cell.implementation_name, cell.case_name, cell.metric_name)
-```
-
-For regression decisions, collect several runs instead of relying on one noisy
-percentage:
-
-```bash
-benchmatrix measure --runs 5 --output benchmark-runs tests/test_sum_benchmark.py
-```
-
-The output directory contains numbered JSON files and a
-`benchmatrix-manifest.json`.
-
-Interrupted and failed collections can continue without overwriting earlier
-attempts:
-
-```bash
-benchmatrix measure --resume --output benchmark-runs
-benchmatrix measure --retry-failed --output benchmark-runs
-```
-
-Compare a baseline collection with a candidate:
-
-```bash
-benchmatrix compare baseline-runs candidate-runs \
-    --threshold 5% \
-    --fail-on-regression
 ```
 
 ## Metrics
@@ -184,12 +173,12 @@ corresponding setting; it does not discard the more specific rules.
 Inspect or validate the effective policy without running a benchmark:
 
 ```bash
-benchmatrix policy show
-benchmatrix policy validate --quiet
+uv run benchmatrix policy show
+uv run benchmatrix policy validate --quiet
 ```
 
-See [Configuration and automation](docs/reference/configuration.md) for the full
-schema and precedence rules.
+See [Configuration and automation](https://ryancswallace.github.io/benchmatrix/reference/configuration/)
+for the full schema and precedence rules.
 
 ## Reports and CI
 
@@ -198,7 +187,7 @@ readable, versioned JSON reports can be generated and loaded later
 programmatically:
 
 ```bash
-benchmatrix compare baseline-runs candidate-runs --format json > comparison.json
+uv run benchmatrix compare baseline candidate --format json > comparison.json
 ```
 
 ```python
@@ -212,8 +201,8 @@ The same decision can be rendered as Markdown or appended to a GitHub Actions
 step summary:
 
 ```bash
-benchmatrix compare baseline-runs candidate-runs --format markdown
-benchmatrix compare baseline-runs candidate-runs --github-summary
+uv run benchmatrix compare baseline candidate --format markdown
+uv run benchmatrix compare baseline candidate --github-summary
 ```
 
 ## Comparison checks
@@ -225,15 +214,31 @@ For repeated runs it also reports rounds, iterations, sample counts, IQR,
 coefficient of variation, and outliers. If the evidence is too thin or the runs
 disagree, the result is marked inconclusive rather than a regression.
 
-## Design goals and non-goals
+## Where benchmatrix fits
 
 When using benchmatrix, pytest-benchmark still handles timing, calibration,
 statistics, terminal output, and JSON export. benchmatrix adds the **matrix,
 collection, and comparison layer**.
 
+If you only need to time one function or inspect one run, pytest-benchmark may
+already be enough. benchmatrix is useful when you repeatedly compare the same
+operation across implementations and inputs, need auditable regression rules,
+or want portable reports without adopting a hosted benchmarking service.
+
 benchmatrix supports synchronous Python callables; it is _not_ a load-testing
 tool or a production latency monitor.
 
+## Contributing and community
+
+Questions, bug reports, and feature ideas are welcome in
+[GitHub Issues](https://github.com/ryancswallace/benchmatrix/issues). See the
+[contributing guide](https://github.com/ryancswallace/benchmatrix/blob/main/CONTRIBUTING.md)
+to make a change, and use
+[private vulnerability reporting](https://github.com/ryancswallace/benchmatrix/security/advisories/new)
+for security concerns. Published changes are listed in the
+[release history](https://github.com/ryancswallace/benchmatrix/releases).
+
 ## License
 
-benchmatrix is distributed under the [MIT License](LICENSE).
+benchmatrix is distributed under the
+[MIT License](https://github.com/ryancswallace/benchmatrix/blob/main/LICENSE).
