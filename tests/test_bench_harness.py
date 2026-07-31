@@ -17,6 +17,7 @@ import pytest
 from benchmatrix import (
     BenchmarkCase,
     BenchmarkConfig,
+    BenchmarkHookContext,
     BenchmarkInvocationRecord,
     MetadataSerializationError,
     MetricName,
@@ -189,6 +190,48 @@ def test_benchmark_config_accepts_valid_boundary_values() -> None:
     assert config.warmup_rounds == 0
     assert config.pedantic_iterations == 1
     assert not config.stream_progress
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    ["before_benchmark", "validate_result", "after_benchmark"],
+)
+def test_benchmark_config_rejects_non_callable_hooks(field_name: str) -> None:
+    constructors: dict[str, Callable[[object], BenchmarkConfig]] = {
+        "before_benchmark": lambda hook: BenchmarkConfig(before_benchmark=cast(Callable[..., None], hook)),
+        "validate_result": lambda hook: BenchmarkConfig(validate_result=cast(Callable[..., None], hook)),
+        "after_benchmark": lambda hook: BenchmarkConfig(after_benchmark=cast(Callable[..., None], hook)),
+    }
+
+    with pytest.raises(TypeError, match=field_name):
+        _ = constructors[field_name](object())
+
+
+async def _async_lifecycle_hook(_context: BenchmarkHookContext) -> None:
+    """Async lifecycle hook used to verify rejection."""
+
+
+async def _async_result_validator(_context: BenchmarkHookContext, _result: object) -> None:
+    """Async correctness hook used to verify rejection."""
+
+
+@pytest.mark.parametrize(
+    "constructor",
+    [
+        lambda: BenchmarkConfig(
+            before_benchmark=cast(Callable[[BenchmarkHookContext], None], _async_lifecycle_hook),
+        ),
+        lambda: BenchmarkConfig(
+            validate_result=cast(Callable[[BenchmarkHookContext, object], None], _async_result_validator),
+        ),
+        lambda: BenchmarkConfig(
+            after_benchmark=cast(Callable[[BenchmarkHookContext], None], _async_lifecycle_hook),
+        ),
+    ],
+)
+def test_benchmark_config_rejects_async_hooks(constructor: Callable[[], BenchmarkConfig]) -> None:
+    with pytest.raises(TypeError, match="synchronous"):
+        _ = constructor()
 
 
 @pytest.mark.parametrize("name", ["", None, 123])
@@ -414,6 +457,140 @@ def test_benchmark_progress_can_be_disabled(capsys: pytest.CaptureFixture[str]) 
     )
 
     assert capsys.readouterr().out == ""
+
+
+def test_correctness_and_lifecycle_hooks_run_untimed_in_order() -> None:
+    benchmark = _RecordingBenchmark()
+    case = BenchmarkCase.from_values("input", 2, 3)
+    events: list[str] = []
+    contexts: list[BenchmarkHookContext] = []
+
+    def target(left: int, right: int) -> int:
+        events.append("target")
+        return left + right
+
+    def before(context: BenchmarkHookContext) -> None:
+        contexts.append(context)
+        events.append("before")
+
+    def validate(context: BenchmarkHookContext, result: object) -> None:
+        assert context is contexts[0]
+        assert result == 5
+        events.append("validate")
+
+    def after(context: BenchmarkHookContext) -> None:
+        assert context is contexts[0]
+        events.append("after")
+
+    _ = benchmark_single_call_latency(
+        benchmark,
+        "addition",
+        target,
+        "numbers",
+        case,
+        config=BenchmarkConfig(
+            stream_progress=False,
+            before_benchmark=before,
+            validate_result=validate,
+            after_benchmark=after,
+        ),
+    )
+
+    assert events == ["before", "target", "validate", "after"]
+    assert contexts == [
+        BenchmarkHookContext(
+            metric_name="single_call_latency",
+            implementation_name="addition",
+            case_name="numbers",
+            function=target,
+            case=case,
+        )
+    ]
+
+
+@pytest.mark.parametrize("failure_stage", ["target", "validate"])
+def test_after_benchmark_runs_when_target_or_validation_fails(failure_stage: str) -> None:
+    events: list[str] = []
+
+    def target() -> None:
+        events.append("target")
+        if failure_stage == "target":
+            raise RuntimeError("target failed")
+
+    def validate(_context: BenchmarkHookContext, _result: object) -> None:
+        events.append("validate")
+        if failure_stage == "validate":
+            raise AssertionError("incorrect result")
+
+    def after(_context: BenchmarkHookContext) -> None:
+        events.append("after")
+
+    with pytest.raises((AssertionError, RuntimeError), match=r"failed|incorrect"):
+        _ = benchmark_single_call_latency(
+            _RecordingBenchmark(),
+            "impl",
+            target,
+            "case",
+            BenchmarkCase("case"),
+            config=BenchmarkConfig(
+                stream_progress=False,
+                validate_result=validate,
+                after_benchmark=after,
+            ),
+        )
+
+    expected = ["target", "validate", "after"] if failure_stage == "validate" else ["target", "after"]
+    assert events == expected
+
+
+def test_after_benchmark_does_not_run_when_before_benchmark_fails() -> None:
+    events: list[str] = []
+
+    def before(_context: BenchmarkHookContext) -> None:
+        events.append("before")
+        raise RuntimeError("setup failed")
+
+    def after(_context: BenchmarkHookContext) -> None:
+        events.append("after")
+
+    with pytest.raises(RuntimeError, match="setup failed"):
+        _ = benchmark_single_call_latency(
+            _RecordingBenchmark(),
+            "impl",
+            _noop,
+            "case",
+            BenchmarkCase("case"),
+            config=BenchmarkConfig(
+                stream_progress=False,
+                before_benchmark=before,
+                after_benchmark=after,
+            ),
+        )
+
+    assert events == ["before"]
+
+
+def test_correctness_hook_receives_pedantic_result() -> None:
+    validated: list[tuple[MetricName, object]] = []
+
+    def validate(context: BenchmarkHookContext, result: object) -> None:
+        validated.append((context.metric_name, result))
+
+    _ = benchmark_tail_latency(
+        _RecordingBenchmark(),
+        "addition",
+        _add,
+        "numbers",
+        BenchmarkCase.from_values("numbers", 2, 3),
+        config=BenchmarkConfig(
+            pedantic_rounds=1,
+            warmup_rounds=0,
+            stream_progress=False,
+            validate_result=validate,
+        ),
+    )
+
+    assert validated == [("tail_latency", 5)]
 
 
 @pytest.mark.parametrize(
