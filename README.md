@@ -132,9 +132,9 @@ benchmatrix supports three ways to measure each benchmark:
 
 | Metric | Meaning | Better result |
 | --- | --- | --- |
-| Single-call latency | Time required to complete one function call. | Lower |
-| Batch throughput | Number of declared work units completed per second. | Higher |
-| Tail latency | The slower end of the timing distribution (e.g., 95th percentile). | Lower |
+| Single-call latency | Time required to complete one function call | Lower |
+| Batch throughput | Number of declared work units completed per second | Higher |
+| Tail latency | The slower end of the timing distribution (e.g., 95th percentile) | Lower |
 
 ## Comparison policy
 
