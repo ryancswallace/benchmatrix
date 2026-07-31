@@ -7,7 +7,9 @@ pieces fit together.
 ## Available tutorials
 
 * [First benchmark](first-benchmark.md), covering a small benchmark matrix,
-    pytest-benchmark execution, and saved JSON output.
+    repeated-run collection, and a baseline/candidate comparison.
+* [Basic demo](../demo/README.md), showing the main workflow in a short silent
+    terminal recording.
 
 After the first benchmark works, use the how-to guides for focused tasks and the
 reference section for exact API details.

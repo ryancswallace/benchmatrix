@@ -1,13 +1,25 @@
 # First benchmark
 
-This tutorial creates a small benchmark matrix and collects repeated
-pytest-benchmark JSON results that benchmatrix can compare later.
+This tutorial builds a small benchmark matrix, introduces a deliberate
+regression, and compares repeated baseline and candidate runs.
 
-## 1. Create a benchmark test file
+## 1. Install benchmatrix
+
+Add benchmatrix as a development dependency:
+
+```bash
+uv add --dev benchmatrix
+```
+
+The examples below assume commands run from the project root.
+
+## 2. Create a benchmark matrix
 
 Create `tests/test_sum_benchmark.py`:
 
 ```python
+from collections.abc import Callable
+
 from benchmatrix import BenchmarkCase, make_benchmark_test
 
 
@@ -18,7 +30,7 @@ def loop_sum(values: list[int]) -> int:
     return total
 
 
-implementations = {
+implementations: dict[str, Callable[[list[int]], int]] = {
     "builtin": sum,
     "loop": loop_sum,
 }
@@ -32,44 +44,111 @@ cases = [
     ),
 ]
 
+
+def test_implementations_agree() -> None:
+    values = list(range(100))
+    expected = sum(values)
+    assert all(function(values) == expected for function in implementations.values())
+
+
 test_sum_matrix = make_benchmark_test(implementations, cases)
 ```
 
-## 2. Run the benchmark
+The ordinary test protects correctness. The generated benchmark test measures
+every implementation, case, and selected metric combination.
+
+## 3. Collect a baseline
+
+Measure the current code three times:
 
 ```bash
-uv run benchmatrix measure --runs 3 --output benchmark-runs \
+uv run benchmatrix measure --runs 3 --output baseline \
     tests/test_sum_benchmark.py
 ```
 
-`measure` runs pytest in the current Python environment, avoids project-wide
-pytest options such as coverage by default, and writes each result into the
-output directory. pytest-benchmark still owns timing and calibration.
+`measure` invokes pytest with benchmark-friendly defaults and writes three JSON
+files plus `baseline/benchmatrix-manifest.json`. pytest-benchmark still owns
+timing and calibration.
 
-## 3. Parse the results
+## 4. Introduce a regression
+
+Temporarily replace `loop_sum` with this deliberately slower version:
 
 ```python
-from benchmatrix import display_benchmark_rows, load_benchmark_json
+def loop_sum(values: list[int]) -> int:
+    total = 0
+    for value in values:
+        total += value
 
-rows = load_benchmark_json("benchmark-runs/run-001.json")
-display_benchmark_rows(rows)
+    for _ in range(20):
+        for value in values:
+            total += value
+            total -= value
+
+    return total
 ```
 
-## 4. Add another metric
+The correctness test still passes, but the implementation now performs much
+more work.
 
-By default, generated tests include the supported metric views. Use the parsed
-rows to compare implementations by metric instead of mixing latency and
-throughput as if they were the same measurement.
+Collect the candidate runs:
+
+```bash
+uv run benchmatrix measure --runs 3 --output candidate \
+    tests/test_sum_benchmark.py
+```
+
+## 5. Compare baseline and candidate
+
+```bash
+uv run benchmatrix compare baseline candidate --threshold 5% --summary
+```
+
+The exact percentages depend on the machine. The `loop` cells should be marked
+`regressed`; unaffected cells may be `unchanged` or `inconclusive` when repeated
+runs disagree. Inconclusive means the available measurements do not support a
+confident decision—it is not silently treated as a pass or a regression.
+
+Add `--fail-on-regression` when the comparison should act as a local or CI gate:
+
+```bash
+uv run benchmatrix compare baseline candidate \
+    --threshold 5% \
+    --fail-on-regression
+```
+
+The command exits `1` for a regression, inadequate evidence, an incomplete
+matrix, or a blocking environment difference.
+
+In GitHub Actions, add `--github-summary` to publish the same decision in the
+job summary.
+
+## 6. Load a saved run from Python
+
+The CLI is the shortest comparison path. Use the Python API when building a
+custom report or analysis:
+
+```python
+from benchmatrix import load_benchmark_run
+
+run = load_benchmark_run("baseline/run-001.json")
+
+print(run.implementations)
+print(run.cases)
+print(run.metrics)
+print(run.metadata.get("machine_info"))
+```
 
 ## Checkpoint
 
 You now have:
 
-* one benchmark matrix;
-* two implementations;
-* one input case;
-* three JSON results that can be parsed into benchmatrix result objects;
-* a manifest that records the repeated-run collection.
+* a correctness-checked benchmark matrix;
+* three baseline and three candidate runs;
+* manifests recording the commands, environments, and collection lifecycle;
+* a matrix-aware regression decision suitable for local use or CI.
 
 Next, read [Create a benchmark matrix](../how-to/create-benchmark-matrix.md) for
-focused examples of fresh inputs and work-unit metadata.
+fresh inputs, lifecycle hooks, and result validation, or
+[Gate regressions in GitHub Actions](../how-to/github-actions.md) to automate
+the comparison.
