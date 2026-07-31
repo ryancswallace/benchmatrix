@@ -49,3 +49,7 @@ TODO.md
 examples/benchmark_results/
 /demo-baseline/
 /demo-candidate/
+
+# Generated demo recordings (the MP4 is hosted with the GitHub release)
+/docs/assets/basic-demo.mp4
+/docs/assets/basic-demo.webm

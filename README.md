@@ -50,6 +50,22 @@ benchmatrix compare baseline candidate --fail-on-regression
 Results are available as readable terminal output, versioned JSON, Markdown,
 and GitHub Actions summaries.
 
+<!-- markdownlint-disable MD033 -->
+<p align="center">
+  <a href="https://github.com/ryancswallace/benchmatrix/releases/download/v1.0.0/basic-demo.mp4">
+    <img
+      alt="Preview of benchmatrix collecting and comparing repeated benchmark runs"
+      src="docs/assets/basic-demo.png"
+      width="760"
+    >
+  </a>
+  <br>
+  <a href="https://github.com/ryancswallace/benchmatrix/releases/download/v1.0.0/basic-demo.mp4">
+    Watch the one-minute demo
+  </a>
+</p>
+<!-- markdownlint-enable MD033 -->
+
 > [!TIP]
 > **Read the [benchmatrix documentation](https://ryancswallace.github.io/benchmatrix/)**
 > for the quickstart, usage guides, and API reference.

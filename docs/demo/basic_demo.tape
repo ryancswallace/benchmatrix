@@ -1,6 +1,8 @@
 Output ../assets/basic-demo.mp4
 Output ../assets/basic-demo.webm
 
+# cspell:ignore precmd RPROMPT
+
 Require uv
 
 Set Shell zsh
@@ -11,7 +13,7 @@ Set TypingSpeed 75ms
 Set CursorBlink false
 
 Hide
-Type "precmd() { :; }; precmd_functions=(); PROMPT=''; RPROMPT=''"
+Type "precmd() { :; }; precmd_functions=(); PROMPT='❯ '; RPROMPT=''"
 Enter
 Type "rm -rf -- /tmp/bm-demo-base /tmp/bm-demo-candidate"
 Enter
@@ -72,7 +74,7 @@ Show
 Type "uv run benchmatrix compare /tmp/bm-demo-base /tmp/bm-demo-candidate --threshold 25% --summary"
 Enter
 Wait+Screen@60s /Overall: FAIL/
-Screenshot docs/assets/basic-demo.png
+Screenshot ../assets/basic-demo.png
 Sleep 8s
 
 Hide
