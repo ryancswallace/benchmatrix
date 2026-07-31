@@ -354,6 +354,21 @@ def test_load_manifest_rejects_unknown_keys_and_unsafe_run_paths(
         _ = load_benchmark_run_group(group.manifest_path)
 
 
+def test_load_manifest_rejects_duplicate_run_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _install_runner(monkeypatch, lambda index, _path: (0, _run_payload(1.0 + index / 100)))
+    group = collect_benchmark_runs(("pytest",), tmp_path / "runs", run_count=2)
+    manifest = cast(dict[str, object], json.loads(group.manifest_path.read_text()))
+    records = cast(list[dict[str, object]], manifest["runs"])
+    records[1]["path"] = records[0]["path"]
+    _ = group.manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(BenchmarkJsonError, match="run paths must be unique"):
+        _ = load_benchmark_run_group(group.manifest_path)
+
+
 @pytest.mark.parametrize(
     ("changes", "message"),
     [
@@ -523,7 +538,7 @@ def test_collect_rejects_non_json_environment_metadata(
     group = collect_benchmark_runs(("pytest",), tmp_path / "bad-metadata", run_count=1)
 
     assert group.successful_count == 0
-    assert "strict-JSON-safe" in cast(str, group.records[0].error)
+    assert "non-standard numeric constant" in cast(str, group.records[0].error)
 
 
 def test_collect_rejects_output_path_that_is_a_file(tmp_path: Path) -> None:

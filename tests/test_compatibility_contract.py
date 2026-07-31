@@ -293,7 +293,7 @@ _STABLE_RECORD_FIELDS = {
 }
 
 _CLI_SURFACE = {
-    "benchmatrix": ((("-h", "--help"),), ()),
+    "benchmatrix": ((("-h", "--help"), ("--version",)), ()),
     "benchmatrix collect": (
         (
             ("-h", "--help"),

@@ -209,7 +209,7 @@ def test_built_wheel_can_be_imported_from_clean_virtualenv(tmp_path: Path) -> No
         cwd=_PROJECT_ROOT,
     )
 
-    _, case_name, pytest_imported = result.stdout.strip().splitlines()
+    package_version, case_name, pytest_imported = result.stdout.strip().splitlines()
     assert case_name == "case"
     assert pytest_imported == "False"
 
@@ -217,4 +217,10 @@ def test_built_wheel_can_be_imported_from_clean_virtualenv(tmp_path: Path) -> No
         [str(_venv_script(venv_dir, "benchmatrix")), "--help"],
         cwd=_PROJECT_ROOT,
     )
-    assert "Collect, parse, and compare benchmatrix pytest-benchmark runs." in cli_result.stdout
+    assert "Measure repeatable Python benchmark matrices and detect regressions." in cli_result.stdout
+
+    version_result = _run_command(
+        [str(_venv_script(venv_dir, "benchmatrix")), "--version"],
+        cwd=_PROJECT_ROOT,
+    )
+    assert version_result.stdout.strip() == f"benchmatrix {package_version}"

@@ -12,10 +12,12 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Literal, TextIO, TypeVar, cast
 
+from . import __version__
 from ._schema import POLICY_INSPECTION_KIND, POLICY_INSPECTION_SCHEMA_VERSION, PRODUCER
 from .bench_collection import (
     RUN_GROUP_MANIFEST,
     BenchmarkRunGroup,
+    _redirect_collection_command_stdout,
     collect_benchmark_runs,
     load_benchmark_run_group,
 )
@@ -84,7 +86,12 @@ def build_parser() -> argparse.ArgumentParser:
     """Build the benchmatrix command-line parser."""
     parser = argparse.ArgumentParser(
         prog="benchmatrix",
-        description="Collect, parse, and compare benchmatrix pytest-benchmark runs.",
+        description="Measure repeatable Python benchmark matrices and detect regressions.",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -405,13 +412,23 @@ def _collect_and_display(
     """Collect benchmark runs and display their summary."""
 
     try:
-        group = collect_benchmark_runs(
-            command,
-            cast(Path, args.output),
-            run_count=cast(int | None, args.runs),
-            resume=bool(args.resume or args.retry_failed),
-            retry_failed=bool(args.retry_failed),
-        )
+        if args.format == "json":
+            with _redirect_collection_command_stdout(stderr):
+                group = collect_benchmark_runs(
+                    command,
+                    cast(Path, args.output),
+                    run_count=cast(int | None, args.runs),
+                    resume=bool(args.resume or args.retry_failed),
+                    retry_failed=bool(args.retry_failed),
+                )
+        else:
+            group = collect_benchmark_runs(
+                command,
+                cast(Path, args.output),
+                run_count=cast(int | None, args.runs),
+                resume=bool(args.resume or args.retry_failed),
+                retry_failed=bool(args.retry_failed),
+            )
     except (BenchmarkCollectionError, BenchmarkJsonError, OSError, TypeError, ValueError) as exc:
         print(f"benchmatrix: error: {exc}", file=stderr)
         return _EXIT_USAGE_ERROR
@@ -478,6 +495,12 @@ def _run_compare(
         candidate_paths = (cast(Path, args.candidate), *cast(list[Path], args.candidate_run))
         baseline_side = _load_run_side(baseline_paths)
         candidate_side = _load_run_side(candidate_paths)
+        overlapping_sources = {path.resolve() for path in baseline_side.paths} & {
+            path.resolve() for path in candidate_side.paths
+        }
+        if overlapping_sources:
+            overlap = min(overlapping_sources, key=str)
+            raise BenchmarkJsonError(f"Baseline and candidate run sources overlap: {overlap}")
         compatibility_policy, regression_policy, evidence_policy = _apply_cli_policy_overrides(
             policy_context.config,
             args,
@@ -616,16 +639,28 @@ def _load_run_side(paths: Sequence[Path]) -> _LoadedRunSide:
     runs: list[BenchmarkRun] = []
     resolved_paths: list[Path] = []
     groups: list[BenchmarkRunGroup] = []
+    seen_sources: set[Path] = set()
+
+    def append_run(run: BenchmarkRun, source: Path) -> None:
+        """Append one uniquely sourced run."""
+        canonical_source = source.resolve()
+        if canonical_source in seen_sources:
+            raise BenchmarkJsonError(f"Duplicate benchmark run source: {source}")
+        seen_sources.add(canonical_source)
+        runs.append(run)
+        resolved_paths.append(source)
+
     for path in paths:
         if path.is_dir() or path.name == RUN_GROUP_MANIFEST:
             group = load_benchmark_run_group(path)
             groups.append(group)
-            runs.extend(group.runs)
-            resolved_paths.extend(run.source for run in group.runs if run.source is not None)
+            for run in group.runs:
+                if run.source is None:
+                    raise BenchmarkJsonError(f"Collected benchmark run has no source path: {path}")
+                append_run(run, run.source)
         else:
             run = load_benchmark_run(path)
-            runs.append(run)
-            resolved_paths.append(path)
+            append_run(run, path)
     if not runs:
         raise BenchmarkJsonError("Benchmark comparison source contains no successful runs.")
     return _LoadedRunSide(runs=tuple(runs), paths=tuple(resolved_paths), groups=tuple(groups))

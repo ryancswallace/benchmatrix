@@ -13,10 +13,18 @@ from typing import cast
 import pytest
 
 import benchmatrix.bench_collection as collection_module
-from benchmatrix import load_comparison_report
+from benchmatrix import __version__, load_comparison_report
 from benchmatrix.cli import main
 
 pytestmark = pytest.mark.unit
+
+
+def test_cli_reports_installed_version(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        _ = main(["--version"])
+
+    assert exc_info.value.code == 0
+    assert capsys.readouterr().out == f"benchmatrix {__version__}\n"
 
 
 def _environment_metadata(*, system: str = "Linux") -> dict[str, object]:
@@ -102,10 +110,14 @@ def _install_collection_runner(
         *,
         check: bool,
         cwd: Path,
+        stdout: int | None = None,
+        text: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         nonlocal call_count
         assert check is False
         assert cwd == Path.cwd().resolve()
+        assert stdout in {None, subprocess.PIPE}
+        assert text is (stdout == subprocess.PIPE)
         commands.append(tuple(command))
         pytest_addopts.append(os.environ.get("PYTEST_ADDOPTS"))
         value = values[call_count]
@@ -911,6 +923,48 @@ def test_collect_cli_creates_first_class_group_and_json_summary(
     assert all(set(cell) == {"implementation_name", "case_name", "metric_name"} for cell in cells)
 
 
+def test_collect_json_routes_real_child_stdout_to_stderr(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload = json.dumps(_run_payload({("impl", "small"): 1.0}))
+    script = tmp_path / "write_benchmark.py"
+    _ = script.write_text(
+        "\n".join(
+            (
+                "import sys",
+                "from pathlib import Path",
+                f"payload = {payload!r}",
+                "argument = next(value for value in sys.argv if value.startswith('--benchmark-json='))",
+                "Path(argument.split('=', 1)[1]).write_text(payload, encoding='utf-8')",
+                "print('child benchmark output')",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    exit_code = main(
+        [
+            "collect",
+            "--runs",
+            "1",
+            "--output",
+            str(tmp_path / "collection"),
+            "--format",
+            "json",
+            "--",
+            sys.executable,
+            str(script),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert cast(dict[str, object], json.loads(captured.out))["complete"] is True
+    assert "child benchmark output" not in captured.out
+    assert "child benchmark output" in captured.err
+
+
 def test_measure_cli_builds_isolated_pytest_command_and_forwards_arguments(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1218,6 +1272,32 @@ def test_compare_cli_expands_collection_directories_and_manifests(
     assert "Candidate collection: complete; 2/2 succeeded" in output.out
     assert "Runs: 2 baseline, 2 candidate" in output.out
     assert "regressed" in output.out
+
+
+def test_compare_cli_rejects_duplicate_and_overlapping_run_sources(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    baseline = _write_run(tmp_path, "baseline.json", {("impl", "small"): 1.0})
+    candidate = _write_run(tmp_path, "candidate.json", {("impl", "small"): 1.0})
+
+    duplicate_exit = main(
+        [
+            "compare",
+            str(baseline),
+            str(candidate),
+            "--baseline-run",
+            str(baseline),
+        ]
+    )
+    duplicate_output = capsys.readouterr()
+    assert duplicate_exit == 2
+    assert "Duplicate benchmark run source" in duplicate_output.err
+
+    overlap_exit = main(["compare", str(baseline), str(baseline)])
+    overlap_output = capsys.readouterr()
+    assert overlap_exit == 2
+    assert "Baseline and candidate run sources overlap" in overlap_output.err
 
 
 def test_compare_cli_incomplete_collection_cannot_pass_gate(

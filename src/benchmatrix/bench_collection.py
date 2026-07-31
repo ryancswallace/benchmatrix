@@ -6,11 +6,13 @@ import hashlib
 import json
 import subprocess  # nosec B404
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal, TypeAlias, cast
+from typing import Literal, TextIO, TypeAlias, cast
 
 from ._schema import (
     KNOWN_METRICS,
@@ -34,6 +36,11 @@ CollectionRunStatus: TypeAlias = Literal["succeeded", "failed"]
 BenchmarkCell: TypeAlias = tuple[str, str, MetricName]
 
 RUN_GROUP_MANIFEST = "benchmatrix-manifest.json"
+
+_COLLECTION_COMMAND_STDOUT: ContextVar[TextIO | None] = ContextVar(
+    "benchmatrix_collection_command_stdout",
+    default=None,
+)
 
 _ROOT_KEYS = frozenset(
     {
@@ -65,6 +72,16 @@ _RECORD_KEYS = frozenset(
     }
 )
 _CELL_KEYS = frozenset({"implementation_name", "case_name", "metric_name"})
+
+
+@contextmanager
+def _redirect_collection_command_stdout(stream: TextIO) -> Iterator[None]:
+    """Route child stdout through a Python text stream for CLI JSON mode."""
+    token = _COLLECTION_COMMAND_STDOUT.set(stream)
+    try:
+        yield
+    finally:
+        _COLLECTION_COMMAND_STDOUT.reset(token)
 
 
 @dataclass(frozen=True, slots=True)
@@ -337,11 +354,16 @@ def load_benchmark_run_group(path: str | Path) -> BenchmarkRunGroup:
 
     records: list[BenchmarkRunRecord] = []
     runs: list[BenchmarkRun] = []
+    record_paths: set[Path] = set()
     for position, record_payload in enumerate(record_payloads):
         record_path = f"manifest.runs[{position}]"
         record_mapping = _require_mapping(record_payload, path=record_path)
         _require_exact_keys(record_mapping, _RECORD_KEYS, path=record_path)
         record = _parse_record(record_mapping, manifest_path=manifest_path, path=record_path)
+        canonical_record_path = record.path.resolve()
+        if canonical_record_path in record_paths:
+            raise BenchmarkJsonError("Manifest run paths must be unique.")
+        record_paths.add(canonical_record_path)
         records.append(record)
         if record.status == "succeeded":
             run = load_benchmark_run(record.path)
@@ -490,7 +512,20 @@ def collect_benchmark_runs(
             try:
                 # The CLI intentionally executes user-supplied argv without a shell.
                 argv = [*normalized_command, f"--benchmark-json={result_path}"]
-                completed = subprocess.run(argv, check=False, cwd=cwd)  # nosec B603
+                command_stdout = _COLLECTION_COMMAND_STDOUT.get()
+                if command_stdout is None:
+                    completed = subprocess.run(argv, check=False, cwd=cwd)  # nosec B603
+                else:
+                    completed = subprocess.run(  # nosec B603
+                        argv,
+                        check=False,
+                        cwd=cwd,
+                        stdout=subprocess.PIPE,
+                        text=True,
+                    )
+                    if completed.stdout:
+                        _ = command_stdout.write(completed.stdout)
+                        command_stdout.flush()
                 returncode = completed.returncode
                 if returncode != 0:
                     error = f"Benchmark command exited with status {returncode}."
