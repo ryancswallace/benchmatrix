@@ -228,7 +228,8 @@ def test_markdown_report_preserves_lifecycle_evidence_and_policy(
     assert "6.00% (metric/configuration)" in markdown
     assert "runs 1/1; rounds [5]; iterations [1]" in markdown
     assert "CV 1.41%" in markdown
-    assert "- Configuration: " + str(tmp_path / "pyproject.toml") in markdown
+    configuration_path = str(tmp_path / "pyproject.toml").replace("\\", "\\\\")
+    assert "- Configuration: " + configuration_path in markdown
     assert "`regression.by_metric.single_call_latency`" in markdown
 
 
