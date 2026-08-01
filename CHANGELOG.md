@@ -9,7 +9,61 @@ compatibility expectations described in [the release policy](RELEASING.md).
 
 ### Added
 
+* Add deterministic run-level BCa bootstrap confidence intervals for the
+    direction-aware percentage ratio of median per-run statistics, with a
+    reported percentile-bootstrap fallback for degenerate adjustments.
+* Add Bonferroni matrix-wide multiplicity control, formal practical-equivalence
+    decisions, per-cell inference diagnostics, and configurable confidence,
+    resample count, random seed, and inference method.
+* Add per-run IQR, coefficient-of-variation, and Tukey-outlier diagnostics,
+    stronger round and raw-observation checks, and tail-latency-specific
+    evidence requirements.
+* Add comparison report schema version 2 with durable inference policy,
+    confidence interval, estimand, family-size, method, seed, and adequacy
+    fields while retaining strict schema version 1 loading.
+* Add deterministic Williams-style matrix-cell ordering that balances ordinal
+    position and, over a complete cycle, first-order carryover. Paired block
+    members always receive the same scheduled cell order.
+* Add manifest-backed paired collection with adjacent alternating AB/BA blocks,
+    atomic complete-pair membership, separate baseline and candidate working
+    directories, and resumable full-block retries that retain orphan results
+    for audit without using them for inference. Automatic targets complete a
+    joint supercycle in which every Williams row occurs under both AB and BA.
+* Add explicit paired run-group comparison and paired run-level BCa intervals.
+    Manifest-backed resampling preserves matched tuples and fixed AB/BA stratum
+    counts while retaining the same direction-aware ratio-of-marginal-medians
+    estimand as independent analysis.
+* Add fixed-design precision planning for paired pilots using Student-t-scaled
+    within-stratum paired log-ratio variability and Bonferroni-adjusted family
+    confidence. Plans honor the evidence minimum, round to a complete design
+    multiple, size a fresh future collection, and are explicitly not power
+    analysis, sequential stopping, or permission to append to the pilot.
+
 ### Changed
+
+* **Statistical-correctness exception:** change the default minimum independent
+    runs per side from two to five, require five rounds and retained raw
+    round-duration observations per run, and require 100 observations with one
+    iteration per round for tail-latency inference. These decision-default
+    changes intentionally narrow the 1.x compatibility contract so weak
+    evidence cannot produce a conclusive statistical claim.
+* Make confidence-interval placement, rather than the observed Cartesian
+    pairwise range, determine `improved`, `regressed`, `unchanged`, and
+    `inconclusive`. `unchanged` now means the complete interval is inside the
+    configured practical-equivalence region.
+* Make single-run comparisons descriptive and inconclusive under the default
+    inference method. Select `legacy_consistency` explicitly to retain the
+    earlier non-inferential pairwise-range decision rule during migration.
+* Apply configured CV and outlier limits to each process run. Pooled
+    diagnostics remain available for description but no longer act as the
+    primary quality gate.
+* Write comparison and policy-inspection documents as schema version 3.
+    Comparison reports continue to read and strictly validate schema versions
+    1 and 2, and upgrade all three readable versions to the current typed model
+    when loaded. The schema version 2 inference history above remains intact.
+* Treat complete adjacent blocks, rather than successful commands, as the
+    evidence target for paired collection. A failed or interrupted member makes
+    the entire block ineligible until a fresh two-command block succeeds.
 
 ### Deprecated
 
