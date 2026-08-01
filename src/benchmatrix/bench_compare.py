@@ -7,6 +7,7 @@ import re
 import statistics
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
+from hashlib import sha256
 from types import MappingProxyType
 from typing import Literal, TypeAlias, cast
 
@@ -27,6 +28,12 @@ from ._schema import (
     MetricName,
 )
 from .bench_results import BenchmarkRun, ParsedBenchmarkRow
+from .bench_statistics import (
+    PrecisionPlan,
+    bootstrap_median_ratio_interval,
+    bootstrap_paired_median_ratio_interval,
+    plan_paired_precision,
+)
 
 ComparisonStatus: TypeAlias = Literal[
     "matched",
@@ -45,6 +52,10 @@ RegressionClassification: TypeAlias = Literal[
 RegressionThresholdScope: TypeAlias = Literal["cell", "case", "implementation", "metric", "default"]
 CompatibilityMode: TypeAlias = Literal["strict", "permissive", "off"]
 CompatibilitySeverity: TypeAlias = Literal["blocking", "warning"]
+InferenceMethod: TypeAlias = Literal["bca_bootstrap", "legacy_consistency"]
+IntervalMethod: TypeAlias = Literal["bca_bootstrap", "percentile_bootstrap"]
+MultiplicityCorrection: TypeAlias = Literal["bonferroni", "none"]
+ComparisonDesign: TypeAlias = Literal["independent", "paired"]
 
 _CellKey: TypeAlias = tuple[str, str, MetricName]
 _MISSING = object()
@@ -112,18 +123,30 @@ class EvidencePolicy:
         minimum_runs: Minimum files on each side containing a matrix cell.
         minimum_samples_per_run: Minimum raw timing samples required from each
             observed file.
+        minimum_rounds_per_run: Minimum pytest-benchmark rounds required from
+            each observed file.
         require_rounds: Whether every row must report a positive round count.
         require_iterations: Whether every row must report a positive iteration
             count.
-        maximum_cv: Optional maximum pooled-sample coefficient of variation.
-        maximum_outlier_fraction: Optional maximum pooled-sample Tukey-outlier
+        require_raw_samples_for_inference: Whether every observed row must
+            retain raw per-round durations.
+        minimum_tail_samples_per_run: Minimum round-duration observations
+            required from each tail-latency row.
+        require_tail_iterations_one: Whether tail-latency rows must represent
+            individual calls rather than averages of multiple iterations.
+        maximum_cv: Optional maximum within-run coefficient of variation.
+        maximum_outlier_fraction: Optional maximum within-run Tukey-outlier
             fraction.
     """
 
-    minimum_runs: int = 2
+    minimum_runs: int = 5
     minimum_samples_per_run: int = 5
+    minimum_rounds_per_run: int = 5
     require_rounds: bool = True
     require_iterations: bool = True
+    require_raw_samples_for_inference: bool = True
+    minimum_tail_samples_per_run: int = 100
+    require_tail_iterations_one: bool = True
     maximum_cv: float | None = None
     maximum_outlier_fraction: float | None = None
 
@@ -137,10 +160,24 @@ class EvidencePolicy:
             raise TypeError("EvidencePolicy.minimum_samples_per_run must be an integer.")
         if self.minimum_samples_per_run < 0:
             raise ValueError("EvidencePolicy.minimum_samples_per_run must be a non-negative integer.")
+        if isinstance(self.minimum_rounds_per_run, bool) or not isinstance(self.minimum_rounds_per_run, int):
+            raise TypeError("EvidencePolicy.minimum_rounds_per_run must be an integer.")
+        if self.minimum_rounds_per_run < 0:
+            raise ValueError("EvidencePolicy.minimum_rounds_per_run must be a non-negative integer.")
         if not isinstance(self.require_rounds, bool):
             raise TypeError("EvidencePolicy.require_rounds must be a boolean.")
         if not isinstance(self.require_iterations, bool):
             raise TypeError("EvidencePolicy.require_iterations must be a boolean.")
+        if not isinstance(self.require_raw_samples_for_inference, bool):
+            raise TypeError("EvidencePolicy.require_raw_samples_for_inference must be a boolean.")
+        if isinstance(self.minimum_tail_samples_per_run, bool) or not isinstance(
+            self.minimum_tail_samples_per_run, int
+        ):
+            raise TypeError("EvidencePolicy.minimum_tail_samples_per_run must be an integer.")
+        if self.minimum_tail_samples_per_run < 0:
+            raise ValueError("EvidencePolicy.minimum_tail_samples_per_run must be a non-negative integer.")
+        if not isinstance(self.require_tail_iterations_one, bool):
+            raise TypeError("EvidencePolicy.require_tail_iterations_one must be a boolean.")
         if self.maximum_cv is not None:
             object.__setattr__(
                 self,
@@ -172,13 +209,19 @@ class BenchmarkEvidence:
         iterations: Positive iteration counts aligned to the files.
         sample_counts: Raw timing sample counts aligned to the files.
         sample_count: Total pooled raw timing samples.
-        iqr: Interquartile range of pooled timing samples in seconds.
+        iqr: Interquartile range of pooled timing samples in seconds. Retained
+            as a descriptive compatibility field; evidence gates use the
+            corresponding per-run diagnostics.
         coefficient_of_variation: Pooled timing-sample population standard
             deviation divided by the absolute mean.
         outlier_count: Samples outside the pooled 1.5-IQR Tukey fences.
         outlier_fraction: Outlier count divided by total sample count.
         adequate: Whether the configured evidence policy was satisfied.
         issues: Human-readable reasons evidence is inadequate.
+        run_iqrs: Per-run timing-sample interquartile ranges.
+        run_coefficients_of_variation: Per-run coefficients of variation.
+        run_outlier_counts: Per-run Tukey-outlier counts.
+        run_outlier_fractions: Per-run Tukey-outlier fractions.
     """
 
     provided_run_count: int
@@ -193,6 +236,181 @@ class BenchmarkEvidence:
     outlier_fraction: float | None
     adequate: bool
     issues: tuple[str, ...]
+    run_iqrs: tuple[float | None, ...] = ()
+    run_coefficients_of_variation: tuple[float | None, ...] = ()
+    run_outlier_counts: tuple[int | None, ...] = ()
+    run_outlier_fractions: tuple[float | None, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class InferencePolicy:
+    """Policy controlling run-level statistical inference.
+
+    The default method bootstraps complete process-run statistics, applies a
+    BCa interval, and uses a Bonferroni-adjusted simultaneous confidence level
+    across the reported matrix. ``legacy_consistency`` preserves the version 1
+    observed-pairwise-range decision rule and is intentionally non-inferential.
+    """
+
+    method: InferenceMethod = "bca_bootstrap"
+    confidence_level: float = 0.95
+    resamples: int = 50_000
+    random_seed: int = 0
+    multiplicity: MultiplicityCorrection = "bonferroni"
+
+    def __post_init__(self) -> None:
+        """Validate inference controls."""
+        if self.method not in {"bca_bootstrap", "legacy_consistency"}:
+            raise ValueError(f"Unsupported inference method: {self.method!r}.")
+        confidence_level = _validate_fraction(
+            self.confidence_level,
+            field_name="InferencePolicy.confidence_level",
+        )
+        if confidence_level in {0.0, 1.0}:
+            raise ValueError("InferencePolicy.confidence_level must be between zero and one.")
+        if isinstance(self.resamples, bool) or not isinstance(self.resamples, int):
+            raise TypeError("InferencePolicy.resamples must be an integer.")
+        if self.resamples < 1_000:
+            raise ValueError("InferencePolicy.resamples must be at least 1000.")
+        if isinstance(self.random_seed, bool) or not isinstance(self.random_seed, int):
+            raise TypeError("InferencePolicy.random_seed must be an integer.")
+        if self.random_seed < 0:
+            raise ValueError("InferencePolicy.random_seed must be non-negative.")
+        if self.multiplicity not in {"bonferroni", "none"}:
+            raise ValueError(f"Unsupported multiplicity correction: {self.multiplicity!r}.")
+        object.__setattr__(self, "confidence_level", confidence_level)
+
+
+@dataclass(frozen=True, slots=True)
+class PrecisionPolicy:
+    """Optional fixed-design precision target for paired pilot comparisons.
+
+    ``target_half_width_percent=None`` disables planning. When enabled, each
+    paired matrix cell estimates the pair count for a fresh future collection;
+    the pilot comparison and its pass/fail decision are never changed by the
+    plan.
+    """
+
+    target_half_width_percent: float | None = None
+
+    def __post_init__(self) -> None:
+        """Validate and normalize the optional percentage target."""
+        if self.target_half_width_percent is None:
+            return
+        target = _validate_non_negative_number(
+            self.target_half_width_percent,
+            field_name="PrecisionPolicy.target_half_width_percent",
+        )
+        if target == 0.0:
+            raise ValueError("PrecisionPolicy.target_half_width_percent must be positive when enabled.")
+        object.__setattr__(self, "target_half_width_percent", target)
+
+    @property
+    def enabled(self) -> bool:
+        """Return whether paired precision planning is requested."""
+        return self.target_half_width_percent is not None
+
+
+@dataclass(frozen=True, slots=True)
+class BenchmarkInference:
+    """Statistical inference for one benchmark matrix cell."""
+
+    method: IntervalMethod
+    estimand: str
+    design: ComparisonDesign
+    confidence_level: float
+    adjusted_confidence_level: float
+    multiplicity: MultiplicityCorrection
+    family_size: int
+    resamples: int
+    random_seed: int
+    estimate_percent: float | None
+    confidence_low_percent: float | None
+    confidence_high_percent: float | None
+    warnings: tuple[str, ...] = ()
+    issues: tuple[str, ...] = ()
+    pair_count: int | None = None
+    strata_count: int | None = None
+
+    def __post_init__(self) -> None:
+        """Validate and normalize an inference result."""
+        if self.method not in {"bca_bootstrap", "percentile_bootstrap"}:
+            raise ValueError(f"Unsupported interval method: {self.method!r}.")
+        if self.design not in {"independent", "paired"}:
+            raise ValueError(f"Unsupported inference design: {self.design!r}.")
+        if not isinstance(self.estimand, str) or not self.estimand:
+            raise ValueError("BenchmarkInference.estimand must be a non-empty string.")
+        confidence_level = _validate_fraction(
+            self.confidence_level,
+            field_name="BenchmarkInference.confidence_level",
+        )
+        adjusted_confidence_level = _validate_fraction(
+            self.adjusted_confidence_level,
+            field_name="BenchmarkInference.adjusted_confidence_level",
+        )
+        if confidence_level in {0.0, 1.0} or adjusted_confidence_level in {0.0, 1.0}:
+            raise ValueError("BenchmarkInference confidence levels must be between zero and one.")
+        if adjusted_confidence_level < confidence_level:
+            raise ValueError("Adjusted confidence level must not be lower than the nominal confidence level.")
+        if self.multiplicity not in {"bonferroni", "none"}:
+            raise ValueError(f"Unsupported multiplicity correction: {self.multiplicity!r}.")
+        if isinstance(self.family_size, bool) or not isinstance(self.family_size, int) or self.family_size <= 0:
+            raise ValueError("BenchmarkInference.family_size must be a positive integer.")
+        if isinstance(self.resamples, bool) or not isinstance(self.resamples, int):
+            raise TypeError("BenchmarkInference.resamples must be an integer.")
+        if self.resamples < 1_000:
+            raise ValueError("BenchmarkInference.resamples must be at least 1000.")
+        if isinstance(self.random_seed, bool) or not isinstance(self.random_seed, int):
+            raise TypeError("BenchmarkInference.random_seed must be an integer.")
+        if self.random_seed < 0:
+            raise ValueError("BenchmarkInference.random_seed must be non-negative.")
+        if self.design == "independent" and (self.pair_count is not None or self.strata_count is not None):
+            raise ValueError("Independent inference must not define paired-design counts.")
+        if self.design == "paired" and (
+            isinstance(self.pair_count, bool) or not isinstance(self.pair_count, int) or self.pair_count <= 0
+        ):
+            raise ValueError("Paired inference requires a positive integer pair_count.")
+        if self.design == "paired" and (
+            isinstance(self.strata_count, bool)
+            or not isinstance(self.strata_count, int)
+            or self.strata_count <= 0
+            or self.pair_count is None
+            or self.strata_count > self.pair_count
+        ):
+            raise ValueError("Paired inference requires a valid positive strata_count no greater than pair_count.")
+        for field_name, value in (
+            ("estimate_percent", self.estimate_percent),
+            ("confidence_low_percent", self.confidence_low_percent),
+            ("confidence_high_percent", self.confidence_high_percent),
+        ):
+            if value is not None and not math.isfinite(value):
+                raise ValueError(f"BenchmarkInference.{field_name} must be finite or None.")
+        present = (
+            self.estimate_percent is not None,
+            self.confidence_low_percent is not None,
+            self.confidence_high_percent is not None,
+        )
+        if any(present) and not all(present):
+            raise ValueError("BenchmarkInference estimate and confidence bounds must be present together.")
+        if (
+            self.confidence_low_percent is not None
+            and self.confidence_high_percent is not None
+            and self.confidence_low_percent > self.confidence_high_percent
+        ):
+            raise ValueError("BenchmarkInference confidence bounds are reversed.")
+        warnings = tuple(self.warnings)
+        issues = tuple(self.issues)
+        if any(not isinstance(item, str) or not item for item in (*warnings, *issues)):
+            raise ValueError("BenchmarkInference warnings and issues must contain non-empty strings.")
+        object.__setattr__(self, "warnings", warnings)
+        object.__setattr__(self, "issues", issues)
+        object.__setattr__(self, "confidence_level", confidence_level)
+        object.__setattr__(self, "adjusted_confidence_level", adjusted_confidence_level)
+
+    @property
+    def adequate(self) -> bool:
+        """Return whether a complete confidence interval is available."""
+        return not self.issues and self.confidence_low_percent is not None and self.confidence_high_percent is not None
 
 
 @dataclass(frozen=True, slots=True)
@@ -317,6 +535,8 @@ class BenchmarkComparison:
     improvement_low_percent: float | None = None
     improvement_high_percent: float | None = None
     reason: str | None = None
+    inference: BenchmarkInference | None = None
+    precision: PrecisionPlan | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -331,6 +551,9 @@ class BenchmarkRunComparison:
     baseline_runs: tuple[BenchmarkRun, ...] = ()
     candidate_runs: tuple[BenchmarkRun, ...] = ()
     evidence_policy: EvidencePolicy = field(default_factory=EvidencePolicy)
+    inference_policy: InferencePolicy = field(default_factory=InferencePolicy)
+    design: ComparisonDesign = "independent"
+    precision_policy: PrecisionPolicy = field(default_factory=PrecisionPolicy)
 
     @property
     def matched(self) -> tuple[BenchmarkComparison, ...]:
@@ -403,6 +626,8 @@ def compare_benchmark_runs(
     *,
     compatibility_policy: RunCompatibilityPolicy | None = None,
     regression_policy: RegressionPolicy | None = None,
+    inference_policy: InferencePolicy | None = None,
+    precision_policy: PrecisionPolicy | None = None,
 ) -> BenchmarkRunComparison:
     """Compare two runs across the union of their benchmark matrix cells.
 
@@ -418,6 +643,11 @@ def compare_benchmark_runs(
             permissive compatibility.
         regression_policy: Thresholds used to classify cell changes. Defaults
             to a five-percent threshold.
+        inference_policy: Run-level uncertainty analysis to apply. A single
+            run cannot produce a default bootstrap interval and is therefore
+            inconclusive unless the legacy method is selected explicitly.
+        precision_policy: Optional precision planning. Planning requires an
+            explicitly paired design and is rejected for this single-run API.
 
     Returns:
         A deterministic comparison across both run matrices.
@@ -427,11 +657,17 @@ def compare_benchmark_runs(
         (candidate,),
         compatibility_policy=compatibility_policy,
         regression_policy=regression_policy,
+        inference_policy=inference_policy,
+        precision_policy=precision_policy,
         evidence_policy=EvidencePolicy(
             minimum_runs=1,
             minimum_samples_per_run=0,
+            minimum_rounds_per_run=0,
             require_rounds=False,
             require_iterations=False,
+            require_raw_samples_for_inference=False,
+            minimum_tail_samples_per_run=0,
+            require_tail_iterations_one=False,
         ),
     )
 
@@ -443,12 +679,16 @@ def compare_benchmark_run_groups(
     compatibility_policy: RunCompatibilityPolicy | None = None,
     regression_policy: RegressionPolicy | None = None,
     evidence_policy: EvidencePolicy | None = None,
+    inference_policy: InferencePolicy | None = None,
+    precision_policy: PrecisionPolicy | None = None,
 ) -> BenchmarkRunComparison:
     """Compare repeated baseline and candidate runs as two evidence groups.
 
-    Each cell uses the median of its per-run metric values. A change beyond the
-    configured regression threshold is conclusive only when every pairwise
-    baseline/candidate effect agrees beyond that threshold.
+    Each cell uses the median of its per-run metric values. By default,
+    run-level BCa bootstrap intervals quantify uncertainty and a Bonferroni
+    adjustment controls the matrix-wide family-wise error rate. Practical
+    thresholds then distinguish improvements, regressions, equivalence, and
+    inconclusive intervals.
 
     Args:
         baselines: Repeated reference benchmark runs.
@@ -456,6 +696,9 @@ def compare_benchmark_run_groups(
         compatibility_policy: Environment checks applied across every run.
         regression_policy: Percentage thresholds for classifying changes.
         evidence_policy: Minimum repeated-run and sample evidence.
+        inference_policy: Statistical inference and multiplicity controls.
+        precision_policy: Optional paired fixed-design planning target. It
+            must remain disabled for independent groups.
 
     Returns:
         A matrix comparison with per-side trust diagnostics.
@@ -464,11 +707,113 @@ def compare_benchmark_run_groups(
         ValueError: If either run group is empty.
         TypeError: If a group contains a value other than ``BenchmarkRun``.
     """
+    return _compare_benchmark_run_groups(
+        baselines,
+        candidates,
+        compatibility_policy=compatibility_policy,
+        regression_policy=regression_policy,
+        evidence_policy=evidence_policy,
+        inference_policy=inference_policy,
+        precision_policy=precision_policy,
+        design="independent",
+    )
+
+
+def compare_paired_benchmark_run_groups(
+    baselines: Sequence[BenchmarkRun],
+    candidates: Sequence[BenchmarkRun],
+    *,
+    pair_strata: Sequence[str] | None = None,
+    precision_pair_count_multiple: int = 2,
+    compatibility_policy: RunCompatibilityPolicy | None = None,
+    regression_policy: RegressionPolicy | None = None,
+    evidence_policy: EvidencePolicy | None = None,
+    inference_policy: InferencePolicy | None = None,
+    precision_policy: PrecisionPolicy | None = None,
+) -> BenchmarkRunComparison:
+    """Compare explicitly matched baseline/candidate process-run pairs.
+
+    The values at each position must come from one adjacent collection block.
+    Complete pairs, rather than individual run files, are the independent
+    experimental units. Pairing is explicit in this API and is never inferred
+    from filenames or timestamps.
+
+    Args:
+        baselines: Baseline members in pair order.
+        candidates: Candidate members in the same pair order.
+        pair_strata: Optional fixed-design stratum label for each pair, such
+            as its recorded ``AB`` or ``BA`` command orientation. When given,
+            paired resampling preserves the observed count in every stratum.
+        precision_pair_count_multiple: Divisibility constraint for a future
+            confirmatory collection. Paired designs default to an even count;
+            manifest-backed collections pass their complete joint design
+            supercycle.
+        compatibility_policy: Environment checks applied across every run.
+        regression_policy: Percentage thresholds for classifying changes.
+        evidence_policy: Minimum complete-pair and sample evidence.
+        inference_policy: Statistical inference and multiplicity controls.
+        precision_policy: Optional fixed-design precision target for a fresh
+            future paired collection.
+
+    Returns:
+        A paired matrix comparison with per-side trust diagnostics.
+
+    Raises:
+        ValueError: If the sequences are empty or have different lengths.
+        TypeError: If either sequence contains a non-``BenchmarkRun`` value.
+    """
+    if len(baselines) != len(candidates):
+        raise ValueError("Paired baseline and candidate groups must contain the same number of runs.")
+    return _compare_benchmark_run_groups(
+        baselines,
+        candidates,
+        compatibility_policy=compatibility_policy,
+        regression_policy=regression_policy,
+        evidence_policy=evidence_policy,
+        inference_policy=inference_policy,
+        precision_policy=precision_policy,
+        design="paired",
+        pair_strata=pair_strata,
+        precision_pair_count_multiple=precision_pair_count_multiple,
+    )
+
+
+def _compare_benchmark_run_groups(
+    baselines: Sequence[BenchmarkRun],
+    candidates: Sequence[BenchmarkRun],
+    *,
+    compatibility_policy: RunCompatibilityPolicy | None,
+    regression_policy: RegressionPolicy | None,
+    evidence_policy: EvidencePolicy | None,
+    inference_policy: InferencePolicy | None,
+    precision_policy: PrecisionPolicy | None,
+    design: ComparisonDesign,
+    pair_strata: Sequence[str] | None = None,
+    precision_pair_count_multiple: int = 1,
+) -> BenchmarkRunComparison:
+    """Implement independent or explicitly paired repeated-run inference."""
     baseline_runs = _validate_run_group(baselines, field_name="baselines")
     candidate_runs = _validate_run_group(candidates, field_name="candidates")
     resolved_compatibility_policy = compatibility_policy or RunCompatibilityPolicy()
     resolved_regression_policy = regression_policy or RegressionPolicy()
     resolved_evidence_policy = evidence_policy or EvidencePolicy()
+    resolved_inference_policy = inference_policy or InferencePolicy()
+    resolved_precision_policy = precision_policy or PrecisionPolicy()
+    resolved_pair_strata = _validate_pair_strata(
+        pair_strata,
+        pair_count=len(baseline_runs),
+        design=design,
+    )
+    if (
+        isinstance(precision_pair_count_multiple, bool)
+        or not isinstance(precision_pair_count_multiple, int)
+        or precision_pair_count_multiple <= 0
+    ):
+        raise ValueError("precision_pair_count_multiple must be a positive integer.")
+    if design == "paired" and precision_pair_count_multiple % 2 != 0:
+        raise ValueError("precision_pair_count_multiple must preserve an even AB/BA allocation.")
+    if design == "independent" and resolved_precision_policy.enabled:
+        raise ValueError("Precision planning requires an explicitly paired comparison design.")
     compatibility = _compare_run_group_compatibility(
         baseline_runs,
         candidate_runs,
@@ -480,6 +825,19 @@ def compare_benchmark_run_groups(
         set().union(*(set(rows) for rows in (*baseline_maps, *candidate_maps))),
         key=_sort_key,
     )
+    family_size = sum(
+        _is_inference_family_member(
+            key,
+            tuple(rows.get(key) for rows in baseline_maps),
+            tuple(rows.get(key) for rows in candidate_maps),
+            environment_compatible=compatibility.is_compatible,
+            design=design,
+        )
+        for key in keys
+    )
+    # Inference is skipped when the family is empty, but each result object
+    # still requires a positive recorded family size.
+    recorded_family_size = max(1, family_size)
     comparisons = tuple(
         _compare_repeated_cell(
             key,
@@ -488,6 +846,12 @@ def compare_benchmark_run_groups(
             environment_compatible=compatibility.is_compatible,
             regression_policy=resolved_regression_policy,
             evidence_policy=resolved_evidence_policy,
+            inference_policy=resolved_inference_policy,
+            family_size=recorded_family_size,
+            design=design,
+            precision_policy=resolved_precision_policy,
+            pair_strata=resolved_pair_strata,
+            precision_pair_count_multiple=precision_pair_count_multiple,
         )
         for key in keys
     )
@@ -500,6 +864,9 @@ def compare_benchmark_run_groups(
         baseline_runs=baseline_runs,
         candidate_runs=candidate_runs,
         evidence_policy=resolved_evidence_policy,
+        inference_policy=resolved_inference_policy,
+        design=design,
+        precision_policy=resolved_precision_policy,
     )
 
 
@@ -514,6 +881,43 @@ def _sort_key(key: _CellKey) -> tuple[str, str, str]:
     return (implementation_name, case_name, metric_name)
 
 
+def _is_inference_family_member(
+    key: _CellKey,
+    baseline_rows: tuple[ParsedBenchmarkRow | None, ...],
+    candidate_rows: tuple[ParsedBenchmarkRow | None, ...],
+    *,
+    environment_compatible: bool,
+    design: ComparisonDesign,
+) -> bool:
+    """Return whether a cell defines a structurally valid hypothesis."""
+    if not environment_compatible:
+        return False
+    if design == "paired" and any(
+        baseline_row is None or candidate_row is None
+        for baseline_row, candidate_row in zip(baseline_rows, candidate_rows, strict=True)
+    ):
+        return False
+    metric_name = key[2]
+    _, derived_key, _, default_unit = _metric_policy(metric_name)
+    baseline_observed = tuple(row for row in baseline_rows if row is not None)
+    candidate_observed = tuple(row for row in candidate_rows if row is not None)
+    if not baseline_observed or not candidate_observed:
+        return False
+    values = tuple(_row_value(row, derived_key) for row in (*baseline_observed, *candidate_observed))
+    if any(value is None or value <= 0.0 for value in values):
+        return False
+    baseline_unit = _first_unit(baseline_observed, default_unit)
+    candidate_unit = _first_unit(candidate_observed, default_unit)
+    return (
+        _repeated_incompatibility_reason(
+            (*baseline_observed, *candidate_observed),
+            baseline_unit=baseline_unit,
+            candidate_unit=candidate_unit,
+        )
+        is None
+    )
+
+
 def _compare_repeated_cell(
     key: _CellKey,
     baseline_rows: tuple[ParsedBenchmarkRow | None, ...],
@@ -522,6 +926,12 @@ def _compare_repeated_cell(
     environment_compatible: bool,
     regression_policy: RegressionPolicy,
     evidence_policy: EvidencePolicy,
+    inference_policy: InferencePolicy,
+    family_size: int,
+    design: ComparisonDesign,
+    precision_policy: PrecisionPolicy,
+    pair_strata: tuple[str, ...] | None,
+    precision_pair_count_multiple: int,
 ) -> BenchmarkComparison:
     """Compare one matrix cell across repeated runs."""
     implementation_name, case_name, metric_name = key
@@ -533,12 +943,30 @@ def _compare_repeated_cell(
     )
     baseline_observed = tuple(row for row in baseline_rows if row is not None)
     candidate_observed = tuple(row for row in candidate_rows if row is not None)
-    baseline_evidence = _analyze_evidence(baseline_rows, evidence_policy)
-    candidate_evidence = _analyze_evidence(candidate_rows, evidence_policy)
+    baseline_evidence = _analyze_evidence(baseline_rows, evidence_policy, metric_name=metric_name)
+    candidate_evidence = _analyze_evidence(candidate_rows, evidence_policy, metric_name=metric_name)
     baseline_values = tuple(_row_value(row, derived_key) for row in baseline_observed)
     candidate_values = tuple(_row_value(row, derived_key) for row in candidate_observed)
     baseline_numeric_values = tuple(value for value in baseline_values if value is not None)
     candidate_numeric_values = tuple(value for value in candidate_values if value is not None)
+    paired_numeric_values = (
+        tuple(
+            (baseline_value, candidate_value)
+            for baseline_row, candidate_row in zip(baseline_rows, candidate_rows, strict=True)
+            if baseline_row is not None
+            and candidate_row is not None
+            and (baseline_value := _row_value(baseline_row, derived_key)) is not None
+            and (candidate_value := _row_value(candidate_row, derived_key)) is not None
+        )
+        if design == "paired"
+        else ()
+    )
+    inference_baseline_values = (
+        tuple(value[0] for value in paired_numeric_values) if design == "paired" else baseline_numeric_values
+    )
+    inference_candidate_values = (
+        tuple(value[1] for value in paired_numeric_values) if design == "paired" else candidate_numeric_values
+    )
 
     if not baseline_observed:
         return _missing_comparison(
@@ -566,8 +994,8 @@ def _compare_repeated_cell(
             candidate_evidence=candidate_evidence,
         )
 
-    baseline_value = _median_or_none(baseline_numeric_values)
-    candidate_value = _median_or_none(candidate_numeric_values)
+    baseline_value = _median_or_none(inference_baseline_values)
+    candidate_value = _median_or_none(inference_candidate_values)
     baseline_unit = _first_unit(baseline_observed, default_unit)
     candidate_unit = _first_unit(candidate_observed, default_unit)
     reason = _repeated_incompatibility_reason(
@@ -580,6 +1008,11 @@ def _compare_repeated_cell(
     ):
         qualifier = "Both rows" if len(baseline_rows) == len(candidate_rows) == 1 else "Every row"
         reason = reason or f"{qualifier} must contain a finite {derived_key!r} derived value."
+    if design == "paired" and len(paired_numeric_values) != len(baseline_rows):
+        reason = reason or "Paired inference requires this cell in both members of every complete run pair."
+
+    if reason is None and any(value <= 0.0 for value in (*baseline_numeric_values, *candidate_numeric_values)):
+        reason = f"Every row must contain a positive {derived_key!r} derived value for ratio inference."
 
     if reason is not None or baseline_value is None or candidate_value is None:
         return BenchmarkComparison(
@@ -605,22 +1038,78 @@ def _compare_repeated_cell(
     ratio = None if baseline_value == 0.0 else candidate_value / baseline_value
     percent_change = None if ratio is None else (ratio - 1.0) * 100.0
     improvement_percent = _directional_improvement(percent_change, direction)
-    pairwise_improvements = _pairwise_improvements(
-        baseline_numeric_values,
-        candidate_numeric_values,
+    pairwise_improvements = _observed_improvements(
+        inference_baseline_values,
+        inference_candidate_values,
         direction=direction,
+        design=design,
     )
     improvement_low = min(pairwise_improvements) if pairwise_improvements else None
     improvement_high = max(pairwise_improvements) if pairwise_improvements else None
     evidence_adequate = baseline_evidence.adequate and candidate_evidence.adequate
-    regression = _classify_repeated_regression(
-        improvement_percent,
-        improvement_low=improvement_low,
-        improvement_high=improvement_high,
-        threshold_percent=threshold_percent,
-        environment_compatible=environment_compatible,
-        evidence_adequate=evidence_adequate,
-    )
+    inference: BenchmarkInference | None = None
+    if inference_policy.method == "legacy_consistency":
+        regression = _classify_repeated_regression(
+            improvement_percent,
+            improvement_low=improvement_low,
+            improvement_high=improvement_high,
+            threshold_percent=threshold_percent,
+            environment_compatible=environment_compatible,
+            evidence_adequate=evidence_adequate,
+        )
+    elif not environment_compatible:
+        regression = "not_comparable"
+    else:
+        inference = _infer_repeated_effect(
+            key,
+            inference_baseline_values,
+            inference_candidate_values,
+            direction=direction,
+            family_size=family_size,
+            evidence_adequate=evidence_adequate,
+            policy=inference_policy,
+            design=design,
+            pair_strata=pair_strata,
+        )
+        regression = _classify_inference(
+            inference,
+            threshold_percent=threshold_percent,
+        )
+    precision: PrecisionPlan | None = None
+    precision_target = precision_policy.target_half_width_percent
+    if design == "paired" and precision_target is not None:
+        precision = plan_paired_precision(
+            inference_baseline_values,
+            inference_candidate_values,
+            lower_is_better=direction == "lower_is_better",
+            target_half_width_percent=precision_target,
+            confidence_level=inference_policy.confidence_level,
+            family_size=family_size,
+            multiplicity=inference_policy.multiplicity,
+            strata=pair_strata,
+            minimum_pairs=evidence_policy.minimum_runs,
+            pair_count_multiple=precision_pair_count_multiple,
+        )
+        if not environment_compatible:
+            precision = replace(
+                precision,
+                critical_value=None,
+                unconstrained_required_pairs=None,
+                required_pairs=None,
+                additional_pairs=None,
+                issues=(
+                    *precision.issues,
+                    "run-environment compatibility was blocked; precision planning is unavailable",
+                ),
+            )
+        if not evidence_adequate:
+            precision = replace(
+                precision,
+                warnings=(
+                    *precision.warnings,
+                    "The pilot does not satisfy the evidence policy; treat this planning estimate as provisional.",
+                ),
+            )
     comparison_reason = _classification_reason(
         regression,
         baseline_evidence=baseline_evidence,
@@ -628,6 +1117,7 @@ def _compare_repeated_cell(
         improvement_low=improvement_low,
         improvement_high=improvement_high,
         threshold_percent=threshold_percent,
+        inference=inference,
     )
 
     return BenchmarkComparison(
@@ -650,6 +1140,8 @@ def _compare_repeated_cell(
         improvement_low_percent=improvement_low,
         improvement_high_percent=improvement_high,
         reason=comparison_reason,
+        inference=inference,
+        precision=precision,
     )
 
 
@@ -696,12 +1188,22 @@ def _missing_comparison(
 def _analyze_evidence(
     rows: tuple[ParsedBenchmarkRow | None, ...],
     policy: EvidencePolicy,
+    *,
+    metric_name: MetricName,
 ) -> BenchmarkEvidence:
     """Compute trust diagnostics for one side of a matrix cell."""
     rounds = tuple(_positive_int_stat(row, "rounds") for row in rows)
     iterations = tuple(_positive_int_stat(row, "iterations") for row in rows)
     sample_counts = tuple(0 if row is None else len(row.samples) for row in rows)
     samples = tuple(sample for row in rows if row is not None for sample in row.samples)
+    run_samples = tuple(() if row is None else row.samples for row in rows)
+    run_iqrs = tuple(_sample_iqr(values) for values in run_samples)
+    run_coefficients_of_variation = tuple(_coefficient_of_variation(values) for values in run_samples)
+    run_outlier_counts = tuple(_tukey_outlier_count(values) for values in run_samples)
+    run_outlier_fractions = tuple(
+        None if count is None or not values else count / len(values)
+        for count, values in zip(run_outlier_counts, run_samples, strict=True)
+    )
     observed_indices = tuple(index for index, row in enumerate(rows) if row is not None)
     issues: list[str] = []
 
@@ -712,32 +1214,50 @@ def _analyze_evidence(
         issues.append(f"cell is missing from {missing_count} provided run(s)")
 
     for index in observed_indices:
-        if sample_counts[index] < policy.minimum_samples_per_run:
-            issues.append(
-                f"run {index} has {sample_counts[index]} sample(s); " + f"{policy.minimum_samples_per_run} required"
-            )
-        if policy.require_rounds and rounds[index] is None:
+        run_rounds = rounds[index]
+        run_iterations = iterations[index]
+        run_sample_count = sample_counts[index]
+        minimum_samples = policy.minimum_samples_per_run
+        if metric_name == METRIC_TAIL_LATENCY:
+            minimum_samples = max(minimum_samples, policy.minimum_tail_samples_per_run)
+        if run_sample_count < minimum_samples:
+            issues.append(f"run {index} has {run_sample_count} sample(s); " + f"{minimum_samples} required")
+        if policy.require_raw_samples_for_inference and run_sample_count == 0:
+            issues.append(f"run {index} does not contain raw round-duration observations")
+        if policy.require_rounds and run_rounds is None:
             issues.append(f"run {index} does not report positive rounds")
-        if policy.require_iterations and iterations[index] is None:
+        if run_rounds is not None and run_rounds < policy.minimum_rounds_per_run:
+            issues.append(f"run {index} reports {run_rounds} round(s); " + f"{policy.minimum_rounds_per_run} required")
+        if run_rounds is not None and run_sample_count and run_rounds != run_sample_count:
+            issues.append(
+                f"run {index} reports {run_rounds} round(s) but contains "
+                + f"{run_sample_count} round-duration observation(s)"
+            )
+        if policy.require_iterations and run_iterations is None:
             issues.append(f"run {index} does not report positive iterations")
+        if metric_name == METRIC_TAIL_LATENCY and policy.require_tail_iterations_one and run_iterations != 1:
+            reported = "no positive iteration count" if run_iterations is None else f"{run_iterations} iterations"
+            issues.append(f"run {index} reports {reported}; tail latency requires one iteration")
+        run_cv = run_coefficients_of_variation[index]
+        if policy.maximum_cv is not None:
+            if run_cv is None:
+                issues.append(f"run {index} coefficient of variation is unavailable")
+            elif run_cv > policy.maximum_cv:
+                issues.append(f"run {index} coefficient of variation {run_cv:.4f} exceeds {policy.maximum_cv:.4f}")
+        run_outlier_fraction = run_outlier_fractions[index]
+        if policy.maximum_outlier_fraction is not None:
+            if run_outlier_fraction is None:
+                issues.append(f"run {index} outlier fraction is unavailable")
+            elif run_outlier_fraction > policy.maximum_outlier_fraction:
+                issues.append(
+                    f"run {index} outlier fraction {run_outlier_fraction:.4f} exceeds "
+                    + f"{policy.maximum_outlier_fraction:.4f}"
+                )
 
     iqr = _sample_iqr(samples)
     coefficient_of_variation = _coefficient_of_variation(samples)
     outlier_count = _tukey_outlier_count(samples)
     outlier_fraction = None if outlier_count is None or not samples else outlier_count / len(samples)
-    if (
-        policy.maximum_cv is not None
-        and coefficient_of_variation is not None
-        and coefficient_of_variation > policy.maximum_cv
-    ):
-        issues.append(f"coefficient of variation {coefficient_of_variation:.4f} exceeds " + f"{policy.maximum_cv:.4f}")
-    if (
-        policy.maximum_outlier_fraction is not None
-        and outlier_fraction is not None
-        and outlier_fraction > policy.maximum_outlier_fraction
-    ):
-        issues.append(f"outlier fraction {outlier_fraction:.4f} exceeds " + f"{policy.maximum_outlier_fraction:.4f}")
-
     return BenchmarkEvidence(
         provided_run_count=len(rows),
         observed_run_count=len(observed_indices),
@@ -751,6 +1271,10 @@ def _analyze_evidence(
         outlier_fraction=outlier_fraction,
         adequate=not issues,
         issues=tuple(issues),
+        run_iqrs=run_iqrs,
+        run_coefficients_of_variation=run_coefficients_of_variation,
+        run_outlier_counts=run_outlier_counts,
+        run_outlier_fractions=run_outlier_fractions,
     )
 
 
@@ -848,22 +1372,30 @@ def _directional_improvement(
     return -percent_change if direction == "lower_is_better" else percent_change
 
 
-def _pairwise_improvements(
+def _observed_improvements(
     baseline_values: Sequence[float],
     candidate_values: Sequence[float],
     *,
     direction: ComparisonDirection,
+    design: ComparisonDesign,
 ) -> tuple[float, ...]:
-    """Return every finite baseline/candidate pairwise improvement."""
+    """Return finite observed effects under the declared comparison design."""
     improvements: list[float] = []
-    for baseline_value in baseline_values:
+    if design == "paired":
+        value_pairs = zip(baseline_values, candidate_values, strict=True)
+    else:
+        value_pairs = (
+            (baseline_value, candidate_value)
+            for baseline_value in baseline_values
+            for candidate_value in candidate_values
+        )
+    for baseline_value, candidate_value in value_pairs:
         if baseline_value == 0.0:
             continue
-        for candidate_value in candidate_values:
-            percent_change = (candidate_value / baseline_value - 1.0) * 100.0
-            improvement = _directional_improvement(percent_change, direction)
-            if improvement is not None and math.isfinite(improvement):
-                improvements.append(improvement)
+        percent_change = (candidate_value / baseline_value - 1.0) * 100.0
+        improvement = _directional_improvement(percent_change, direction)
+        if improvement is not None and math.isfinite(improvement):
+            improvements.append(improvement)
     return tuple(improvements)
 
 
@@ -875,6 +1407,7 @@ def _classification_reason(
     improvement_low: float | None,
     improvement_high: float | None,
     threshold_percent: float,
+    inference: BenchmarkInference | None,
 ) -> str | None:
     """Explain evidence-driven inconclusive classifications."""
     if regression != "inconclusive":
@@ -885,6 +1418,19 @@ def _classification_reason(
     )
     if evidence_issues:
         return "Inadequate evidence: " + "; ".join(evidence_issues) + "."
+    if inference is not None and inference.issues:
+        return "Statistical inference unavailable: " + "; ".join(inference.issues) + "."
+    if (
+        inference is not None
+        and inference.confidence_low_percent is not None
+        and inference.confidence_high_percent is not None
+    ):
+        return (
+            "The adjusted confidence interval crosses a practical-effect boundary at "
+            + f"±{threshold_percent:.2f}% "
+            + f"({inference.confidence_low_percent:+.2f}% to "
+            + f"{inference.confidence_high_percent:+.2f}%)."
+        )
     if improvement_low is not None and improvement_high is not None:
         return (
             "Repeated-run effects are not conclusive at the "
@@ -960,6 +1506,133 @@ def _incompatibility_reason(
     return None
 
 
+def _infer_repeated_effect(
+    key: _CellKey,
+    baseline_values: Sequence[float],
+    candidate_values: Sequence[float],
+    *,
+    direction: ComparisonDirection,
+    family_size: int,
+    evidence_adequate: bool,
+    policy: InferencePolicy,
+    design: ComparisonDesign,
+    pair_strata: tuple[str, ...] | None,
+) -> BenchmarkInference:
+    """Return deterministic run-level uncertainty for one matrix cell."""
+    adjusted_confidence_level = _adjusted_confidence_level(
+        policy.confidence_level,
+        family_size=family_size,
+        multiplicity=policy.multiplicity,
+    )
+    cell_seed = _cell_random_seed(policy.random_seed, key)
+    if not evidence_adequate:
+        return BenchmarkInference(
+            method="bca_bootstrap",
+            estimand="direction-aware percentage ratio of median per-run statistics",
+            design=design,
+            confidence_level=policy.confidence_level,
+            adjusted_confidence_level=adjusted_confidence_level,
+            multiplicity=policy.multiplicity,
+            family_size=family_size,
+            resamples=policy.resamples,
+            random_seed=cell_seed,
+            estimate_percent=None,
+            confidence_low_percent=None,
+            confidence_high_percent=None,
+            issues=("evidence policy was not satisfied",),
+            pair_count=len(baseline_values) if design == "paired" else None,
+            strata_count=_paired_strata_count(pair_strata) if design == "paired" else None,
+        )
+
+    if design == "paired":
+        interval = bootstrap_paired_median_ratio_interval(
+            baseline_values,
+            candidate_values,
+            lower_is_better=direction == "lower_is_better",
+            confidence_level=adjusted_confidence_level,
+            resamples=policy.resamples,
+            random_seed=cell_seed,
+            strata=pair_strata,
+        )
+    else:
+        interval = bootstrap_median_ratio_interval(
+            baseline_values,
+            candidate_values,
+            lower_is_better=direction == "lower_is_better",
+            confidence_level=adjusted_confidence_level,
+            resamples=policy.resamples,
+            random_seed=cell_seed,
+        )
+    warnings = list(interval.warnings)
+    if policy.multiplicity == "none":
+        warnings.append(
+            "Multiplicity correction is disabled; this interval is exploratory and does not control "
+            + "matrix-wide error."
+        )
+    expected_tail_resamples = policy.resamples * (1.0 - adjusted_confidence_level) / 2.0
+    if expected_tail_resamples < 10.0:
+        warnings.append(
+            "The adjusted interval has fewer than 10 expected bootstrap estimates in each tail; "
+            + "increase inference resamples for better tail resolution."
+        )
+    return BenchmarkInference(
+        method=cast(IntervalMethod, interval.method),
+        estimand="direction-aware percentage ratio of median per-run statistics",
+        design=design,
+        confidence_level=policy.confidence_level,
+        adjusted_confidence_level=adjusted_confidence_level,
+        multiplicity=policy.multiplicity,
+        family_size=family_size,
+        resamples=policy.resamples,
+        random_seed=cell_seed,
+        estimate_percent=interval.estimate,
+        confidence_low_percent=interval.low,
+        confidence_high_percent=interval.high,
+        warnings=tuple(warnings),
+        issues=interval.issues,
+        pair_count=len(baseline_values) if design == "paired" else None,
+        strata_count=_paired_strata_count(pair_strata) if design == "paired" else None,
+    )
+
+
+def _adjusted_confidence_level(
+    confidence_level: float,
+    *,
+    family_size: int,
+    multiplicity: MultiplicityCorrection,
+) -> float:
+    """Return the simultaneous per-cell confidence level."""
+    if multiplicity == "none":
+        return confidence_level
+    family_alpha = 1.0 - confidence_level
+    return 1.0 - family_alpha / family_size
+
+
+def _cell_random_seed(random_seed: int, key: _CellKey) -> int:
+    """Derive a stable cell-specific bootstrap seed."""
+    payload = "\0".join((str(random_seed), *key)).encode()
+    return int.from_bytes(sha256(payload).digest()[:8], "big", signed=False)
+
+
+def _classify_inference(
+    inference: BenchmarkInference,
+    *,
+    threshold_percent: float,
+) -> RegressionClassification:
+    """Classify an effect interval against practical-equivalence bounds."""
+    low = inference.confidence_low_percent
+    high = inference.confidence_high_percent
+    if not inference.adequate or low is None or high is None:
+        return "inconclusive"
+    if high < -threshold_percent:
+        return "regressed"
+    if low > threshold_percent:
+        return "improved"
+    if low >= -threshold_percent and high <= threshold_percent:
+        return "unchanged"
+    return "inconclusive"
+
+
 def _classify_repeated_regression(
     improvement_percent: float | None,
     *,
@@ -998,6 +1671,30 @@ def _validate_run_group(
         if not isinstance(run, BenchmarkRun):
             raise TypeError(f"Benchmark {field_name}[{index}] must be a BenchmarkRun.")
     return resolved
+
+
+def _validate_pair_strata(
+    strata: Sequence[str] | None,
+    *,
+    pair_count: int,
+    design: ComparisonDesign,
+) -> tuple[str, ...] | None:
+    """Validate optional fixed-design labels for paired resampling."""
+    if strata is None:
+        return None
+    if design != "paired":
+        raise ValueError("Pair strata require an explicitly paired comparison design.")
+    resolved = tuple(strata)
+    if len(resolved) != pair_count:
+        raise ValueError("pair_strata must contain one label for every complete pair.")
+    if any(not isinstance(label, str) or not label for label in resolved):
+        raise ValueError("pair_strata labels must be non-empty strings.")
+    return resolved
+
+
+def _paired_strata_count(strata: tuple[str, ...] | None) -> int:
+    """Return the number of fixed resampling strata represented by pairs."""
+    return 1 if strata is None else len(set(strata))
 
 
 def _compare_run_group_compatibility(

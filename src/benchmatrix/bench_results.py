@@ -70,7 +70,7 @@ from ._schema import (
 from .exceptions import BenchmarkJsonError
 
 if TYPE_CHECKING:
-    from .bench_compare import BenchmarkRunComparison, RegressionPolicy, RunCompatibilityPolicy
+    from .bench_compare import BenchmarkRunComparison, InferencePolicy, RegressionPolicy, RunCompatibilityPolicy
 
 _BenchmarkStats: TypeAlias = Mapping[str, object]
 
@@ -169,6 +169,7 @@ class BenchmarkRun:
         *,
         compatibility_policy: RunCompatibilityPolicy | None = None,
         regression_policy: RegressionPolicy | None = None,
+        inference_policy: InferencePolicy | None = None,
     ) -> BenchmarkRunComparison:
         """Compare this baseline run with a candidate run.
 
@@ -176,6 +177,7 @@ class BenchmarkRun:
             candidate: Run whose values should be compared with this baseline.
             compatibility_policy: Environment checks to apply.
             regression_policy: Thresholds used to classify cell changes.
+            inference_policy: Statistical inference and multiplicity controls.
 
         Returns:
             A matrix-aware comparison containing matched, missing, and
@@ -188,6 +190,7 @@ class BenchmarkRun:
             candidate,
             compatibility_policy=compatibility_policy,
             regression_policy=regression_policy,
+            inference_policy=inference_policy,
         )
 
 

@@ -23,6 +23,7 @@ import importlib
 import inspect
 import json
 import math
+import os
 import re
 import sys
 import warnings
@@ -31,6 +32,7 @@ from dataclasses import dataclass, field
 from pathlib import PurePath
 from typing import Protocol, SupportsFloat, SupportsIndex, TextIO, TypeAlias, TypeVar, cast
 
+from ._collection_design import ORDER_INDEX_ENV, ORDER_SEED_ENV, balanced_order_indices
 from ._schema import (
     DEFAULT_METRICS,
     KEY_CASE_FRESH_INPUTS,
@@ -808,23 +810,60 @@ def make_benchmark_parameters(
     implementation_items = _implementation_items(implementations)
     case_items = _case_items(cases)
     pytest = _load_pytest()
-    parameters: list[object] = []
+    entries: list[tuple[MetricName, str, TargetFunction, str, BenchmarkCase]] = []
 
     for metric_name in resolved_metrics:
         for implementation_name, function in implementation_items:
             for case_name, case in case_items:
-                parameters.append(
-                    pytest.param(
-                        metric_name,
-                        implementation_name,
-                        function,
-                        case_name,
-                        case,
-                        id=f"{metric_name}::{implementation_name}::{case_name}",
-                    )
-                )
+                entries.append((metric_name, implementation_name, function, case_name, case))
+
+    collection_order = _collection_order_environment()
+    if collection_order is not None:
+        random_seed, order_index = collection_order
+        indices = balanced_order_indices(
+            [
+                (implementation_name, case_name, metric_name)
+                for metric_name, implementation_name, _function, case_name, _case in entries
+            ],
+            order_index=order_index,
+            random_seed=random_seed,
+        )
+        entries = [entries[index] for index in indices]
+
+    parameters: list[object] = []
+    for metric_name, implementation_name, function, case_name, case in entries:
+        parameters.append(
+            pytest.param(
+                metric_name,
+                implementation_name,
+                function,
+                case_name,
+                case,
+                id=f"{metric_name}::{implementation_name}::{case_name}",
+            )
+        )
 
     return parameters
+
+
+def _collection_order_environment() -> tuple[int, int] | None:
+    """Return the collector-provided balanced-order seed and row."""
+    seed_text = os.environ.get(ORDER_SEED_ENV)
+    index_text = os.environ.get(ORDER_INDEX_ENV)
+    if seed_text is None and index_text is None:
+        return None
+    if seed_text is None or index_text is None:
+        raise ValueError(f"{ORDER_SEED_ENV} and {ORDER_INDEX_ENV} must be set together.")
+    try:
+        random_seed = int(seed_text)
+        order_index = int(index_text)
+    except ValueError as exc:
+        raise ValueError(f"{ORDER_SEED_ENV} and {ORDER_INDEX_ENV} must be decimal integers.") from exc
+    if random_seed < 0:
+        raise ValueError(f"{ORDER_SEED_ENV} must be non-negative.")
+    if order_index <= 0:
+        raise ValueError(f"{ORDER_INDEX_ENV} must be positive.")
+    return random_seed, order_index
 
 
 def make_benchmark_test(

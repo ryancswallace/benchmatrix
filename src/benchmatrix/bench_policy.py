@@ -5,25 +5,49 @@ from __future__ import annotations
 import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 from pathlib import Path
 from typing import cast
 
 from ._schema import MetricName
-from .bench_compare import CompatibilityMode, EvidencePolicy, RegressionPolicy, RunCompatibilityPolicy
+from .bench_compare import (
+    CompatibilityMode,
+    EvidencePolicy,
+    InferenceMethod,
+    InferencePolicy,
+    MultiplicityCorrection,
+    PrecisionPolicy,
+    RegressionPolicy,
+    RunCompatibilityPolicy,
+)
 from .exceptions import BenchmarkPolicyError
 
-_TOOL_KEYS = frozenset({"compatibility", "evidence", "regression"})
+_TOOL_KEYS = frozenset({"compatibility", "evidence", "inference", "precision", "regression"})
 _COMPATIBILITY_KEYS = frozenset({"mode"})
 _EVIDENCE_KEYS = frozenset(
     {
         "minimum_runs",
         "minimum_samples_per_run",
+        "minimum_rounds_per_run",
         "require_rounds",
         "require_iterations",
+        "require_raw_samples_for_inference",
+        "minimum_tail_samples_per_run",
+        "require_tail_iterations_one",
         "maximum_cv",
         "maximum_outlier_fraction",
     }
 )
+_INFERENCE_KEYS = frozenset(
+    {
+        "method",
+        "confidence_level",
+        "resamples",
+        "random_seed",
+        "multiplicity",
+    }
+)
+_PRECISION_KEYS = frozenset({"target_half_width_percent"})
 _REGRESSION_KEYS = frozenset(
     {
         "default_threshold_percent",
@@ -43,6 +67,8 @@ class BenchmarkPolicyConfig:
     Attributes:
         compatibility: Run-environment compatibility policy.
         evidence: Repeated-run evidence policy.
+        inference: Run-level inference and multiplicity policy.
+        precision: Optional fixed-design precision-planning policy.
         regression: Regression threshold policy.
         source: Selected TOML file, or ``None`` when using built-in defaults.
         configured_fields: Explicit ``tool.benchmatrix`` field paths.
@@ -53,6 +79,8 @@ class BenchmarkPolicyConfig:
     regression: RegressionPolicy
     source: Path | None = None
     configured_fields: frozenset[str] = frozenset()
+    inference: InferencePolicy = dataclass_field(default_factory=InferencePolicy)
+    precision: PrecisionPolicy = dataclass_field(default_factory=PrecisionPolicy)
 
     def __post_init__(self) -> None:
         """Normalize the optional source path and configured field set."""
@@ -60,6 +88,10 @@ class BenchmarkPolicyConfig:
             raise TypeError("BenchmarkPolicyConfig.compatibility must be a RunCompatibilityPolicy.")
         if not isinstance(self.evidence, EvidencePolicy):
             raise TypeError("BenchmarkPolicyConfig.evidence must be an EvidencePolicy.")
+        if not isinstance(self.inference, InferencePolicy):
+            raise TypeError("BenchmarkPolicyConfig.inference must be an InferencePolicy.")
+        if not isinstance(self.precision, PrecisionPolicy):
+            raise TypeError("BenchmarkPolicyConfig.precision must be a PrecisionPolicy.")
         if not isinstance(self.regression, RegressionPolicy):
             raise TypeError("BenchmarkPolicyConfig.regression must be a RegressionPolicy.")
         fields = frozenset(self.configured_fields)
@@ -80,6 +112,8 @@ def default_benchmark_policy() -> BenchmarkPolicyConfig:
     return BenchmarkPolicyConfig(
         compatibility=RunCompatibilityPolicy(),
         evidence=EvidencePolicy(),
+        inference=InferencePolicy(),
+        precision=PrecisionPolicy(),
         regression=RegressionPolicy(),
     )
 
@@ -102,7 +136,7 @@ def load_benchmark_policy(
             Defaults to the current working directory.
 
     Returns:
-        Validated compatibility, evidence, and regression policies.
+        Validated compatibility, evidence, inference, precision, and regression policies.
 
     Raises:
         BenchmarkPolicyError: If an explicit file is missing, TOML is invalid,
@@ -140,13 +174,25 @@ def load_benchmark_policy(
     try:
         compatibility, compatibility_fields = _parse_compatibility(config.get("compatibility"))
         evidence, evidence_fields = _parse_evidence(config.get("evidence"))
+        inference, inference_fields = _parse_inference(config.get("inference"))
+        precision, precision_fields = _parse_precision(config.get("precision"))
         regression, regression_fields = _parse_regression(config.get("regression"))
         return BenchmarkPolicyConfig(
             compatibility=compatibility,
             evidence=evidence,
+            inference=inference,
+            precision=precision,
             regression=regression,
             source=source,
-            configured_fields=frozenset((*compatibility_fields, *evidence_fields, *regression_fields)),
+            configured_fields=frozenset(
+                (
+                    *compatibility_fields,
+                    *evidence_fields,
+                    *inference_fields,
+                    *precision_fields,
+                    *regression_fields,
+                )
+            ),
         )
     except BenchmarkPolicyError:
         raise
@@ -194,10 +240,35 @@ def _parse_evidence(value: object | None) -> tuple[EvidencePolicy, tuple[str, ..
                 int,
                 section.get("minimum_samples_per_run", defaults.minimum_samples_per_run),
             ),
+            minimum_rounds_per_run=cast(
+                int,
+                section.get("minimum_rounds_per_run", defaults.minimum_rounds_per_run),
+            ),
             require_rounds=cast(bool, section.get("require_rounds", defaults.require_rounds)),
             require_iterations=cast(
                 bool,
                 section.get("require_iterations", defaults.require_iterations),
+            ),
+            require_raw_samples_for_inference=cast(
+                bool,
+                section.get(
+                    "require_raw_samples_for_inference",
+                    defaults.require_raw_samples_for_inference,
+                ),
+            ),
+            minimum_tail_samples_per_run=cast(
+                int,
+                section.get(
+                    "minimum_tail_samples_per_run",
+                    defaults.minimum_tail_samples_per_run,
+                ),
+            ),
+            require_tail_iterations_one=cast(
+                bool,
+                section.get(
+                    "require_tail_iterations_one",
+                    defaults.require_tail_iterations_one,
+                ),
             ),
             maximum_cv=cast(float | None, section.get("maximum_cv", defaults.maximum_cv)),
             maximum_outlier_fraction=cast(
@@ -206,6 +277,50 @@ def _parse_evidence(value: object | None) -> tuple[EvidencePolicy, tuple[str, ..
                     "maximum_outlier_fraction",
                     defaults.maximum_outlier_fraction,
                 ),
+            ),
+        ),
+        fields,
+    )
+
+
+def _parse_inference(value: object | None) -> tuple[InferencePolicy, tuple[str, ...]]:
+    """Parse the run-level statistical inference policy table."""
+    if value is None:
+        return InferencePolicy(), ()
+    section = _mapping(value, path="tool.benchmatrix.inference")
+    _exact_keys(section, _INFERENCE_KEYS, path="tool.benchmatrix.inference")
+    fields = tuple(f"inference.{key}" for key in section)
+    defaults = InferencePolicy()
+    return (
+        InferencePolicy(
+            method=cast(InferenceMethod, section.get("method", defaults.method)),
+            confidence_level=cast(
+                float,
+                section.get("confidence_level", defaults.confidence_level),
+            ),
+            resamples=cast(int, section.get("resamples", defaults.resamples)),
+            random_seed=cast(int, section.get("random_seed", defaults.random_seed)),
+            multiplicity=cast(
+                MultiplicityCorrection,
+                section.get("multiplicity", defaults.multiplicity),
+            ),
+        ),
+        fields,
+    )
+
+
+def _parse_precision(value: object | None) -> tuple[PrecisionPolicy, tuple[str, ...]]:
+    """Parse the paired fixed-design precision-planning policy table."""
+    if value is None:
+        return PrecisionPolicy(), ()
+    section = _mapping(value, path="tool.benchmatrix.precision")
+    _exact_keys(section, _PRECISION_KEYS, path="tool.benchmatrix.precision")
+    fields = tuple(f"precision.{key}" for key in section)
+    return (
+        PrecisionPolicy(
+            target_half_width_percent=cast(
+                float | None,
+                section.get("target_half_width_percent"),
             ),
         ),
         fields,
