@@ -62,7 +62,7 @@ help:
 	@echo "  typecheck             Run basedpyright type checks"
 	@echo ""
 	@echo "Tests:"
-	@echo "  test                  Run unit tests"
+	@echo "  test                  Run the pytest suite"
 	@echo "  test-min-deps         Run tests with minimum direct dependency versions"
 	@echo "  test-matrix           Run the full local nox test and quality matrix"
 	@echo ""
@@ -348,7 +348,9 @@ smoke-dist: bootstrap
 	fi; \
 	uv venv --quiet "$$smoke_env" && \
 	VIRTUAL_ENV="$$smoke_env" uv pip install --quiet "$$wheel" && \
-	"$$smoke_env/bin/python" -c "from benchmatrix import BenchmarkCase; print(BenchmarkCase.__name__)"
+	"$$smoke_env/bin/python" -c "from benchmatrix import BenchmarkCase; print(BenchmarkCase.__name__)" && \
+	"$$smoke_env/bin/benchmatrix" --version && \
+	"$$smoke_env/bin/benchmatrix" policy validate --no-config --quiet
 
 validate-dist: bootstrap
 	@version=$$(uv version --short); \

@@ -74,4 +74,5 @@ jobs:
             fi
             sleep 30
           done
-          "$verify_env/bin/python" -c "from benchmatrix import BenchmarkCase; print(BenchmarkCase.__name__)"
+          "$verify_env/bin/python" -c \
+            "from importlib.metadata import version; import os; actual = version('benchmatrix'); expected = os.environ['VERSION']; assert actual == expected, (actual, expected); from benchmatrix import BenchmarkCase; print(actual, BenchmarkCase.__name__)"
