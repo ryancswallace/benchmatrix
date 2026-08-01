@@ -18,8 +18,8 @@ make test-matrix
 ```
 
 Normal pull request CI verifies every supported Python version on Ubuntu and
-runs a smoke compatibility check on macOS and Windows for the current default
-Python version. The primary quality job uses the repository `.python-version`.
+runs the test suite on macOS and Windows for the current default Python version.
+The primary quality job uses the repository `.python-version`.
 Run `make test-matrix` locally before changes that may affect Python-version
 compatibility.
 
@@ -34,8 +34,8 @@ Supported operating systems are:
 * macOS;
 * Windows.
 
-Pull request CI runs the full supported-Python test matrix on Ubuntu and a
-current-Python smoke test on macOS and Windows. Linux is the primary continuously
+Pull request CI runs the full supported-Python test matrix on Ubuntu and the
+current-Python test suite on macOS and Windows. Linux is the primary continuously
 verified platform. macOS and Windows are supported by design because benchmatrix
 does not rely on platform-specific APIs, but regressions that only appear on
 those systems may require a maintainer or contributor with access to the
@@ -140,8 +140,8 @@ relationships are stable; exact message wording is not.
 
 ## CLI compatibility
 
-`benchmatrix` and `python -m benchmatrix` are equivalent entry points. These
-commands and options are stable in 1.x:
+`benchmatrix` and `python -m benchmatrix` are equivalent entry points. The root
+command supports `--version`. These commands and options are stable in 1.x:
 
 | Command | Arguments and options |
 | --- | --- |
