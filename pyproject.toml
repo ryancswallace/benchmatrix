@@ -213,6 +213,8 @@ line-ending = "lf"
 [tool.basedpyright]
 include = ["src", "tests", "examples", "scripts", "docs/_scripts", "noxfile.py"]
 exclude = [".venv", "build", "dist", "node_modules"]
+venvPath = "."
+venv = ".venv"
 pythonVersion = "3.11"
 typeCheckingMode = "standard"
 
