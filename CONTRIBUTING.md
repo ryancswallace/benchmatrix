@@ -18,17 +18,29 @@ By participating, you agree to follow the [code of conduct](CODE_OF_CONDUCT.md).
 Please report security vulnerabilities through [SECURITY.md](SECURITY.md), not a
 public issue.
 
-## Local checks
+## Local setup
 
-The normal pre-submission loop is:
+Install the development environment and run the tests:
+
+```bash
+make install
+make test
+```
+
+Use focused test or lint targets while iterating. Install the optional Git hooks
+with `make hooks-install`; that target also requires Node.js and npm.
+
+## Before a pull request
+
+Run the full validation suite once the change is ready:
 
 ```bash
 make format
 make check
 ```
 
-Run `make test-matrix` before changes that may vary by supported Python version
-or packaging environment. Documentation changes should pass `make docs`, and
+Run `make test-matrix` for changes that may vary by supported Python version or
+packaging environment. Documentation changes should pass `make docs`, and
 public API behavior changes should update tests, docstrings, docs, and
 [CHANGELOG.md](CHANGELOG.md) when users will notice the change.
 

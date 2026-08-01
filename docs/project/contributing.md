@@ -1,7 +1,15 @@
 # Contributing
 
 Contributions are welcome. For substantial changes, open an issue first so the
-problem and direction can be discussed.
+problem and direction can be discussed. Small fixes and documentation
+improvements can go directly to a pull request.
+
+Start with a lightweight local loop:
+
+```bash
+make install
+make test
+```
 
 Before submitting a pull request:
 

@@ -6,18 +6,17 @@ automation map, see [Configuration and automation](../reference/configuration.md
 ## Setup
 
 ```bash
-make ready
-make hooks-install
+make install
 ```
 
-Use uv for Python dependency management. Outside the devcontainer, install
-Node.js and npm so Markdown, spelling, and Dockerfile checks can run.
+Use uv for Python dependency management. Install the optional Git hooks with
+`make hooks-install`; that target and the repository's Markdown, spelling, and
+Dockerfile checks also require Node.js and npm.
 
 ## Daily loop
 
 ```bash
-make format
-make check
+make test
 ```
 
 Use focused commands while iterating:
@@ -32,6 +31,15 @@ make spellcheck
 make workflow-lint
 make workflow-env-lint
 make docker-lint
+```
+
+## Before a pull request
+
+Format the change, then run the complete validation suite:
+
+```bash
+make format
+make check
 ```
 
 `make check` is the authoritative local validation command. It checks the uv
