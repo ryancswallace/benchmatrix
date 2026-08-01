@@ -61,7 +61,7 @@ and GitHub Actions summaries.
   </a>
   <br>
   <a href="https://ryancswallace.github.io/benchmatrix/demo/">
-    Watch the one-minute demo
+    Watch benchmatrix catch an intentional regression (1 minute)
   </a>
 </p>
 <!-- markdownlint-enable MD033 -->

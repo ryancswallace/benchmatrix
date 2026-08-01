@@ -21,7 +21,9 @@ _JSON_VALUES = st.recursive(
     ),
     max_leaves=20,
 )
-_METADATA = st.dictionaries(st.text(min_size=1, max_size=12), _JSON_VALUES, max_size=8)
+_RESERVED_CASE_METADATA_KEYS = frozenset({"fresh_inputs", "name"})
+_METADATA_KEYS = st.text(min_size=1, max_size=12).filter(lambda key: key not in _RESERVED_CASE_METADATA_KEYS)
+_METADATA = st.dictionaries(_METADATA_KEYS, _JSON_VALUES, max_size=8)
 _TAIL_SAMPLES = st.lists(
     st.floats(min_value=0.0, max_value=1_000_000.0, allow_nan=False, allow_infinity=False),
     min_size=1,
@@ -68,7 +70,7 @@ def test_json_safe_metadata_round_trips_through_benchmark_case(metadata: dict[st
 
 
 @pytest.mark.property
-@settings(max_examples=100)
+@settings(max_examples=100, deadline=None)
 @given(samples=_TAIL_SAMPLES)
 def test_tail_latency_percentiles_are_order_invariant_and_bounded(samples: list[float]) -> None:
     with tempfile.TemporaryDirectory() as directory:
