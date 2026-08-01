@@ -9,6 +9,20 @@ compatibility expectations described in [the release policy](RELEASING.md).
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## 1.1.0 - 2026-07-31
+
+### Added
+
 * Add `benchmatrix measure` as a managed pytest workflow with isolated pytest
     defaults, repeated-run collection, resumable manifests, and advanced pytest
     argument forwarding.
