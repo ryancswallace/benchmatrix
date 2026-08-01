@@ -219,15 +219,15 @@ locally:
     verifies release assets, and creates or updates the draft GitHub Release
     with the package source distribution, wheel, and SBOM attached; it also
     supports manual dispatch for retrying an existing tag.
-* `.github/workflows/release.yml` builds release artifacts, uploads package
-    distributions and the SBOM as separate Actions artifacts, attaches them to
-    the GitHub Release, attests them, publishes the distributions to PyPI through
-    Trusted Publishing, and verifies installation from PyPI after publication.
+* `.github/workflows/release.yml` downloads the package assets reviewed on the
+    published GitHub Release, validates and attests those exact files, stores
+    them as Actions artifacts, publishes the distributions to PyPI through
+    Trusted Publishing, and verifies installation after publication.
 * `.github/workflows/release-verify.yml` manually re-runs post-release
     installation verification from PyPI.
-* `.github/workflows/docker.yml` builds runtime and test Docker images, scans
-    them for critical vulnerabilities, and publishes them to GHCR from `main` and
-    `v*` tags.
+* `.github/workflows/docker.yml` builds and scans the runtime image and internal
+    test stage. It publishes only the runtime image, and only after a reviewed
+    `v*` GitHub Release is published.
 * `.github/workflows/workflow-lint.yml` runs actionlint and zizmor for workflow
     configuration changes, using `.github/zizmor.yml` for project-specific audit
     policy.
@@ -238,8 +238,9 @@ locally:
     supply-chain checks.
 
 Standalone SBOM and artifact-attestation workflows are intentionally not added:
-`make build`, CI packaging, and the release workflow already generate SBOMs and
-release provenance without an extra scheduler. Release drafting is limited to a
+`make build`, CI packaging, and the draft-release workflow already generate
+SBOMs, while release publication adds provenance without an extra scheduler.
+Release drafting is limited to a
 small tag-triggered workflow so the deployment action remains publishing the
 reviewed GitHub Release.
 
@@ -326,8 +327,8 @@ make docker-scan
 `make check` runs Dockerfile linting but does not build Docker images, so normal
 local validation does not require a Docker daemon. The devcontainer includes the
 Docker-outside-of-Docker feature so contributors can run `make docker-check`
-after rebuilding the devcontainer. The Docker workflow builds, scans, and
-publishes images in GitHub Actions.
+after rebuilding the devcontainer. The Docker workflow builds and scans both
+stages in GitHub Actions, then publishes the runtime stage for releases.
 
 ## Generated artifacts
 

@@ -108,11 +108,12 @@ action that triggers PyPI publication.
 The release workflow runs on the GitHub `release` event with the `published`
 activity type. Drafting a release does not publish to PyPI; publishing the
 GitHub Release does. The publish job only runs when the workflow ref starts with
-`refs/tags/v`, so releases must use tags such as `v0.2.0`. The workflow rebuilds
-distributions from the tagged source, generates the SBOM, smoke-tests the wheel,
-creates artifact attestations, uploads package distributions and the SBOM as
-separate workflow artifacts, attaches those files to the GitHub Release, and
-then publishes only the distributions to PyPI from the `pypi` environment.
+`refs/tags/v`, so releases must use tags such as `v0.2.0`. The workflow
+downloads the wheel, source distribution, and SBOM that were already attached
+to and reviewed on the draft release. It validates and smoke-tests those exact
+files, creates artifact attestations, stores them as workflow artifacts, and
+publishes the reviewed distributions to PyPI. It does not replace reviewed
+assets with a second build after publication.
 
 If the `pypi` environment requires approval, approve the deployment only after
 confirming the tag, changelog, and workflow run are for the intended version.

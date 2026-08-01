@@ -6,43 +6,42 @@ Use this when verifying or troubleshooting Docker image publication.
 
 * The repository package visibility allows publishing to GitHub Container
     Registry.
-* The Docker workflow has `packages: write` permission on non-pull-request runs.
-* The release tag starts with `v`, such as `v0.2.0`.
+* The Docker workflow's release publication job has `packages: write`
+    permission.
+* A reviewed GitHub Release is ready to publish for a tag starting with `v`,
+    such as `v1.1.0`.
 
 ## Normal release flow
 
-1. Publish the Python package release using the release runbook.
-2. Watch the `Docker` workflow for the release tag.
-3. Confirm the workflow:
+1. Follow the release runbook through preparation and review of the draft
+    GitHub Release.
+2. Publish the reviewed GitHub Release. Pushing its tag or saving the release as
+    a draft does not publish a container.
+3. Watch the `Docker` workflow triggered by the release's `published` event.
+4. Confirm the workflow:
 
     * lints `Dockerfile` and `.devcontainer/Dockerfile`;
     * builds and runs the test image;
     * builds and smoke-tests the runtime image;
     * scans both images with Trivy and fails on critical vulnerabilities;
-    * publishes runtime and test images to GHCR;
-    * emits Buildx SBOM and provenance attestations.
+    * publishes the runtime image to GHCR only after those checks pass;
+    * emits Buildx SBOM and provenance attestations for the runtime image.
 
-4. Open the GHCR package page and confirm these images exist:
+5. Open the GHCR package page and confirm these runtime image tags exist:
 
     * `ghcr.io/ryancswallace/benchmatrix:vX.Y.Z`;
     * `ghcr.io/ryancswallace/benchmatrix:latest`;
-    * `ghcr.io/ryancswallace/benchmatrix-test:vX.Y.Z`;
-    * `ghcr.io/ryancswallace/benchmatrix-test:latest`.
+    * `ghcr.io/ryancswallace/benchmatrix:sha-<commit>`.
 
-5. Verify the runtime image from GHCR:
-
-    ```bash
-    docker run --rm ghcr.io/ryancswallace/benchmatrix:vX.Y.Z
-    ```
-
-    The command should print `BenchmarkCase`.
-
-6. Verify the test image if the release changed packaging, dependencies, or test
-    infrastructure:
+6. Verify the runtime image from GHCR:
 
     ```bash
-    docker run --rm ghcr.io/ryancswallace/benchmatrix-test:vX.Y.Z
+    docker run --rm ghcr.io/ryancswallace/benchmatrix:vX.Y.Z --version
     ```
+
+    The command should print `benchmatrix X.Y.Z`. Running the image with no
+    arguments should display the command help. The internal test stage is not
+    published.
 
 ## Adjusting vulnerability policy
 
@@ -68,5 +67,5 @@ that findings are actionable before making the check required.
 * Critical vulnerability: run `make docker-scan` locally to reproduce, then
    update the base image or affected dependency. If no fix is available, document
    the risk before temporarily relaxing the policy.
-* Publish failure: confirm GHCR package permissions and workflow `packages:
-   write` permissions.
+* Publish failure: confirm GHCR package permissions, the publication job's
+   `packages: write` permission, and that the GitHub Release uses a `v*` tag.

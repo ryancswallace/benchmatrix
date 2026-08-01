@@ -1,19 +1,20 @@
 # Run with Docker
 
-benchmatrix is distributed primarily as a Python package. The Docker images are
-convenience images for reproducible local use, CI smoke checks, and examples.
+benchmatrix is distributed primarily as a Python package. The runtime container
+is a convenience for isolated comparisons and CI jobs that do not need a Python
+installation on the host.
 
 ## Images
 
-The repository builds two images:
+The repository publishes one image:
 
 * `ghcr.io/ryancswallace/benchmatrix` is the runtime image. It installs the
-    package with runtime dependencies only and defaults to a safe import smoke
-    test.
-* `ghcr.io/ryancswallace/benchmatrix-test` is the test image. It includes the
-    project test and release tooling and defaults to `python -m pytest -q`.
+    package with runtime dependencies only. It runs the `benchmatrix` command
+    and displays CLI help when no arguments are provided.
 
-Both images run as a non-root user.
+The Dockerfile also has a `test` build stage with the project's development and
+release tooling. CI and local checks build and scan that stage, but it is not
+published as a user-facing image. Both stages run as a non-root user.
 
 ## Build locally
 
@@ -55,31 +56,41 @@ IMAGE_TAG=my-check make docker-build docker-smoke
 
 ## Run a published image
 
-After container publishing is enabled and a release has been published, run:
+Check the installed version:
 
 ```bash
-docker run --rm ghcr.io/ryancswallace/benchmatrix:latest
+docker run --rm ghcr.io/ryancswallace/benchmatrix:latest --version
 ```
 
-The default command should print `BenchmarkCase`. To run a custom command:
+Arguments after the image name are passed directly to `benchmatrix`. To compare
+collections from the current directory:
 
 ```bash
-docker run --rm ghcr.io/ryancswallace/benchmatrix:latest \
-    python -c "from benchmatrix import BenchmarkCase; print(BenchmarkCase.__name__)"
+docker run --rm \
+    --mount type=bind,source="$PWD",target=/work,readonly \
+    --workdir /work \
+    ghcr.io/ryancswallace/benchmatrix:latest \
+    compare demo-baseline demo-candidate --fail-on-regression
 ```
+
+Use a version tag such as `v1.1.0` instead of `latest` when a workflow needs a
+reproducible tool version.
 
 ## Tag policy
 
-Pull requests build and test images but do not push them. Pushes to `main` push
-`main` and `sha-*` tags. Release tags matching `v*` push `vX.Y.Z`, `sha-*`, and
-`latest` tags.
+Pull requests, pushes to `main`, and manual workflow runs build, test, and scan
+the container stages without publishing them. Publishing a GitHub Release whose
+tag starts with `v` publishes the runtime image with `vX.Y.Z`, `sha-*`, and
+`latest` tags. Pushing a tag or creating a draft release does not publish an
+image or move `latest`. The test stage is never published.
 
 ## Vulnerability scanning
 
-The Docker workflow scans both runtime and test images with Trivy and fails on
-critical vulnerabilities. This keeps the first policy strict enough to catch
-urgent image risk without making normal development noisy for lower-severity base
-image findings.
+The Docker workflow scans both the runtime image and internal test stage with
+Trivy and fails on critical vulnerabilities. A release image is published only
+after both scans pass. This keeps the first policy strict enough to catch urgent
+image risk without making normal development noisy for lower-severity base image
+findings.
 
 To scan locally, run:
 

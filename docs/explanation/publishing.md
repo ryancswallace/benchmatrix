@@ -17,8 +17,8 @@ package, generates the runtime CycloneDX SBOM at `dist/benchmatrix.cdx.json`,
 and fails unless the release artifact files in `dist/` are the expected
 wheel, source distribution, and SBOM for the package version in `pyproject.toml`.
 
-The release workflow runs the same command before publishing, so local release
-checks and CI release checks exercise the same path.
+The draft-release workflow runs the same command before attaching assets for
+review, so local and CI builds exercise the same validation path.
 
 ## Version metadata
 
@@ -84,10 +84,11 @@ intentionally stops before publication; GitHub suppresses most follow-on
 workflow runs caused by that token to avoid recursive automation.
 
 The publish job is guarded with `startsWith(github.ref, 'refs/tags/v')`, so PyPI
-publication only runs from version tags such as `v0.2.0`. The workflow rebuilds
-from the tagged source, uploads package distributions and the SBOM as separate
-Actions artifacts, refreshes those files on the GitHub Release, attests them,
-and publishes only the distributions to PyPI from the `pypi` environment.
+publication only runs from version tags such as `v0.2.0`. The workflow downloads
+the wheel, source distribution, and SBOM already reviewed on the draft release;
+validates and smoke-tests those exact files; stores them as Actions artifacts;
+attests them; and publishes only the reviewed distributions to PyPI from the
+`pypi` environment. It does not replace approved assets with a second build.
 
 The workflow also has manual dispatch. Treat `publish=false` as a build smoke
 check. Treat `publish=true` as a real publication and only run it from an exact
