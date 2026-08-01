@@ -51,3 +51,30 @@ The intentionally slower `loop` implementation should make this command report
 
 Collection manifests preserve the managed pytest command. Start with new output
 directories, or use `measure --resume` to continue an interrupted collection.
+
+## Record and publish the demo
+
+Install [VHS](https://github.com/charmbracelet/vhs), then regenerate the video
+and its poster from the repository root:
+
+```bash
+vhs docs/demo/basic_demo.tape
+```
+
+The tape writes the video to `docs/assets/basic-demo.mp4` and the final frame to
+`docs/assets/basic-demo.png`. The MP4 is ignored by Git because it is published
+as a GitHub release asset instead.
+
+After the target release exists, authenticate the GitHub CLI and upload the
+video by specifying its tag:
+
+```bash
+gh auth login
+make demo-upload DEMO_RELEASE_TAG=v1.1.0
+```
+
+The target checks that the release and a nonempty MP4 exist, uploads the video,
+and prints its download URL. The URL becomes public when the release is
+published. Repeating the command replaces an existing asset with the same
+filename. Update both video links at the top of this file when moving the demo
+to a new release.

@@ -7,6 +7,8 @@ export PATH := $(HOME)/.local/bin:$(HOME)/.cargo/bin:$(PATH)
 
 DOCKER ?= docker
 DOCKER_SOCKET ?= /var/run/docker.sock
+DEMO_RELEASE_TAG ?=
+DEMO_VIDEO ?= docs/assets/basic-demo.mp4
 IMAGE_NAME ?= ghcr.io/ryancswallace/benchmatrix
 IMAGE_TAG ?= local
 TEST_IMAGE_NAME ?= ghcr.io/ryancswallace/benchmatrix-test
@@ -36,7 +38,7 @@ RELEASE_TAG_BASE ?= main
 .PHONY: docs docs-linkcheck serve-docs
 .PHONY: docker-lint docker-ready docker-build docker-build-test docker-test docker-smoke docker-scan docker-check
 .PHONY: lock-check deps secrets security audit
-.PHONY: release-version-check release-preflight prepare-release release-pr-ready release-pr release-tag sbom smoke-dist validate-dist build
+.PHONY: release-version-check release-preflight prepare-release release-pr-ready release-pr release-tag demo-upload sbom smoke-dist validate-dist build
 .PHONY: check check-all ca precommit prepush fresh-precommit
 
 # -----------------------------------------------------------------------------
@@ -100,6 +102,7 @@ help:
 	@echo "  release-pr-ready      Prepare, validate, commit, push, and open the release PR"
 	@echo "  release-pr            Commit, push, and open the release pull request"
 	@echo "  release-tag           Create and push the annotated release tag"
+	@echo "  demo-upload           Upload the demo MP4; set DEMO_RELEASE_TAG=vX.Y.Z"
 	@echo "  sbom                  Generate a CycloneDX runtime dependency SBOM"
 	@echo "  smoke-dist            Install and import-test the built wheel"
 	@echo "  validate-dist         Verify dist contains the expected release artifacts"
@@ -328,6 +331,38 @@ release-tag: release-version-check
 	@release_url=$$(gh repo view --json url --jq .url 2>/dev/null || \
 		git config --get remote.origin.url | sed -E 's#^git@github.com:#https://github.com/#; s#\.git$$##'); \
 	echo "GitHub Releases: $$release_url/releases"
+
+demo-upload:
+	@if [ -z "$(strip $(DEMO_RELEASE_TAG))" ]; then \
+		echo "DEMO_RELEASE_TAG is required."; \
+		echo "Example: make demo-upload DEMO_RELEASE_TAG=v1.1.0"; \
+		exit 2; \
+	fi
+	@case "$(DEMO_VIDEO)" in \
+		*.mp4) ;; \
+		*) echo "Demo video must be an MP4: $(DEMO_VIDEO)"; exit 2 ;; \
+	esac
+	@if [ ! -s "$(DEMO_VIDEO)" ]; then \
+		echo "Demo video is missing or empty: $(DEMO_VIDEO)"; \
+		echo "Generate it with: vhs docs/demo/basic_demo.tape"; \
+		exit 1; \
+	fi
+	@if ! command -v gh >/dev/null 2>&1; then \
+		echo "GitHub CLI not found. Install gh and run: gh auth login"; \
+		exit 1; \
+	fi
+	@if ! gh auth status >/dev/null 2>&1; then \
+		echo "GitHub CLI is not authenticated. Run: gh auth login"; \
+		exit 1; \
+	fi
+	@if ! gh release view "$(DEMO_RELEASE_TAG)" --json tagName --jq .tagName >/dev/null; then \
+		echo "GitHub release not found: $(DEMO_RELEASE_TAG)"; \
+		exit 1; \
+	fi
+	gh release upload "$(DEMO_RELEASE_TAG)" "$(DEMO_VIDEO)" --clobber
+	@tag=$$(gh release view "$(DEMO_RELEASE_TAG)" --json tagName --jq .tagName); \
+		repository_url=$$(gh repo view --json url --jq .url); \
+		echo "Uploaded $$repository_url/releases/download/$$tag/$$(basename "$(DEMO_VIDEO)")"
 
 sbom: bootstrap
 	@sbom_env=$$(mktemp -d); \
