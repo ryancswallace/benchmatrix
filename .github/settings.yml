@@ -6,7 +6,7 @@
 repository:
   description: "Build trustworthy pytest-benchmark matrices, collect repeated runs, and detect performance regressions"
   homepage: "https://ryancswallace.github.io/benchmatrix/"
-  topics: "benchmark, benchmarking, performance, pytest, pytest-benchmark, python"
+  topics: "benchmark, benchmarking, continuous-integration, performance, performance-regression, performance-testing, pytest, pytest-benchmark, python, regression-testing"
   has_issues: true
   has_projects: false
   has_wiki: false
@@ -37,6 +37,8 @@ branches:
           - "Tests (ubuntu-24.04, Python 3.12)"
           - "Tests (ubuntu-24.04, Python 3.13)"
           - "Tests (ubuntu-24.04, Python 3.14)"
+          - "Tests (macos-15, Python 3.14)"
+          - "Tests (windows-2025, Python 3.14)"
       enforce_admins: false
       required_linear_history: true
       allow_force_pushes: false

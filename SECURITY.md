@@ -4,12 +4,20 @@ Please do not open a public issue for a suspected vulnerability.
 
 ## Reporting a vulnerability
 
-Email Ryan Wallace at <ryancswallace@gmail.com> with:
+Use [GitHub's private vulnerability reporting form](https://github.com/ryancswallace/benchmatrix/security/advisories/new)
+when possible. It keeps the report out of public issues while the maintainer
+investigates it.
+
+If the form is unavailable, email Ryan Wallace at
+<ryancswallace@gmail.com>. Include:
 
 * the affected version;
 * steps to reproduce the issue;
 * the potential impact;
 * any suggested mitigation, if known.
+
+Do not include credentials, tokens, or private benchmark data that is not
+needed to reproduce the problem.
 
 You should receive an acknowledgement within seven days. The maintainer will
 coordinate validation, remediation, and disclosure with the reporter. Please
