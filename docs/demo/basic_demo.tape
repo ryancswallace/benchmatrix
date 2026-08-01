@@ -1,5 +1,4 @@
 Output ../assets/basic-demo.mp4
-Output ../assets/basic-demo.webm
 
 # cspell:ignore precmd RPROMPT
 
@@ -66,16 +65,15 @@ Enter
 Show
 Sleep 3s
 
-Set TypingSpeed 25ms
 Hide
 Type "clear"
 Enter
 Show
-Type "uv run benchmatrix compare /tmp/bm-demo-base /tmp/bm-demo-candidate --threshold 25% --summary"
+Type "uv run benchmatrix compare /tmp/bm-demo-base /tmp/bm-demo-candidate --threshold 25% --summary --fail-on-regression"
 Enter
 Wait+Screen@60s /Overall: FAIL/
 Screenshot ../assets/basic-demo.png
-Sleep 8s
+Sleep 10s
 
 Hide
 Type "rm -rf -- /tmp/bm-demo-base /tmp/bm-demo-candidate"
