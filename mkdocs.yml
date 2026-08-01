@@ -98,6 +98,7 @@ nav:
       - How-to guides overview: how-to/index.md
       - Create a benchmark matrix: how-to/create-benchmark-matrix.md
       - Parse benchmark results: how-to/parse-results.md
+      - Gate regressions in GitHub Actions: how-to/github-actions.md
       - Run with Docker: how-to/run-with-docker.md
       - Troubleshooting: how-to/troubleshooting.md
   - Reference:
@@ -124,13 +125,11 @@ nav:
       - Lifecycle: explanation/lifecycle.md
       - Repository health: explanation/repository-health.md
       - Secrets: explanation/secrets.md  # pragma: allowlist secret
-      - AI-agent guidance: explanation/ai.md
       - Deprecations: explanation/deprecations.md
       - GitHub Actions security: explanation/github-actions-security.md
       - Deployment environments: explanation/deployment-environments.md
       - Repository settings: explanation/repository-settings.md
       - Publishing: explanation/publishing.md
-      - Version 1 release readiness: explanation/first-release.md
   - Maintainer runbooks:
       - Maintainer runbooks overview: runbooks/index.md
       - Release: runbooks/release.md
@@ -143,6 +142,7 @@ nav:
       - External repository setup: runbooks/repository-setup.md
   - Project:
       - Project overview: project/index.md
+      - Release history: https://github.com/ryancswallace/benchmatrix/releases
       - Development: project/development.md
       - Contributing: project/contributing.md
-      - Changelog: project/changelog.md
+      - Changelog maintenance: project/changelog.md

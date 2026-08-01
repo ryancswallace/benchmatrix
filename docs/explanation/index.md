@@ -20,8 +20,6 @@ step-by-step instructions.
 * [Repository health](repository-health.md), covering maintenance signals and
     cadence.
 * [Secrets](secrets.md), covering local checks and response steps.
-* [AI-agent guidance](ai.md), covering operational expectations for automated
-    contributors.
 * [Deprecations](deprecations.md), covering public API migration expectations.
 * [GitHub Actions security](github-actions-security.md), covering CI permissions
     and workflow controls.
@@ -31,7 +29,4 @@ step-by-step instructions.
     expectations.
 * [Publishing](publishing.md), covering release artifacts and publication
     checks.
-* [First release](first-release.md), covering readiness checks before the first
-    public release.
-
 Use how-to guides and runbooks when the next action needs to be concrete.

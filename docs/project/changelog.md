@@ -1,10 +1,13 @@
-# Changelog
+# Changelog maintenance
 
-The repository changelog is the source of truth for release notes.
+For published changes, see the project's
+[release history](https://github.com/ryancswallace/benchmatrix/releases) or the
+complete [repository changelog](https://github.com/ryancswallace/benchmatrix/blob/main/CHANGELOG.md).
 
-For each user-visible change:
+Contributors and maintainers should record each user-visible change under
+`Unreleased` in the repository changelog:
 
-1. add an entry under `Unreleased` in `CHANGELOG.md`;
+1. add an entry under `Unreleased`;
 2. group the entry under the appropriate heading;
 3. mention compatibility or migration notes when behavior changes;
 4. move entries into a versioned section during release preparation.

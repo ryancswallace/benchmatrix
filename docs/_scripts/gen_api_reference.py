@@ -31,4 +31,7 @@ for module, source, docs_path in _iter_public_modules():
         output.write(f"# {title}\n\n")
         output.write(f"::: {module}\n")
 
-    mkdocs_gen_files.set_edit_path(docs_path, source)
+    # ``edit_uri`` is rooted under ``docs/``. Step back to the repository root
+    # so generated API pages link to their real Python source instead of the
+    # nonexistent ``docs/src/`` path.
+    mkdocs_gen_files.set_edit_path(docs_path, Path("..") / source)
