@@ -15,6 +15,17 @@ mode = "permissive"
 [tool.benchmatrix.evidence]
 minimum_runs = 5
 minimum_samples_per_run = 5
+minimum_rounds_per_run = 5
+require_raw_samples_for_inference = true
+minimum_tail_samples_per_run = 100
+require_tail_iterations_one = true
+
+[tool.benchmatrix.inference]
+method = "bca_bootstrap"
+confidence_level = 0.95
+resamples = 50000
+random_seed = 0
+multiplicity = "bonferroni"
 
 [tool.benchmatrix.regression]
 default_threshold_percent = 5.0
@@ -135,12 +146,50 @@ performance gate:
 * collect several runs and keep evidence thresholds enabled;
 * use a dedicated or otherwise stable runner when small changes matter;
 * treat an inconclusive result as a reason to rerun or investigate, not as proof
-    of a regression.
+    of a regression or of equivalence.
+
+The workflow above deliberately gathers independent groups, so its baseline
+and candidate phases remain separated in time. Keep those phases close
+together, minimize background work, and interpret slow thermal or runner drift
+as a possible limitation.
+
+For a stronger local-blocking design, use `collect-paired` against two working
+trees in the same job. It alternates adjacent AB/BA blocks, gives both members
+the same balanced Williams-style matrix-cell order, crosses every order row
+with both orientations, records pair identity atomically, and feeds complete
+pairs to orientation-stratified paired BCa inference:
+
+```bash
+uv run benchmatrix collect-paired \
+    --output paired-runs \
+    --baseline-cwd ../baseline-worktree \
+    --candidate-cwd . \
+    -- \
+    uv run pytest --benchmark-only tests/test_benchmarks.py \
+    ::: \
+    uv run pytest --benchmark-only tests/test_benchmarks.py
+
+uv run benchmatrix compare paired-runs \
+    --paired \
+    --fail-on-regression \
+    --format json > comparison.json
+```
+
+The independent workflow above remains useful when adjacent access to both
+variants is unavailable. The paired collector is also exposed as
+`collect_paired_benchmark_runs` in Python.
+
+Optional paired precision planning estimates the fixed pair count for a fresh
+future collection from pilot log-ratio variability. It is not power analysis
+or a sequential rule, and its arithmetic difference from the pilot count must
+not be interpreted as “keep adding pairs until the gate passes.”
 
 Do not execute code from untrusted forks on a persistent self-hosted runner
 unless each job is strongly isolated and ephemeral. Keep this workflow on the
 `pull_request` event—not `pull_request_target`—and retain minimal permissions.
 
-The comparison report records environment compatibility, sample counts, IQR,
-CV, outliers, and the resolved threshold for every matrix cell. Retain it when
-debugging a failed gate.
+The schema version 3 comparison report records environment compatibility,
+per-run observation counts, IQR, CV, outliers, the formal estimand and adjusted
+confidence interval, multiplicity family, deterministic seed, fallback method,
+and resolved threshold for every matrix cell. Retain it when debugging a failed
+gate.

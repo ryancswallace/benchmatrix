@@ -31,14 +31,16 @@
 </p>
 <!-- markdownlint-enable MD033 -->
 
-benchmatrix adds **benchmark matrices, repeated-run collection, and regression
-checks** to [pytest-benchmark](https://pytest-benchmark.readthedocs.io/). Define
-your implementations and input cases once; benchmatrix measures every
-combination and compares a baseline with a candidate.
+benchmatrix adds **benchmark matrices, repeated-run collection, paired
+experiments, and regression checks** to
+[pytest-benchmark](https://pytest-benchmark.readthedocs.io/). Define your
+implementations and input cases once; benchmatrix measures every combination
+and compares a baseline with a candidate.
 
 Before reporting a regression, it checks that both sides ran in compatible
-environments, measured the same matrix, and collected enough evidence. Weak or
-conflicting results are marked inconclusive instead of being called regressions.
+environments, measured the same matrix, and collected enough independent runs.
+It then calculates a run-level confidence interval and separates meaningful
+changes, practical equivalence, and inconclusive results.
 
 ```bash
 uv run benchmatrix measure --runs 5 --output baseline tests/test_benchmarks.py
@@ -147,6 +149,61 @@ for cell in comparison.regressed:
     print(cell.implementation_name, cell.case_name, cell.metric_name)
 ```
 
+For a drift-resistant experiment, collect adjacent matched blocks with
+`collect-paired`. Baseline-first (`AB`) and candidate-first (`BA`) blocks
+alternate, and both members of a pair use the same balanced matrix-cell order.
+Separate the two commands with `:::` after the usual `--` delimiter:
+
+```bash
+uv run benchmatrix collect-paired \
+    --random-seed 20260801 \
+    --output paired-runs \
+    --baseline-cwd ../project-baseline \
+    --candidate-cwd . \
+    -- \
+    uv run pytest --benchmark-only tests/test_sum_benchmark.py \
+    ::: \
+    uv run pytest --benchmark-only tests/test_sum_benchmark.py
+
+uv run benchmatrix compare paired-runs --paired --precision-target 2%
+```
+
+The equivalent Python API is:
+
+```python
+from benchmatrix import collect_paired_benchmark_runs
+
+pytest_command = (
+    "uv",
+    "run",
+    "pytest",
+    "--benchmark-only",
+    "tests/test_sum_benchmark.py",
+)
+paired = collect_paired_benchmark_runs(
+    pytest_command,
+    pytest_command,
+    "paired-runs",
+    random_seed=20260801,
+    baseline_cwd="../project-baseline",
+    candidate_cwd=".",
+)
+comparison = paired.compare()
+```
+
+A pair contributes to inference only when both adjacent commands succeed in
+the same block attempt. Resume and retry preserve every earlier record but
+replace an incomplete block with a fresh two-command attempt. Use
+`collect-paired --resume` after an interruption and
+`collect-paired --retry-failed` for one new full-block attempt per incomplete
+pair. Ordinary `measure`, `collect`, and two-source `compare` workflows remain
+independent; `compare PAIRED_DIR --paired` is the explicit paired path.
+When `--pairs`/`pair_count` is omitted, benchmatrix learns the matrix from the
+first accepted command and chooses the smallest target of at least five pairs
+that completes the joint AB/BA-by-cell-order supercycle. An explicit target is
+useful for exploratory pilots, but manifest-backed formal comparison requires
+a complete joint supercycle.
+
 ## Metrics
 
 benchmatrix supports three ways to measure each benchmark:
@@ -163,7 +220,14 @@ Keep project-wide comparison rules in `pyproject.toml`:
 
 ```toml
 [tool.benchmatrix.evidence]
-minimum_runs = 3
+minimum_runs = 5
+
+[tool.benchmatrix.inference]
+method = "bca_bootstrap"
+confidence_level = 0.95
+resamples = 50000
+random_seed = 0
+multiplicity = "bonferroni"
 
 [tool.benchmatrix.regression]
 default_threshold_percent = 5.0
@@ -214,11 +278,56 @@ uv run benchmatrix compare baseline candidate --github-summary
 ## Comparison checks
 
 Before classifying a change, benchmatrix checks that both sides contain
-compatible environments and matching matrix cells.
+compatible environments, matching matrix cells, and five independent process
+runs by default. Raw pytest-benchmark rounds are nested observations used for
+each run's statistic and diagnostics; they are not counted as independent
+replicates of a code change.
 
-For repeated runs it also reports rounds, iterations, sample counts, IQR,
-coefficient of variation, and outliers. If the evidence is too thin or the runs
-disagree, the result is marked inconclusive rather than a regression.
+The formal estimand is the direction-aware percentage ratio between the median
+per-run statistic on each side. benchmatrix resamples complete process-run
+statistics, calculates a deterministic BCa bootstrap interval, and falls back
+to a clearly reported percentile-bootstrap interval when the BCa adjustment is
+degenerate. Bonferroni adjustment controls the family-wise error rate across
+the structurally comparable cells in the matrix by default.
+
+Independent comparisons resample each side separately. Explicit paired
+comparisons resample matched baseline/candidate tuples, preserving within-pair
+dependence while leaving the estimand unchanged. Pairing is never guessed from
+filenames, timestamps, or collection proximity. Manifest-backed paired
+comparisons stratify resampling by the recorded AB/BA orientation, so every
+bootstrap sample preserves the fixed orientation counts. The bootstrap does
+not force each resample to preserve its exact matrix-order-row composition;
+the collected supercycle crosses every row with both orientations before
+formal comparison is allowed.
+
+An optional `PrecisionPolicy` uses paired pilot log-ratio variability to
+estimate the pair count for a **fresh, fixed-size future collection** at a
+requested multiplicative log-ratio width proxy. This planning approximation is not
+power analysis or a sequential stopping rule. It applies Student-t scaling to
+a within-orientation mean signed paired-log-ratio proxy; that proxy is not the formal
+ratio-of-marginal-medians estimand used by paired BCa inference, so the planned
+count does not guarantee the requested BCa interval width. Plans never recommend
+fewer pairs than the active evidence policy permits and round up to the paired
+collection's complete design supercycle. Their
+`additional_pairs` value is only the arithmetic difference from the pilot
+size; it is not permission to append runs to the pilot and reuse those outcomes
+as confirmatory evidence.
+
+A cell is `regressed` or `improved` only when its complete adjusted interval is
+beyond the configured practical threshold. It is `unchanged` only when the
+complete interval is inside the practical-equivalence region. An interval that
+crosses either boundary is `inconclusive`; failure to prove a regression is not
+treated as proof of equivalence.
+
+Evidence output includes per-run rounds, iterations, observation counts, IQR,
+coefficient of variation, and outlier diagnostics. Tail-latency inference
+requires 100 round-duration observations and one target iteration per round by
+default.
+
+A single run remains useful for descriptive comparison, but cannot produce the
+default run-level interval and is therefore inconclusive. The explicit
+`legacy_consistency` inference method preserves the earlier observed pairwise
+range rule for migration and exploratory use; it is non-inferential.
 
 ## benchmatrix's positioning
 

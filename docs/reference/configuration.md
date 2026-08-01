@@ -10,12 +10,23 @@ decisions use the same reviewed policy:
 mode = "permissive"
 
 [tool.benchmatrix.evidence]
-minimum_runs = 3
+minimum_runs = 5
 minimum_samples_per_run = 5
+minimum_rounds_per_run = 5
 require_rounds = true
 require_iterations = true
+require_raw_samples_for_inference = true
+minimum_tail_samples_per_run = 100
+require_tail_iterations_one = true
 maximum_cv = 0.10
 maximum_outlier_fraction = 0.05
+
+[tool.benchmatrix.inference]
+method = "bca_bootstrap"
+confidence_level = 0.95
+resamples = 50000
+random_seed = 0
+multiplicity = "bonferroni"
 
 [tool.benchmatrix.regression]
 default_threshold_percent = 5.0
@@ -45,16 +56,88 @@ not inherit policy from a parent project when the nearest pyproject has no
 | Setting | Built-in default |
 | --- | --- |
 | Compatibility mode | `permissive` |
-| Minimum runs per side | `2` |
-| Minimum samples per run and cell | `5` |
+| Minimum independent runs per side | `5` |
+| Minimum round-duration observations per run and cell | `5` |
+| Minimum reported rounds per run and cell | `5` |
 | Require rounds and iterations | `true` |
+| Require retained raw round-duration observations | `true` |
+| Minimum tail-latency observations per run | `100` |
+| Require one iteration per tail-latency round | `true` |
 | Maximum CV or outlier fraction | No limit |
+| Inference method | `bca_bootstrap` |
+| Family confidence level | `0.95` |
+| Bootstrap resamples | `50000` |
+| Bootstrap policy seed | `0` |
+| Matrix multiplicity correction | `bonferroni` |
+| Paired precision target | Disabled |
 | Default regression threshold | `5.0%` |
 
 Threshold precedence is exact cell, case, implementation, metric, then the
 default. Configuration rejects unknown benchmatrix keys, duplicate exact-cell
-rules, unknown metrics, invalid policy values, and negative or non-finite
-thresholds.
+rules, unknown metrics, invalid policy values, fewer than 1,000 bootstrap
+resamples, negative random seeds, and invalid or non-finite numeric values.
+
+One separately launched pytest process is one independent run. Increasing
+`minimum_samples_per_run` or `minimum_rounds_per_run` strengthens each run's
+within-process estimate but does not increase the independent run count. CV and
+outlier limits apply to every run separately; pooled diagnostics remain
+descriptive report fields.
+
+For tail latency, the effective observation minimum is the greater of
+`minimum_samples_per_run` and `minimum_tail_samples_per_run`. With
+`require_tail_iterations_one = true`, a p95 based on per-round averages of
+multiple calls is inadequate for inference.
+
+`bca_bootstrap` is the default formal run-level method. It uses a deterministic
+cell-specific seed derived from `random_seed`; degenerate BCa adjustments are
+reported as `percentile_bootstrap` fallbacks. `bonferroni` controls the
+family-wise error rate across structurally comparable matrix cells. Set
+`multiplicity = "none"` only for an exploratory per-cell interval without
+matrix-wide control.
+
+`legacy_consistency` is an explicit migration mode. It uses the schema version
+1 observed pairwise-range decision rule and produces no formal confidence
+interval. It is not a statistical test.
+
+### Paired precision planning
+
+Precision planning is disabled unless a positive target is configured:
+
+```toml
+[tool.benchmatrix.precision]
+target_half_width_percent = 2.0
+```
+
+This policy is valid only for an explicitly paired comparison. Independent
+comparison rejects an enabled precision policy rather than silently applying a
+paired-variance assumption. Use `collect-paired` to create explicit matched
+blocks and `compare PAIRED_DIR --paired` to retain that design. Ordinary
+two-source CLI comparisons remain independent. The equivalent Python path uses
+`collect_paired_benchmark_runs` and `BenchmarkPairedRunGroup.compare`.
+
+For every structurally comparable paired cell, the planner uses pooled
+within-AB/BA-stratum residual variability from signed paired log ratios and the
+same nominal confidence and multiplicity family as inference. It treats
+`s / sqrt(n)` as the standard error of a mean signed paired-log-ratio proxy,
+converts the target to `log1p(target / 100)`, and finds the smallest fixed pair
+count whose two-sided Student-t proxy width meets that multiplicative target.
+The proxy differs from the formal ratio-of-marginal-medians estimand and does
+not guarantee the requested paired BCa width or an absolute percentage-point
+half-width around a nonzero effect.
+
+The reported `required_pairs` is no lower than the active evidence minimum and
+is rounded to the complete AB/BA-by-matrix-order design multiple;
+`unconstrained_required_pairs` retains the raw statistical calculation. Pilot
+variance uncertainty is not modeled with an assurance bound, so small-pilot
+plans remain explicitly provisional. Zero within-stratum variability produces
+an issue rather than a zero-width certainty claim.
+
+The resulting pair count applies to a fresh future confirmatory collection
+whose size is fixed in advance. The reported difference from the pilot count
+is descriptive arithmetic only; it is not a recommendation to append runs to
+the pilot. Precision planning is not power analysis, does not promise a
+conclusive classification, and must not be used to collect until an interval
+crosses a desired boundary.
 
 Select another TOML file explicitly or disable discovery:
 
@@ -74,12 +157,43 @@ CLI policy options take precedence only for the corresponding scalar:
 * `--threshold` overrides `regression.default_threshold_percent`;
 * `--minimum-runs` overrides `evidence.minimum_runs`;
 * `--minimum-samples` overrides
-    `evidence.minimum_samples_per_run`.
+    `evidence.minimum_samples_per_run`;
+* `--inference-method` overrides `inference.method`;
+* `--confidence-level` overrides `inference.confidence_level` with a fraction
+    strictly between zero and one;
+* `--bootstrap-resamples` overrides `inference.resamples`;
+* `--random-seed` overrides `inference.random_seed`;
+* `--multiplicity` overrides `inference.multiplicity`;
+* `--precision-target` overrides `precision.target_half_width_percent` and
+    requires an explicitly paired design.
 
 For example, `--threshold 7%` changes the default while retaining configured
 metric, implementation, case, and exact-cell rules. JSON comparison output
 includes the selected configuration path, configured fields, CLI overrides,
 the effective regression policy, and each cell's threshold scope and origin.
+
+Override inference controls for one exploratory comparison without changing
+the committed policy:
+
+```bash
+benchmatrix compare baseline-runs candidate-runs \
+    --confidence-level 0.99 \
+    --bootstrap-resamples 100000 \
+    --random-seed 20260801 \
+    --multiplicity none
+```
+
+The final option removes matrix-wide control, so output identifies the result
+as exploratory. A single-run migration comparison must select the legacy rule
+explicitly; lowering the evidence count alone does not make one run sufficient
+for bootstrap inference:
+
+```bash
+benchmatrix compare baseline.json candidate.json \
+    --minimum-runs 1 \
+    --minimum-samples 0 \
+    --inference-method legacy_consistency
+```
 
 Load the same policy through Python:
 
@@ -91,6 +205,8 @@ config = load_benchmark_policy()
 print(config.source)
 print(config.compatibility)
 print(config.evidence)
+print(config.inference)
+print(config.precision)
 print(config.regression)
 ```
 
@@ -104,8 +220,8 @@ benchmatrix policy show
 
 The text output identifies whether configuration was discovered, explicitly
 selected, disabled, or absent. It reports the source, configured fields,
-compatibility mode, evidence requirements, default threshold, and every metric,
-implementation, case, and exact-cell selector.
+compatibility mode, evidence requirements, inference controls, default
+threshold, and every metric, implementation, case, and exact-cell selector.
 
 Use versioned JSON for automation:
 
@@ -114,9 +230,9 @@ benchmatrix policy show --format json
 ```
 
 The document identifies itself with `producer = "benchmatrix"`,
-`kind = "benchmark_policy"`, and `schema_version = 1`. It includes `valid`,
+`kind = "benchmark_policy"`, and `schema_version = 3`. It includes `valid`,
 `selection`, `source`, `configured_fields`, and the complete effective
-compatibility, evidence, and regression policy.
+compatibility, evidence, inference, precision, and regression policy.
 
 Validate configuration in CI without collecting or comparing runs:
 

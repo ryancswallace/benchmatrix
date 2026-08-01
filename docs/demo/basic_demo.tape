@@ -30,7 +30,7 @@ Enter
 Sleep 12s
 
 Hide
-Type `clear; printf '\n  Collect three baseline runs\n\n'`
+Type `clear; printf '\n  Collect five baseline runs\n\n'`
 Enter
 Show
 Sleep 3s
@@ -39,7 +39,7 @@ Hide
 Type "clear"
 Enter
 Show
-Type "uv run benchmatrix measure --runs 3 --output /tmp/bm-demo-base basic_demo.py"
+Type "uv run benchmatrix measure --runs 5 --output /tmp/bm-demo-base basic_demo.py"
 Enter
 Wait+Screen@120s /Overall: PASS/
 Sleep 8s
@@ -54,7 +54,7 @@ Hide
 Type "clear"
 Enter
 Show
-Type "BENCHMATRIX_DEMO_SLOWDOWN=1 uv run benchmatrix measure --runs 3 --output /tmp/bm-demo-candidate basic_demo.py"
+Type "BENCHMATRIX_DEMO_SLOWDOWN=1 uv run benchmatrix measure --runs 5 --output /tmp/bm-demo-candidate basic_demo.py"
 Enter
 Wait+Screen@120s /Overall: PASS/
 Sleep 8s

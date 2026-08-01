@@ -142,6 +142,182 @@ group = collect_benchmark_runs(
 )
 ```
 
+## Collect paired AB/BA runs
+
+Use the paired collector when baseline and candidate can run as adjacent
+matched blocks on the same controlled machine. The CLI takes two commands
+after `--`, separated by the exact `:::` token. The commands may use different
+working trees:
+
+```bash
+benchmatrix collect-paired \
+    --random-seed 20260801 \
+    --output paired-runs \
+    --baseline-cwd ../project-baseline \
+    --candidate-cwd ../project-candidate \
+    -- \
+    uv run pytest --benchmark-only tests/test_benchmarks.py \
+    ::: \
+    uv run pytest --benchmark-only tests/test_benchmarks.py
+```
+
+Do not include `--benchmark-json` in either command; the collector owns each
+collision-free result path. The equivalent Python API is:
+
+```python
+from benchmatrix import collect_paired_benchmark_runs
+
+pytest_command = (
+    "uv",
+    "run",
+    "pytest",
+    "--benchmark-only",
+    "tests/test_benchmarks.py",
+)
+
+paired = collect_paired_benchmark_runs(
+    pytest_command,
+    pytest_command,
+    "paired-runs",
+    random_seed=20260801,
+    baseline_cwd="../project-baseline",
+    candidate_cwd="../project-candidate",
+)
+
+print(paired.complete_pair_count, paired.requested_pairs)
+print(paired.orphan_success_count, paired.incomplete_pair_indexes)
+```
+
+Each target pair is one adjacent atomic block. AB (baseline first) and BA
+(candidate first) orientations alternate, with the seed selecting the first
+orientation. Both members receive the same seeded Williams-style matrix-cell
+order. Across a row cycle, this balances ordinal position; odd matrices larger
+than one use a reversed second cycle to balance directed first-order carryover
+as well. The joint schedule assigns each row to two consecutive blocks, once
+under AB and once under BA, rather than leaving orientation confounded with
+matrix position.
+
+Omitting `--pairs` or `pair_count` enables automatic design sizing. The first
+accepted command establishes the matrix, after which benchmatrix chooses the
+smallest whole joint supercycle that supplies at least five complete pairs. If
+neither command in the first target pair succeeds, collection stops until a
+resume/retry can establish that matrix anchor. You may request an explicit
+partial-cycle exploratory pilot, but `BenchmarkPairedRunGroup.compare` and
+`compare --paired` require a complete joint supercycle for formal inference.
+
+A block contributes one pair only when both commands from that block attempt
+succeed. An interrupted block or one-sided failure can leave an orphan success
+in `paired.runs` and the manifest, but it is excluded from `complete_pairs`,
+`baseline_runs`, `candidate_runs`, and inference. Successful commands from
+different attempts are never stitched into a pair.
+
+Resume an interruption with the commands and settings omitted so the manifest
+remains authoritative:
+
+```bash
+benchmatrix collect-paired --resume --output paired-runs
+```
+
+The equivalent Python call is:
+
+```python
+paired = collect_paired_benchmark_runs(
+    (),
+    (),
+    "paired-runs",
+    resume=True,
+)
+```
+
+Resume automatically replaces a partially persisted latest block with a new
+adjacent two-command attempt. To make one new full-block attempt for every
+other pair that is still incomplete, enable bounded retry:
+
+```bash
+benchmatrix collect-paired --retry-failed --output paired-runs
+```
+
+The equivalent Python call is:
+
+```python
+paired = collect_paired_benchmark_runs(
+    (),
+    (),
+    "paired-runs",
+    resume=True,
+    retry_failed=True,
+)
+```
+
+The earlier block records and files remain auditable. Repeating this call is an
+operational retry mechanism, not a statistical instruction to continue until a
+desired classification appears.
+
+Load and compare only the complete atomic blocks:
+
+```bash
+benchmatrix compare paired-runs --paired
+```
+
+Add `--precision-target 2%` to include per-cell fixed-design precision plans in
+the text, Markdown, or JSON report. The equivalent Python API is:
+
+```python
+from benchmatrix import load_paired_benchmark_run_group
+
+paired = load_paired_benchmark_run_group("paired-runs")
+comparison = paired.compare()
+
+print(comparison.design)
+for cell in comparison.comparisons:
+    print(cell.regression, cell.inference)
+```
+
+Paired inference keeps the same direction-aware ratio-of-marginal-medians
+estimand used for independent groups. Its bootstrap resamples complete matched
+tuples within the recorded AB/BA orientation strata, preserving the fixed
+stratum counts, and its BCa jackknife deletes pairs within those strata. The API
+never infers matching from paths, timestamps, or adjacent values; use
+`compare_paired_benchmark_run_groups` only when the positional matches come
+from a valid paired design and pass its `pair_strata` argument when bypassing a
+manifest. Without strata, the result contains an explicit exchangeability
+warning. Resampling does not preserve the exact matrix-order-row composition
+inside each bootstrap sample.
+
+Optionally estimate a pair count for a fresh fixed-size future experiment:
+
+```python
+from benchmatrix import PrecisionPolicy, compare_paired_benchmark_run_groups
+
+comparison = compare_paired_benchmark_run_groups(
+    paired.baseline_runs,
+    paired.candidate_runs,
+    pair_strata=tuple(pair.pair_order for pair in paired.complete_pairs),
+    precision_pair_count_multiple=paired.order_supercycle_length,
+    precision_policy=PrecisionPolicy(target_half_width_percent=2.0),
+)
+
+for cell in comparison.comparisons:
+    plan = cell.precision
+    if plan is not None:
+        print(plan.required_pairs, plan.additional_pairs, plan.warnings)
+```
+
+The planner uses pooled within-orientation pilot log-ratio variability and
+Student-t scaling for a mean signed paired-log-ratio proxy at the same
+family-adjusted confidence as inference. That proxy differs from the
+ratio-of-marginal-medians estimand used by paired BCa inference, so
+`required_pairs` is a heuristic fixed-design aid, not a guarantee of the
+requested BCa interval width or of a fixed percentage-point width away from a
+zero effect. It is never below the active evidence-policy minimum and is
+rounded to the collection's complete design supercycle. The unrounded result
+is retained as `unconstrained_required_pairs`. The final count applies to a
+**fresh future confirmatory collection** fixed before it starts.
+`additional_pairs` is only the arithmetic difference from the pilot size: do
+not append that many pairs to the analyzed pilot and claim coverage specified
+in advance. This is precision planning, not power analysis, a promise of a
+conclusive classification, or a sequential stopping rule.
+
 ## Compare from the command line
 
 Compare collection directories for a trust-aware local review or CI decision:
@@ -177,17 +353,37 @@ benchmatrix compare baseline-1.json candidate-1.json \
 
 The first positional source is the primary run or collection for each side.
 Repeat `--baseline-run` and `--candidate-run` for additional files or
-collections. The command requires two successful runs per side and five raw
-timing samples per file and cell by default. An incomplete collection makes an
-opt-in `--fail-on-regression` gate fail even if its remaining evidence would
-otherwise pass. Relax the evidence gates explicitly for exploratory
-comparisons:
+collections. The command requires five successful process runs per side, five
+reported rounds, and five retained round-duration observations per file and
+cell by default. Tail latency additionally requires 100 observations and one
+target iteration per round. An incomplete collection makes an opt-in
+`--fail-on-regression` gate fail even if its remaining evidence would otherwise
+pass.
+
+Relaxing the evidence count does not make a single run sufficient for formal
+bootstrap inference. A single-run default comparison remains descriptive and
+`inconclusive`. Select the earlier non-inferential rule explicitly only when a
+migration or exploratory workflow requires it:
 
 ```bash
 benchmatrix compare baseline.json candidate.json \
     --minimum-runs 1 \
-    --minimum-samples 1
+    --minimum-samples 1 \
+    --inference-method legacy_consistency
 ```
+
+Override the formal inference controls for one comparison when needed:
+
+```bash
+benchmatrix compare baseline-runs candidate-runs \
+    --confidence-level 0.99 \
+    --bootstrap-resamples 100000 \
+    --random-seed 20260801 \
+    --multiplicity bonferroni
+```
+
+`--multiplicity none` reports per-cell intervals at the configured confidence
+level without matrix-wide error control and is labeled exploratory.
 
 The command uses permissive run compatibility by default. Select another mode
 explicitly when needed:
@@ -210,10 +406,12 @@ benchmatrix compare baseline-1.json candidate-1.json \
 ```
 
 The output is a first-class comparison report rather than an ad hoc CLI
-payload. It includes `producer`, `kind`, and `schema_version` identifiers,
-resolved baseline and candidate sources, effective policies, configuration and
-threshold provenance, compatibility findings, repeated-run evidence, matrix
-cell decisions, and collection lifecycle snapshots.
+payload. The current schema version 3 includes `producer`, `kind`, and
+`schema_version` identifiers, resolved sources, effective evidence, inference,
+and precision policies, the independent or paired design, configuration and
+threshold provenance, compatibility findings, per-run evidence, formal
+confidence intervals, pair counts, matrix-cell decisions, precision plans, and
+independent or paired collection lifecycle snapshots.
 
 Load the report later without reopening the benchmark inputs:
 
@@ -262,9 +460,12 @@ The example uses only the built-in default threshold. When selector policies
 apply, supply their exact scope, origin, and field for each cell. The report
 constructor verifies this provenance against the effective regression policy.
 
-Version 1 is strict: unknown or missing fields, non-finite numbers, changed
-derived summaries, and unsupported producer, kind, or schema identifiers raise
-`BenchmarkJsonError`. Consumers should branch on `schema_version` rather than
+Versions 1, 2, and 3 are all read strictly: unknown or missing fields,
+non-finite numbers, inconsistent derived summaries, and unsupported producer,
+kind, or schema identifiers raise `BenchmarkJsonError`. A version 1 report
+keeps its historical classification and loads as legacy, non-inferential
+evidence. If an earlier report is written again, the writer emits the current
+schema version 3 shape. Consumers should branch on `schema_version` rather than
 assuming future versions have the same shape.
 
 ## Publish Markdown and CI summaries
@@ -344,22 +545,53 @@ cell:
 
 * files provided and files containing the cell;
 * rounds and iterations reported by every file;
-* per-file and total raw timing sample counts;
-* pooled sample IQR and coefficient of variation (CV);
-* pooled Tukey outliers and outlier fraction;
+* per-file and total round-duration observation counts;
+* per-run IQR and coefficient of variation (CV);
+* per-run Tukey outliers and outlier fractions;
+* pooled IQR, CV, and outliers retained as descriptive compatibility fields;
 * environment compatibility across all files;
 * concrete reasons evidence is inadequate.
 
-IQR, CV, and outliers describe raw elapsed-time samples in seconds. They expose
-noise and skew; they are not regression percentages. Configure optional
-`EvidencePolicy.maximum_cv` or `maximum_outlier_fraction` limits when those
-quality diagnostics should block a decision.
+IQR, CV, and outliers describe elapsed-time observations in seconds. They
+expose noise and skew; they are not regression percentages. Configure optional
+`EvidencePolicy.maximum_cv` or `maximum_outlier_fraction` limits when every
+run must satisfy those quality gates. The pooled values no longer determine
+adequacy because pooling would mix within-process jitter with between-process
+variation.
 
-For repeated inputs, benchmatrix compares the median per-run metric value on
-each side. An improvement or regression is conclusive only when every
-baseline/candidate pairing crosses the configured threshold in the same
-direction. Conflicting pairwise effects are `inconclusive`, even when the two
-medians differ by more than the threshold.
+Each separately launched pytest process is one independent experimental unit.
+Raw rounds stay nested inside a process and never count as additional
+independent runs. For each matrix cell, benchmatrix calculates the
+direction-aware percentage ratio between the median baseline per-run statistic
+and the median candidate per-run statistic. Positive values mean improvement.
+
+For ordinary run groups, the default method independently resamples complete
+process-run statistics on each side and forms a deterministic BCa bootstrap
+interval. Explicit paired comparison instead resamples matched run tuples. If
+the relevant delete-one jackknife adjustment is degenerate, the result clearly
+reports a `percentile_bootstrap` fallback. The existing
+`improvement_low_percent` and `improvement_high_percent` fields remain an
+observed descriptive range; they are not confidence bounds.
+
+Bonferroni adjustment controls the 95% family-wise error rate across all
+structurally comparable matrix cells by default. For a threshold `d` and
+interval `[L, U]`, the decision is:
+
+| Condition | Result |
+| --- | --- |
+| `U < -d` | `regressed` |
+| `L > +d` | `improved` |
+| `L >= -d` and `U <= +d` | `unchanged` (practically equivalent) |
+| Otherwise | `inconclusive` |
+
+An `inconclusive` result may have a small point estimate or a large one. It
+means the interval crosses a practical boundary, not that a regression was
+proved. Likewise, `unchanged` is positive evidence of practical equivalence,
+not merely failure to detect a change.
+
+See [Performance model](../explanation/performance.md#statistical-comparison-model)
+for the exact estimand, multiplicity family, bootstrap behavior, and current
+experimental-design limits.
 
 Use the repeated-run API directly when working in Python:
 
@@ -378,12 +610,14 @@ candidates = (
 comparison = compare_benchmark_run_groups(baselines, candidates)
 
 for cell in comparison.comparisons:
+    inference = cell.inference
     print(
         cell.regression,
         cell.baseline_evidence,
         cell.candidate_evidence,
-        cell.improvement_low_percent,
-        cell.improvement_high_percent,
+        None if inference is None else inference.confidence_low_percent,
+        None if inference is None else inference.confidence_high_percent,
+        None if inference is None else inference.method,
     )
 ```
 
@@ -417,8 +651,16 @@ for cell in comparison.comparisons:
         cell.status,
         cell.regression,
         cell.improvement_percent,
+        cell.inference,
     )
 ```
+
+This two-file convenience comparison has only one independent run per side.
+It reports the descriptive point estimate, but its default regression
+classification is `inconclusive` because a run-level confidence interval cannot
+be calculated. Use repeated groups for formal inference, or pass an explicit
+`InferencePolicy(method="legacy_consistency")` when reproducing the historical
+non-inferential behavior.
 
 Each matrix cell is identified by implementation, case, and metric. The engine
 uses these primary statistics:
@@ -480,12 +722,14 @@ Use `mode="off"` only when environment compatibility is enforced elsewhere.
 Cells remain aligned when the environment is blocked, but their regression
 classification is `not_comparable`.
 
-## Classify regressions
+## Classify regressions and equivalence
 
-The default regression threshold is 5%. A change must exceed the threshold to
-be classified as `improved` or `regressed`; changes on the boundary are
-`unchanged`. Thresholds use the direction-aware `improvement_percent`, so the
-same policy works for lower-is-better latency and higher-is-better throughput.
+The default practical threshold is 5%. The complete adjusted confidence
+interval must lie beyond the threshold to be `improved` or `regressed`, or
+inside both threshold boundaries to be `unchanged`. An interval touching a
+boundary remains inside the practical region; an interval crossing a boundary
+is `inconclusive`. Direction-aware `improvement_percent` keeps positive values
+better for both latency and throughput.
 
 ```python
 from benchmatrix import RegressionPolicy
@@ -512,7 +756,7 @@ default. The aggregate `passed` property is true only when:
 
 * the run environments are compatible;
 * every matrix cell is present and compatible;
-* every matrix cell has adequate and internally consistent evidence;
+* every matrix cell has adequate evidence and a conclusive interval;
 * no cell exceeds its regression threshold.
 
 ## Handle invalid or mixed files

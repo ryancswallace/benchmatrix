@@ -8,8 +8,9 @@ step-by-step instructions.
 
 * [Architecture](architecture.md), covering package boundaries and design
     constraints.
-* [Performance model](performance.md), covering latency, throughput, and tail
-    latency views.
+* [Performance model](performance.md), covering latency, throughput, tail
+    latency, run-level bootstrap inference, multiplicity, and practical
+    equivalence.
 * [Threat model](threat-model.md), covering supply-chain, benchmark input, and
     repository risks.
 * [Dependency policy](dependency-policy.md), covering runtime and development

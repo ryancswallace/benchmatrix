@@ -111,6 +111,7 @@ nav:
           - Benchmark policy: reference/api/bench_policy.md
           - Benchmark reports: reference/api/bench_report.md
           - Benchmark results: reference/api/bench_results.md
+          - Benchmark statistics: reference/api/bench_statistics.md
           - Command-line interface: reference/api/cli.md
           - Exceptions: reference/api/exceptions.md
       - Compatibility: reference/compatibility.md

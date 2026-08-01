@@ -25,14 +25,14 @@ those project-wide options so they do not distort the benchmark.
 Collect the baseline:
 
 ```bash
-uv run benchmatrix measure --runs 3 --output demo-baseline docs/demo/basic_demo.py
+uv run benchmatrix measure --runs 5 --output demo-baseline docs/demo/basic_demo.py
 ```
 
 Collect a deliberately slower candidate:
 
 ```bash
 BENCHMATRIX_DEMO_SLOWDOWN=1 \
-uv run benchmatrix measure --runs 3 --output demo-candidate docs/demo/basic_demo.py
+uv run benchmatrix measure --runs 5 --output demo-candidate docs/demo/basic_demo.py
 ```
 
 Compare them:
