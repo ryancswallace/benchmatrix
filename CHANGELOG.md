@@ -13,14 +13,36 @@ compatibility expectations described in [the release policy](RELEASING.md).
     defaults, repeated-run collection, resumable manifests, and advanced pytest
     argument forwarding.
 * Add compact text comparison summaries through `benchmatrix compare --summary`.
+* Add `benchmatrix --version` and a complete GitHub Actions regression-gate
+    guide.
 
 ### Changed
+
+* Make the runtime container invoke the benchmatrix CLI, publish it only for
+    reviewed GitHub Releases, and keep the development/test image internal.
+* Streamline the README, first tutorial, examples, contributor setup, project
+    navigation, and security-reporting guidance for new users.
+* Prepare package metadata and release checks for the 1.1 release.
 
 ### Deprecated
 
 ### Removed
 
 ### Fixed
+
+* Keep `measure --format json` and `collect --format json` stdout valid JSON by
+    routing child pytest output to stderr.
+* Reject duplicate or overlapping benchmark sources so one result file cannot
+    masquerade as repeated-run evidence.
+* Reject duplicate manifest paths, duplicate matrix cases and metrics, invalid
+    callable factories, and incorrectly typed benchmark controls before
+    measurement.
+* Preserve unrelated pytest-benchmark metadata while preventing case metadata
+    from replacing benchmatrix's schema fields.
+* Validate tail-latency declarations and reject non-standard `NaN` and
+    `Infinity` tokens in benchmark JSON.
+* Publish the exact wheel and source archive reviewed on a draft GitHub Release
+    instead of rebuilding and replacing them after approval.
 
 ### Security
 
