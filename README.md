@@ -11,11 +11,17 @@
 </p>
 <!-- markdownlint-enable MD033 -->
 
-[![PyPI](https://img.shields.io/pypi/v/benchmatrix.svg)](https://pypi.org/project/benchmatrix/)
-[![Python](https://img.shields.io/pypi/pyversions/benchmatrix.svg)](https://pypi.org/project/benchmatrix/)
 [![CI](https://github.com/ryancswallace/benchmatrix/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ryancswallace/benchmatrix/actions/workflows/ci.yml)
-[![Documentation](https://github.com/ryancswallace/benchmatrix/actions/workflows/docs.yml/badge.svg?branch=main)](https://ryancswallace.github.io/benchmatrix/)
-[![License](https://img.shields.io/pypi/l/benchmatrix.svg)](https://github.com/ryancswallace/benchmatrix/blob/main/LICENSE)
+[![Documentation](https://github.com/ryancswallace/benchmatrix/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/ryancswallace/benchmatrix/actions/workflows/docs.yml)
+[![Docker](https://github.com/ryancswallace/benchmatrix/actions/workflows/docker.yml/badge.svg?branch=main)](https://github.com/ryancswallace/benchmatrix/actions/workflows/docker.yml)
+[![CodeQL](https://github.com/ryancswallace/benchmatrix/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/ryancswallace/benchmatrix/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://github.com/ryancswallace/benchmatrix/actions/workflows/scorecard.yml/badge.svg?branch=main)](https://github.com/ryancswallace/benchmatrix/actions/workflows/scorecard.yml)
+[![Workflow lint](https://github.com/ryancswallace/benchmatrix/actions/workflows/workflow-lint.yml/badge.svg?branch=main)](https://github.com/ryancswallace/benchmatrix/actions/workflows/workflow-lint.yml)
+[![Python 3.11-3.14](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-3776AB?logo=python&logoColor=white)](https://github.com/ryancswallace/benchmatrix/blob/main/pyproject.toml)
+[![Typed with basedpyright](https://img.shields.io/badge/types-basedpyright-2f6fdd)](https://github.com/DetachHead/basedpyright)
+[![Linted with Ruff](https://img.shields.io/badge/lint-Ruff-46a2f1)](https://docs.astral.sh/ruff/)
+[![Coverage gate: 95%](https://img.shields.io/badge/coverage%20gate-%E2%89%A595%25-2e7d32)](https://github.com/ryancswallace/benchmatrix/blob/main/pyproject.toml)
+[![SBOM: CycloneDX 1.6](https://img.shields.io/badge/SBOM-CycloneDX%201.6-6f42c1)](https://cyclonedx.org/)
 
 <!-- markdownlint-disable MD033 -->
 <p align="center">
@@ -55,7 +61,7 @@ and GitHub Actions summaries.
   </a>
   <br>
   <a href="https://ryancswallace.github.io/benchmatrix/demo/">
-    Watch the short demo in your browser
+    Watch the one-minute demo
   </a>
 </p>
 <!-- markdownlint-enable MD033 -->
@@ -214,7 +220,7 @@ For repeated runs it also reports rounds, iterations, sample counts, IQR,
 coefficient of variation, and outliers. If the evidence is too thin or the runs
 disagree, the result is marked inconclusive rather than a regression.
 
-## Where benchmatrix fits
+## benchmatrix's positioning
 
 When using benchmatrix, pytest-benchmark still handles timing, calibration,
 statistics, terminal output, and JSON export. benchmatrix adds the **matrix,
