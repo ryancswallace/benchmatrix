@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import json
 import os
 import shutil
 import subprocess
@@ -10,11 +11,19 @@ import sys
 import textwrap
 from collections.abc import Callable, Mapping, MutableMapping, Sequence
 from pathlib import Path
-from typing import Protocol, TypeVar
+from typing import Protocol, TypeVar, cast
 
 import pytest
 
-from benchmatrix import BenchmarkCase, BenchmarkConfig, BenchmarkHookContext, benchmark_batch_throughput
+from benchmatrix import (
+    BenchmarkCase,
+    BenchmarkConfig,
+    BenchmarkHookContext,
+    MetricName,
+    balanced_cell_order,
+    benchmark_batch_throughput,
+    collect_paired_benchmark_runs,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -174,6 +183,97 @@ def test_make_benchmark_test_is_collected_by_real_pytest(tmp_path: Path) -> None
     assert "8 tests collected" in result.stdout
     for parameter_id in expected_ids:
         assert f"test_generated_matrix[{parameter_id}]" in result.stdout
+
+
+@pytest.mark.slow
+def test_paired_collector_controls_real_pytest_benchmark_json_order(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    benchmark_module = tmp_path / "test_balanced_matrix.py"
+    _ = benchmark_module.write_text(
+        textwrap.dedent(
+            """
+            from benchmatrix import BenchmarkCase, BenchmarkConfig, make_benchmark_test
+
+
+            def identity(value: int) -> int:
+                return value
+
+
+            def doubled(value: int) -> int:
+                return value * 2
+
+
+            test_balanced_matrix = make_benchmark_test(
+                {"identity": identity, "doubled": doubled},
+                [
+                    BenchmarkCase.from_values("small", 1),
+                    BenchmarkCase.from_values("large", 100),
+                ],
+                metrics=("single_call_latency",),
+                config=BenchmarkConfig(pedantic_rounds=1, warmup_rounds=0),
+            )
+            """
+        ),
+        encoding="utf-8",
+    )
+    command = (
+        sys.executable,
+        "-m",
+        "pytest",
+        "-p",
+        "pytest_benchmark.plugin",
+        "-q",
+        str(benchmark_module),
+    )
+    monkeypatch.setenv("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
+    cells: tuple[tuple[str, str, MetricName], ...] = (
+        ("identity", "small", "single_call_latency"),
+        ("identity", "large", "single_call_latency"),
+        ("doubled", "small", "single_call_latency"),
+        ("doubled", "large", "single_call_latency"),
+    )
+
+    group = collect_paired_benchmark_runs(
+        command,
+        command,
+        tmp_path / "paired-results",
+        pair_count=1,
+        random_seed=37,
+        baseline_cwd=tmp_path,
+        candidate_cwd=tmp_path,
+    )
+
+    assert group.is_complete is True
+    assert len(group.complete_pairs) == 1
+    for pair in group.complete_pairs:
+        expected = balanced_cell_order(
+            cells,
+            order_index=pair.baseline_record.cell_order_index,
+            random_seed=37,
+        )
+        baseline_order = tuple((row.implementation_name, row.case_name, row.metric_name) for row in pair.baseline.rows)
+        candidate_order = tuple(
+            (row.implementation_name, row.case_name, row.metric_name) for row in pair.candidate.rows
+        )
+
+        assert expected != cells
+        assert pair.cell_order == expected
+        assert baseline_order == candidate_order == expected
+        for record in (pair.baseline_record, pair.candidate_record):
+            payload = cast(dict[str, object], json.loads(record.path.read_text(encoding="utf-8")))
+            entries = cast(list[dict[str, object]], payload["benchmarks"])
+            json_order = tuple(
+                (
+                    cast(str, extra_info["implementation_name"]),
+                    cast(str, extra_info["case_name"]),
+                    cast(MetricName, extra_info["metric_name"]),
+                )
+                for entry in entries
+                if (extra_info := cast(dict[str, object], entry["extra_info"]))
+            )
+            assert json_order == expected
 
 
 @pytest.mark.slow

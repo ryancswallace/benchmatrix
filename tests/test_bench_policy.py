@@ -12,11 +12,13 @@ from benchmatrix import (
     BenchmarkPolicyConfig,
     BenchmarkPolicyError,
     EvidencePolicy,
+    InferencePolicy,
     RegressionPolicy,
     RunCompatibilityPolicy,
     default_benchmark_policy,
     load_benchmark_policy,
 )
+from benchmatrix.bench_compare import PrecisionPolicy
 
 pytestmark = pytest.mark.unit
 
@@ -33,6 +35,8 @@ def test_default_policy_matches_library_defaults() -> None:
 
     assert config.compatibility == RunCompatibilityPolicy()
     assert config.evidence == EvidencePolicy()
+    assert config.inference == InferencePolicy()
+    assert config.precision == PrecisionPolicy()
     assert config.regression == RegressionPolicy()
     assert config.source is None
     assert config.configured_fields == frozenset()
@@ -52,10 +56,24 @@ mode = "strict"
 [tool.benchmatrix.evidence]
 minimum_runs = 3
 minimum_samples_per_run = 7
+minimum_rounds_per_run = 9
 require_rounds = false
 require_iterations = false
+require_raw_samples_for_inference = false
+minimum_tail_samples_per_run = 120
+require_tail_iterations_one = false
 maximum_cv = 0.1
 maximum_outlier_fraction = 0.05
+
+[tool.benchmatrix.inference]
+method = "bca_bootstrap"
+confidence_level = 0.99
+resamples = 6000
+random_seed = 42
+multiplicity = "none"
+
+[tool.benchmatrix.precision]
+target_half_width_percent = 2.5
 
 [tool.benchmatrix.regression]
 default_threshold_percent = 6.0
@@ -85,11 +103,23 @@ threshold_percent = 12.0
     assert config.evidence == EvidencePolicy(
         minimum_runs=3,
         minimum_samples_per_run=7,
+        minimum_rounds_per_run=9,
         require_rounds=False,
         require_iterations=False,
+        require_raw_samples_for_inference=False,
+        minimum_tail_samples_per_run=120,
+        require_tail_iterations_one=False,
         maximum_cv=0.1,
         maximum_outlier_fraction=0.05,
     )
+    assert config.inference == InferencePolicy(
+        method="bca_bootstrap",
+        confidence_level=0.99,
+        resamples=6_000,
+        random_seed=42,
+        multiplicity="none",
+    )
+    assert config.precision == PrecisionPolicy(target_half_width_percent=2.5)
     assert config.regression.default_threshold_percent == 6.0
     assert config.regression.by_metric == {"tail_latency": 8.0}
     assert config.regression.by_implementation == {"reference": 3.0}
@@ -100,10 +130,20 @@ threshold_percent = 12.0
         "compatibility.mode",
         "evidence.minimum_runs",
         "evidence.minimum_samples_per_run",
+        "evidence.minimum_rounds_per_run",
         "evidence.require_rounds",
         "evidence.require_iterations",
+        "evidence.require_raw_samples_for_inference",
+        "evidence.minimum_tail_samples_per_run",
+        "evidence.require_tail_iterations_one",
         "evidence.maximum_cv",
         "evidence.maximum_outlier_fraction",
+        "inference.method",
+        "inference.confidence_level",
+        "inference.resamples",
+        "inference.random_seed",
+        "inference.multiplicity",
+        "precision.target_half_width_percent",
         "regression.default_threshold_percent",
         "regression.by_metric.tail_latency",
         "regression.by_implementation.reference",
@@ -175,6 +215,14 @@ def test_discovery_without_pyproject_uses_defaults(tmp_path: Path) -> None:
         ('[tool.benchmatrix.compatibility]\nmode = "unknown"\n', "Unsupported run compatibility mode"),
         ("[tool.benchmatrix.evidence]\nminimum_runs = 0\n", "positive integer"),
         ("[tool.benchmatrix.evidence]\nrequire_rounds = 1\n", "must be a boolean"),
+        ('[tool.benchmatrix.inference]\nmethod = "unknown"\n', "Unsupported inference method"),
+        ("[tool.benchmatrix.inference]\nconfidence_level = 1.0\n", "between zero and one"),
+        ("[tool.benchmatrix.inference]\nresamples = 999\n", "at least 1000"),
+        (
+            "[tool.benchmatrix.precision]\ntarget_half_width_percent = 0\n",
+            "must be positive",
+        ),
+        ("[tool.benchmatrix.precision]\nunknown = 1\n", "Unknown key"),
         ("[tool.benchmatrix.regression]\ndefault_threshold_percent = -1\n", "must not be negative"),
         (
             "[tool.benchmatrix.regression.by_metric]\nunknown = 1\n",
@@ -259,6 +307,8 @@ def test_empty_benchmatrix_table_selects_file_with_defaults(tmp_path: Path) -> N
     assert config.source == path.resolve()
     assert config.compatibility == RunCompatibilityPolicy()
     assert config.evidence == EvidencePolicy()
+    assert config.inference == InferencePolicy()
+    assert config.precision == PrecisionPolicy()
     assert config.regression == RegressionPolicy()
     assert config.configured_fields == frozenset()
 
@@ -268,6 +318,8 @@ def test_empty_benchmatrix_table_selects_file_with_defaults(tmp_path: Path) -> N
     [
         ("compatibility", object(), "RunCompatibilityPolicy"),
         ("evidence", object(), "EvidencePolicy"),
+        ("inference", object(), "InferencePolicy"),
+        ("precision", object(), "PrecisionPolicy"),
         ("regression", object(), "RegressionPolicy"),
         ("configured_fields", frozenset({""}), "non-empty strings"),
     ],

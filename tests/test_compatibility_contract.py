@@ -14,6 +14,7 @@ import pytest
 import benchmatrix
 from benchmatrix import (
     EvidencePolicy,
+    InferencePolicy,
     RegressionPolicy,
     RunCompatibilityPolicy,
     default_benchmark_policy,
@@ -23,6 +24,9 @@ from benchmatrix._schema import (
     COMPARISON_REPORT_KIND,
     COMPARISON_REPORT_SCHEMA_READ_VERSIONS,
     COMPARISON_REPORT_SCHEMA_VERSION,
+    PAIRED_RUN_GROUP_KIND,
+    PAIRED_RUN_GROUP_SCHEMA_READ_VERSIONS,
+    PAIRED_RUN_GROUP_SCHEMA_VERSION,
     POLICY_INSPECTION_KIND,
     POLICY_INSPECTION_SCHEMA_VERSION,
     PRODUCER,
@@ -37,6 +41,9 @@ from benchmatrix.bench_compare import (
     ComparisonStatus,
     CompatibilityMode,
     CompatibilitySeverity,
+    InferenceMethod,
+    IntervalMethod,
+    MultiplicityCorrection,
     RegressionClassification,
     RegressionThresholdScope,
 )
@@ -69,16 +76,37 @@ _STABLE_FUNCTION_SIGNATURES = {
         "run_count: 'int | None' = None, resume: 'bool' = False, "
         "retry_failed: 'bool' = False) -> 'BenchmarkRunGroup'"
     ),
+    "collect_paired_benchmark_runs": (
+        "(baseline_command: 'Sequence[str]', candidate_command: 'Sequence[str]', "
+        "output_dir: 'str | Path', *, pair_count: 'int | None' = None, "
+        "random_seed: 'int | None' = None, baseline_cwd: 'str | Path | None' = None, "
+        "candidate_cwd: 'str | Path | None' = None, resume: 'bool' = False, "
+        "retry_failed: 'bool' = False) -> 'BenchmarkPairedRunGroup'"
+    ),
     "compare_benchmark_run_groups": (
         "(baselines: 'Sequence[BenchmarkRun]', candidates: 'Sequence[BenchmarkRun]', "
         "*, compatibility_policy: 'RunCompatibilityPolicy | None' = None, "
         "regression_policy: 'RegressionPolicy | None' = None, "
-        "evidence_policy: 'EvidencePolicy | None' = None) -> 'BenchmarkRunComparison'"
+        "evidence_policy: 'EvidencePolicy | None' = None, "
+        "inference_policy: 'InferencePolicy | None' = None, "
+        "precision_policy: 'PrecisionPolicy | None' = None) -> 'BenchmarkRunComparison'"
     ),
     "compare_benchmark_runs": (
         "(baseline: 'BenchmarkRun', candidate: 'BenchmarkRun', *, "
         "compatibility_policy: 'RunCompatibilityPolicy | None' = None, "
-        "regression_policy: 'RegressionPolicy | None' = None) -> 'BenchmarkRunComparison'"
+        "regression_policy: 'RegressionPolicy | None' = None, "
+        "inference_policy: 'InferencePolicy | None' = None, "
+        "precision_policy: 'PrecisionPolicy | None' = None) -> 'BenchmarkRunComparison'"
+    ),
+    "compare_paired_benchmark_run_groups": (
+        "(baselines: 'Sequence[BenchmarkRun]', candidates: 'Sequence[BenchmarkRun]', "
+        "*, pair_strata: 'Sequence[str] | None' = None, "
+        "precision_pair_count_multiple: 'int' = 2, "
+        "compatibility_policy: 'RunCompatibilityPolicy | None' = None, "
+        "regression_policy: 'RegressionPolicy | None' = None, "
+        "evidence_policy: 'EvidencePolicy | None' = None, "
+        "inference_policy: 'InferencePolicy | None' = None, "
+        "precision_policy: 'PrecisionPolicy | None' = None) -> 'BenchmarkRunComparison'"
     ),
     "deep_copy": "(value: 'object') -> 'object'",
     "default_benchmark_policy": "() -> 'BenchmarkPolicyConfig'",
@@ -91,6 +119,7 @@ _STABLE_FUNCTION_SIGNATURES = {
     ),
     "load_benchmark_run": "(path: 'str | Path') -> 'BenchmarkRun'",
     "load_benchmark_run_group": "(path: 'str | Path') -> 'BenchmarkRunGroup'",
+    "load_paired_benchmark_run_group": "(path: 'str | Path') -> 'BenchmarkPairedRunGroup'",
     "load_comparison_report": "(path: 'str | Path') -> 'BenchmarkComparisonReport'",
     "make_benchmark_parameters": (
         "(implementations: 'Mapping[str, TargetFunction]', "
@@ -102,6 +131,24 @@ _STABLE_FUNCTION_SIGNATURES = {
         "cases: 'Mapping[str, BenchmarkCase] | Iterable[BenchmarkCase]', *, "
         "metrics: 'Iterable[MetricName] | None' = None, "
         "config: 'BenchmarkConfig | None' = None) -> 'Callable[..., None]'"
+    ),
+    "balanced_cell_order": (
+        "(cells: 'Sequence[tuple[str, str, MetricName]]', *, order_index: 'int', "
+        "random_seed: 'int' = 0) -> 'tuple[tuple[str, str, MetricName], ...]'"
+    ),
+    "balanced_order_cycle_length": "(cell_count: 'int') -> 'int'",
+    "balanced_order_supercycle_length": "(cell_count: 'int') -> 'int'",
+    "make_paired_ab_ba_schedule": (
+        "(pair_count: 'int', *, random_seed: 'int' = 0, "
+        "cell_count: 'int | None' = None) -> 'tuple[BenchmarkPairSchedule, ...]'"
+    ),
+    "plan_paired_precision": (
+        "(baseline_values: 'Sequence[float]', candidate_values: 'Sequence[float]', *, "
+        "lower_is_better: 'bool', target_half_width_percent: 'float', "
+        "confidence_level: 'float' = 0.95, family_size: 'int' = 1, "
+        "multiplicity: 'MultiplicityCorrection' = 'bonferroni', "
+        "strata: 'Sequence[str] | None' = None, minimum_pairs: 'int' = 2, "
+        "pair_count_multiple: 'int' = 2) -> 'PrecisionPlan'"
     ),
     "run_benchmark_metric": (
         "(benchmark: 'BenchmarkFixture', metric_name: 'MetricName', "
@@ -136,6 +183,23 @@ _STABLE_RECORD_FIELDS = {
         "expected_cells",
         "records",
     ),
+    "BenchmarkPairedCollectionSnapshot": (
+        "manifest",
+        "created_at",
+        "baseline_command",
+        "candidate_command",
+        "baseline_cwd",
+        "candidate_cwd",
+        "baseline_commit",
+        "candidate_commit",
+        "baseline_environment_fingerprint",
+        "candidate_environment_fingerprint",
+        "requested_pairs",
+        "random_seed",
+        "expected_cells",
+        "records",
+        "automatic_pairs",
+    ),
     "BenchmarkComparison": (
         "implementation_name",
         "case_name",
@@ -156,6 +220,8 @@ _STABLE_RECORD_FIELDS = {
         "improvement_low_percent",
         "improvement_high_percent",
         "reason",
+        "inference",
+        "precision",
     ),
     "BenchmarkComparisonReport": (
         "baselines",
@@ -168,6 +234,10 @@ _STABLE_RECORD_FIELDS = {
         "policy_provenance",
         "comparisons",
         "threshold_provenance",
+        "inference_policy",
+        "design",
+        "precision_policy",
+        "paired_collections",
     ),
     "BenchmarkConfig": (
         "pedantic_rounds",
@@ -191,6 +261,10 @@ _STABLE_RECORD_FIELDS = {
         "outlier_fraction",
         "adequate",
         "issues",
+        "run_iqrs",
+        "run_coefficients_of_variation",
+        "run_outlier_counts",
+        "run_outlier_fractions",
     ),
     "BenchmarkHookContext": (
         "metric_name",
@@ -211,6 +285,8 @@ _STABLE_RECORD_FIELDS = {
         "regression",
         "source",
         "configured_fields",
+        "inference",
+        "precision",
     ),
     "BenchmarkPolicyProvenance": (
         "selection",
@@ -218,6 +294,43 @@ _STABLE_RECORD_FIELDS = {
         "configured_fields",
         "cli_overrides",
     ),
+    "BenchmarkPairedRunGroup": (
+        "runs",
+        "records",
+        "baseline_command",
+        "candidate_command",
+        "created_at",
+        "baseline_cwd",
+        "candidate_cwd",
+        "baseline_commit",
+        "candidate_commit",
+        "baseline_environment_fingerprint",
+        "candidate_environment_fingerprint",
+        "expected_cells",
+        "requested_pairs",
+        "random_seed",
+        "manifest_path",
+        "automatic_pairs",
+    ),
+    "BenchmarkPairedRunRecord": (
+        "index",
+        "pair_index",
+        "block_attempt",
+        "variant",
+        "pair_order",
+        "order_position",
+        "cell_order_index",
+        "status",
+        "path",
+        "returncode",
+        "started_at",
+        "duration_seconds",
+        "error",
+        "warnings",
+        "commit",
+        "environment_fingerprint",
+    ),
+    "BenchmarkPairSchedule": ("pair_index", "pair_order", "cell_order_index"),
     "BenchmarkRun": ("rows", "metadata", "source"),
     "BenchmarkRunComparison": (
         "baseline",
@@ -228,6 +341,9 @@ _STABLE_RECORD_FIELDS = {
         "baseline_runs",
         "candidate_runs",
         "evidence_policy",
+        "inference_policy",
+        "design",
+        "precision_policy",
     ),
     "BenchmarkRunGroup": (
         "runs",
@@ -240,6 +356,16 @@ _STABLE_RECORD_FIELDS = {
         "expected_cells",
         "requested_runs",
         "manifest_path",
+    ),
+    "BenchmarkRunPair": (
+        "pair_index",
+        "block_attempt",
+        "pair_order",
+        "cell_order",
+        "baseline",
+        "candidate",
+        "baseline_record",
+        "candidate_record",
     ),
     "BenchmarkRunRecord": (
         "index",
@@ -257,10 +383,39 @@ _STABLE_RECORD_FIELDS = {
     "EvidencePolicy": (
         "minimum_runs",
         "minimum_samples_per_run",
+        "minimum_rounds_per_run",
         "require_rounds",
         "require_iterations",
+        "require_raw_samples_for_inference",
+        "minimum_tail_samples_per_run",
+        "require_tail_iterations_one",
         "maximum_cv",
         "maximum_outlier_fraction",
+    ),
+    "BenchmarkInference": (
+        "method",
+        "estimand",
+        "design",
+        "confidence_level",
+        "adjusted_confidence_level",
+        "multiplicity",
+        "family_size",
+        "resamples",
+        "random_seed",
+        "estimate_percent",
+        "confidence_low_percent",
+        "confidence_high_percent",
+        "warnings",
+        "issues",
+        "pair_count",
+        "strata_count",
+    ),
+    "InferencePolicy": (
+        "method",
+        "confidence_level",
+        "resamples",
+        "random_seed",
+        "multiplicity",
     ),
     "ParsedBenchmarkRow": (
         "benchmark_name",
@@ -272,6 +427,27 @@ _STABLE_RECORD_FIELDS = {
         "derived",
         "samples",
     ),
+    "PrecisionPlan": (
+        "method",
+        "pilot_pairs",
+        "target_half_width_percent",
+        "confidence_level",
+        "adjusted_confidence_level",
+        "multiplicity",
+        "family_size",
+        "pilot_log_ratio_standard_deviation",
+        "critical_value",
+        "required_pairs",
+        "additional_pairs",
+        "assumptions",
+        "minimum_pairs",
+        "pair_count_multiple",
+        "unconstrained_required_pairs",
+        "strata_count",
+        "warnings",
+        "issues",
+    ),
+    "PrecisionPolicy": ("target_half_width_percent",),
     "RegressionPolicy": (
         "default_threshold_percent",
         "by_metric",
@@ -305,6 +481,20 @@ _CLI_SURFACE = {
         ),
         ("pytest_command",),
     ),
+    "benchmatrix collect-paired": (
+        (
+            ("-h", "--help"),
+            ("--pairs",),
+            ("--output",),
+            ("--random-seed",),
+            ("--baseline-cwd",),
+            ("--candidate-cwd",),
+            ("--resume",),
+            ("--retry-failed",),
+            ("--format",),
+        ),
+        ("paired_commands",),
+    ),
     "benchmatrix measure": (
         (
             ("-h", "--help"),
@@ -320,6 +510,7 @@ _CLI_SURFACE = {
     "benchmatrix compare": (
         (
             ("-h", "--help"),
+            ("--paired",),
             ("--baseline-run",),
             ("--candidate-run",),
             ("--threshold",),
@@ -330,6 +521,12 @@ _CLI_SURFACE = {
             ("--fail-on-regression",),
             ("--minimum-runs",),
             ("--minimum-samples",),
+            ("--inference-method",),
+            ("--confidence-level",),
+            ("--bootstrap-resamples",),
+            ("--random-seed",),
+            ("--multiplicity",),
+            ("--precision-target",),
             ("--config",),
             ("--no-config",),
         ),
@@ -362,10 +559,13 @@ _CLI_SURFACE = {
 _CLI_CHOICES = {
     "benchmatrix": {},
     "benchmatrix collect": {"format": ("text", "json")},
+    "benchmatrix collect-paired": {"format": ("text", "json")},
     "benchmatrix measure": {"format": ("text", "json")},
     "benchmatrix compare": {
         "compatibility": ("strict", "permissive", "off"),
         "format": ("text", "json", "markdown"),
+        "inference_method": ("bca_bootstrap", "legacy_consistency"),
+        "multiplicity": ("bonferroni", "none"),
     },
     "benchmatrix policy": {},
     "benchmatrix policy show": {"format": ("text", "json")},
@@ -450,6 +650,7 @@ def test_cli_commands_options_and_positionals_match_v1_contract() -> None:
 def test_cli_defaults_and_choices_match_v1_contract() -> None:
     parser = build_parser()
     collect = parser.parse_args(["collect", "--output", "runs", "--", "pytest"])
+    collect_paired = parser.parse_args(["collect-paired", "--output", "pairs", "--", "baseline", ":::", "candidate"])
     measure = parser.parse_args(["measure", "--output", "runs", "benchmarks.py"])
     compare = parser.parse_args(["compare", "baseline.json", "candidate.json"])
     policy_show = parser.parse_args(["policy", "show"])
@@ -462,6 +663,16 @@ def test_cli_defaults_and_choices_match_v1_contract() -> None:
     assert collect.format == "text"
     assert collect.pytest_command == ["--", "pytest"]
 
+    assert collect_paired.pairs is None
+    assert collect_paired.output == Path("pairs")
+    assert collect_paired.random_seed is None
+    assert collect_paired.baseline_cwd is None
+    assert collect_paired.candidate_cwd is None
+    assert collect_paired.resume is False
+    assert collect_paired.retry_failed is False
+    assert collect_paired.format == "text"
+    assert collect_paired.paired_commands == ["--", "baseline", ":::", "candidate"]
+
     assert measure.runs is None
     assert measure.output == Path("runs")
     assert measure.resume is False
@@ -472,6 +683,7 @@ def test_cli_defaults_and_choices_match_v1_contract() -> None:
 
     assert compare.baseline == Path("baseline.json")
     assert compare.candidate == Path("candidate.json")
+    assert compare.paired is False
     assert compare.baseline_run == []
     assert compare.candidate_run == []
     assert compare.threshold is None
@@ -482,6 +694,12 @@ def test_cli_defaults_and_choices_match_v1_contract() -> None:
     assert compare.fail_on_regression is False
     assert compare.minimum_runs is None
     assert compare.minimum_samples is None
+    assert compare.inference_method is None
+    assert compare.confidence_level is None
+    assert compare.bootstrap_resamples is None
+    assert compare.random_seed is None
+    assert compare.multiplicity is None
+    assert compare.precision_target is None
     assert compare.config is None
     assert compare.no_config is False
 
@@ -519,13 +737,25 @@ def test_policy_defaults_metrics_and_precedence_match_v1_contract() -> None:
     )
     assert config.compatibility == RunCompatibilityPolicy(mode="permissive")
     assert config.evidence == EvidencePolicy(
-        minimum_runs=2,
+        minimum_runs=5,
         minimum_samples_per_run=5,
+        minimum_rounds_per_run=5,
         require_rounds=True,
         require_iterations=True,
+        require_raw_samples_for_inference=True,
+        minimum_tail_samples_per_run=100,
+        require_tail_iterations_one=True,
         maximum_cv=None,
         maximum_outlier_fraction=None,
     )
+    assert config.inference == InferencePolicy(
+        method="bca_bootstrap",
+        confidence_level=0.95,
+        resamples=50_000,
+        random_seed=0,
+        multiplicity="bonferroni",
+    )
+    assert config.precision == benchmatrix.PrecisionPolicy()
     assert config.regression == RegressionPolicy(default_threshold_percent=5.0)
     assert policy.threshold_scope_for("impl", "exact", "single_call_latency") == "cell"
     assert policy.threshold_scope_for("impl", "case", "single_call_latency") == "case"
@@ -545,6 +775,9 @@ def test_stable_literal_value_domains_match_v1_contract() -> None:
     )
     assert get_args(CompatibilityMode) == ("strict", "permissive", "off")
     assert get_args(CompatibilitySeverity) == ("blocking", "warning")
+    assert get_args(InferenceMethod) == ("bca_bootstrap", "legacy_consistency")
+    assert get_args(IntervalMethod) == ("bca_bootstrap", "percentile_bootstrap")
+    assert get_args(MultiplicityCorrection) == ("bonferroni", "none")
     assert get_args(RegressionClassification) == (
         "improved",
         "unchanged",
@@ -570,8 +803,11 @@ def test_document_identities_and_read_windows_match_v1_contract() -> None:
     assert RUN_GROUP_KIND == "benchmark_run_group"
     assert RUN_GROUP_SCHEMA_VERSION == 2
     assert {1, 2} == RUN_GROUP_SCHEMA_READ_VERSIONS
+    assert PAIRED_RUN_GROUP_KIND == "benchmark_paired_run_group"
+    assert PAIRED_RUN_GROUP_SCHEMA_VERSION == 1
+    assert {1} == PAIRED_RUN_GROUP_SCHEMA_READ_VERSIONS
     assert COMPARISON_REPORT_KIND == "benchmark_comparison"
-    assert COMPARISON_REPORT_SCHEMA_VERSION == 1
-    assert {1} == COMPARISON_REPORT_SCHEMA_READ_VERSIONS
+    assert COMPARISON_REPORT_SCHEMA_VERSION == 3
+    assert {1, 2, 3} == COMPARISON_REPORT_SCHEMA_READ_VERSIONS
     assert POLICY_INSPECTION_KIND == "benchmark_policy"
-    assert POLICY_INSPECTION_SCHEMA_VERSION == 1
+    assert POLICY_INSPECTION_SCHEMA_VERSION == 3

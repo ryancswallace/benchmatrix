@@ -1,0 +1,235 @@
+{
+  "baseline": "frozen-v2/baseline-1.json",
+  "baseline_collections": [],
+  "baselines": [
+    "frozen-v2/baseline-1.json",
+    "frozen-v2/baseline-2.json",
+    "frozen-v2/baseline-3.json",
+    "frozen-v2/baseline-4.json",
+    "frozen-v2/baseline-5.json"
+  ],
+  "candidate": "frozen-v2/candidate-1.json",
+  "candidate_collections": [],
+  "candidates": [
+    "frozen-v2/candidate-1.json",
+    "frozen-v2/candidate-2.json",
+    "frozen-v2/candidate-3.json",
+    "frozen-v2/candidate-4.json",
+    "frozen-v2/candidate-5.json"
+  ],
+  "comparison_passed": false,
+  "comparisons": [
+    {
+      "baseline_evidence": {
+        "adequate": true,
+        "coefficient_of_variation": 0.015623602331173684,
+        "iqr": 0.020199999999999996,
+        "issues": [],
+        "iterations": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "observed_run_count": 5,
+        "outlier_count": 0,
+        "outlier_fraction": 0.0,
+        "provided_run_count": 5,
+        "rounds": [
+          5,
+          5,
+          5,
+          5,
+          5
+        ],
+        "run_coefficients_of_variation": [
+          0.014142135623730978,
+          0.014142135623730963,
+          0.014142135623730947,
+          0.014142135623730963,
+          0.014142135623730942
+        ],
+        "run_iqrs": [
+          0.01980000000000004,
+          0.020000000000000018,
+          0.020199999999999996,
+          0.020000000000000018,
+          0.01990000000000003
+        ],
+        "run_outlier_counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "run_outlier_fractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "sample_count": 25,
+        "sample_counts": [
+          5,
+          5,
+          5,
+          5,
+          5
+        ]
+      },
+      "baseline_value": 1.0,
+      "candidate_evidence": {
+        "adequate": true,
+        "coefficient_of_variation": 0.015185936471575774,
+        "iqr": 0.0262,
+        "issues": [],
+        "iterations": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "observed_run_count": 5,
+        "outlier_count": 0,
+        "outlier_fraction": 0.0,
+        "provided_run_count": 5,
+        "rounds": [
+          5,
+          5,
+          5,
+          5,
+          5
+        ],
+        "run_coefficients_of_variation": [
+          0.014142135623730977,
+          0.014142135623730965,
+          0.01414213562373095,
+          0.014142135623730965,
+          0.014142135623730944
+        ],
+        "run_iqrs": [
+          0.023800000000000043,
+          0.02400000000000002,
+          0.0242,
+          0.02400000000000002,
+          0.02389999999999981
+        ],
+        "run_outlier_counts": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "run_outlier_fractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "sample_count": 25,
+        "sample_counts": [
+          5,
+          5,
+          5,
+          5,
+          5
+        ]
+      },
+      "candidate_value": 1.2,
+      "case_name": "small",
+      "direction": "lower_is_better",
+      "implementation_name": "impl",
+      "improvement_high_percent": -17.821782178217816,
+      "improvement_low_percent": -22.22222222222221,
+      "improvement_percent": -19.999999999999996,
+      "inference": {
+        "adequate": true,
+        "adjusted_confidence_level": 0.95,
+        "confidence_high_percent": -18.31683168316831,
+        "confidence_level": 0.95,
+        "confidence_low_percent": -21.212121212121215,
+        "design": "independent",
+        "estimand": "direction-aware percentage ratio of median per-run statistics",
+        "estimate_percent": -19.999999999999996,
+        "family_size": 1,
+        "issues": [],
+        "method": "bca_bootstrap",
+        "multiplicity": "bonferroni",
+        "random_seed": 6177557808131089454,
+        "resamples": 1000,
+        "warnings": []
+      },
+      "metric_name": "single_call_latency",
+      "percent_change": 19.999999999999996,
+      "ratio": 1.2,
+      "reason": null,
+      "regression": "regressed",
+      "statistic": "mean",
+      "status": "matched",
+      "threshold_percent": 5.0,
+      "threshold_source": {
+        "field": "regression.default_threshold_percent",
+        "origin": "built_in",
+        "scope": "default"
+      },
+      "unit": "seconds"
+    }
+  ],
+  "compatibility": {
+    "findings": [],
+    "is_compatible": true,
+    "mode": "permissive",
+    "pairs_checked": 9
+  },
+  "evidence_policy": {
+    "maximum_cv": null,
+    "maximum_outlier_fraction": null,
+    "minimum_rounds_per_run": 5,
+    "minimum_runs": 5,
+    "minimum_samples_per_run": 5,
+    "minimum_tail_samples_per_run": 100,
+    "require_iterations": true,
+    "require_raw_samples_for_inference": true,
+    "require_rounds": true,
+    "require_tail_iterations_one": true
+  },
+  "has_regressions": true,
+  "inference_policy": {
+    "confidence_level": 0.95,
+    "method": "bca_bootstrap",
+    "multiplicity": "bonferroni",
+    "random_seed": 17,
+    "resamples": 1000
+  },
+  "is_comparable": true,
+  "kind": "benchmark_comparison",
+  "passed": false,
+  "policy": {
+    "cli_overrides": [],
+    "configuration_file": null,
+    "configured_fields": [],
+    "regression": {
+      "by_case": {},
+      "by_cell": [],
+      "by_implementation": {},
+      "by_metric": {},
+      "default_threshold_percent": 5.0
+    },
+    "selection": "defaults"
+  },
+  "producer": "benchmatrix",
+  "schema_version": 2,
+  "summary": {
+    "improved": 0,
+    "inconclusive": 0,
+    "not_comparable": 0,
+    "regressed": 1,
+    "unchanged": 0
+  }
+}

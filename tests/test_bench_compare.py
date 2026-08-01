@@ -8,18 +8,24 @@ from typing import Any, cast
 import pytest
 
 from benchmatrix import (
+    BenchmarkInference,
     BenchmarkRun,
     EvidencePolicy,
+    InferencePolicy,
     MetricName,
     ParsedBenchmarkRow,
+    PrecisionPolicy,
     RegressionPolicy,
     RunCompatibilityPolicy,
     compare_benchmark_run_groups,
     compare_benchmark_runs,
+    compare_paired_benchmark_run_groups,
 )
 from benchmatrix.bench_compare import CompatibilityMode
 
 pytestmark = pytest.mark.unit
+
+_LEGACY_INFERENCE = InferencePolicy(method="legacy_consistency")
 
 
 def _row(
@@ -135,7 +141,11 @@ def test_compare_benchmark_runs_uses_metric_aware_statistics_and_direction() -> 
         _row("tail_latency", case_name="tail", value=10.0),
     )
 
-    result = compare_benchmark_runs(baseline, candidate)
+    result = compare_benchmark_runs(
+        baseline,
+        candidate,
+        inference_policy=_LEGACY_INFERENCE,
+    )
 
     assert result.is_complete
     assert not result.missing
@@ -182,7 +192,7 @@ def test_compare_to_reports_union_of_matrix_cells_in_stable_order() -> None:
         _row("single_call_latency", implementation_name="alpha", case_name="added", value=1.0),
     )
 
-    result = baseline.compare_to(candidate)
+    result = baseline.compare_to(candidate, inference_policy=_LEGACY_INFERENCE)
 
     assert [
         (comparison.implementation_name, comparison.case_name, comparison.status) for comparison in result.comparisons
@@ -272,18 +282,20 @@ def test_compare_benchmark_runs_marks_invalid_derived_values_incompatible(
     assert comparison.reason == "Both rows must contain a finite 'latency_mean' derived value."
 
 
-def test_compare_benchmark_runs_handles_zero_baseline_without_infinite_change() -> None:
+def test_compare_benchmark_runs_rejects_nonpositive_ratio_inputs() -> None:
     result = compare_benchmark_runs(
         _run(_row("single_call_latency", value=0.0)),
         _run(_row("single_call_latency", value=1.0)),
     )
 
-    comparison = result.matched[0]
+    comparison = result.incompatible[0]
     assert comparison.baseline_value == 0.0
     assert comparison.candidate_value == 1.0
     assert comparison.ratio is None
     assert comparison.percent_change is None
     assert comparison.improvement_percent is None
+    assert comparison.regression == "not_comparable"
+    assert comparison.reason == ("Every row must contain a positive 'latency_mean' derived value for ratio inference.")
 
 
 def test_compare_benchmark_runs_distinguishes_missing_metadata_from_null() -> None:
@@ -334,6 +346,7 @@ def test_run_compatibility_accepts_equivalent_normalized_environments() -> None:
     result = compare_benchmark_runs(
         _run(_row("single_call_latency", value=1.0), metadata=baseline_metadata),
         _run(_row("single_call_latency", value=0.99), metadata=candidate_metadata),
+        inference_policy=_LEGACY_INFERENCE,
     )
 
     assert result.compatibility.is_compatible
@@ -388,6 +401,7 @@ def test_permissive_compatibility_warns_for_lower_risk_changes() -> None:
     result = compare_benchmark_runs(
         _run(_row("single_call_latency", value=1.0), metadata=baseline_metadata),
         _run(_row("single_call_latency", value=1.0), metadata=candidate_metadata),
+        inference_policy=_LEGACY_INFERENCE,
     )
 
     warning_fields = {finding.field for finding in result.compatibility.warnings}
@@ -451,6 +465,7 @@ def test_compatibility_off_disables_environment_findings() -> None:
         _run(_row("single_call_latency", value=1.0), metadata=_environment_metadata(system="Linux")),
         _run(_row("single_call_latency", value=2.0), metadata=_environment_metadata(system="Darwin")),
         compatibility_policy=RunCompatibilityPolicy(mode="off"),
+        inference_policy=_LEGACY_INFERENCE,
     )
 
     assert result.compatibility.findings == ()
@@ -489,7 +504,12 @@ def test_regression_policy_classifies_threshold_boundaries() -> None:
         _row("single_call_latency", case_name="regressed", value=106.0),
     )
 
-    result = compare_benchmark_runs(baseline, candidate, regression_policy=policy)
+    result = compare_benchmark_runs(
+        baseline,
+        candidate,
+        regression_policy=policy,
+        inference_policy=_LEGACY_INFERENCE,
+    )
     by_case = {comparison.case_name: comparison for comparison in result.comparisons}
 
     assert by_case["improved"].regression == "improved"
@@ -522,7 +542,12 @@ def test_regression_policy_uses_documented_selector_precedence() -> None:
         _row("single_call_latency", case_name="exact", value=95.0),
     )
 
-    result = compare_benchmark_runs(baseline, candidate, regression_policy=policy)
+    result = compare_benchmark_runs(
+        baseline,
+        candidate,
+        regression_policy=policy,
+        inference_policy=_LEGACY_INFERENCE,
+    )
     thresholds = {
         (comparison.implementation_name, comparison.case_name): comparison.threshold_percent
         for comparison in result.comparisons
@@ -583,38 +608,92 @@ def _evidence_row(value: float, *samples: float) -> ParsedBenchmarkRow:
     )
 
 
-def test_repeated_run_comparison_aggregates_medians_and_consistent_effects() -> None:
-    baselines = (
-        _run(_evidence_row(100.0, 98.0, 99.0, 100.0, 101.0, 102.0)),
-        _run(_evidence_row(102.0, 100.0, 101.0, 102.0, 103.0, 104.0)),
+def test_single_run_default_is_inconclusive_and_legacy_rule_is_opt_in() -> None:
+    baseline = _run(_row("single_call_latency", value=100.0))
+    candidate = _run(_row("single_call_latency", value=90.0))
+
+    default = compare_benchmark_runs(baseline, candidate)
+    legacy = compare_benchmark_runs(
+        baseline,
+        candidate,
+        inference_policy=_LEGACY_INFERENCE,
     )
-    candidates = (
-        _run(_evidence_row(110.0, 108.0, 109.0, 110.0, 111.0, 112.0)),
-        _run(_evidence_row(112.0, 110.0, 111.0, 112.0, 113.0, 114.0)),
+
+    comparison = default.comparisons[0]
+    assert comparison.status == "matched"
+    assert comparison.regression == "inconclusive"
+    assert comparison.inference is not None
+    assert comparison.inference.issues == (
+        "baseline has 1 run(s); at least 2 required for inference",
+        "candidate has 1 run(s); at least 2 required for inference",
+    )
+    assert not default.passed
+    assert legacy.comparisons[0].regression == "improved"
+    assert legacy.comparisons[0].inference is None
+
+
+def test_bootstrap_intervals_classify_improvement_equivalence_and_regression() -> None:
+    def run_group(values: dict[str, float]) -> tuple[BenchmarkRun, ...]:
+        return tuple(
+            _run(
+                *(
+                    _row(
+                        "single_call_latency",
+                        case_name=case_name,
+                        value=value,
+                        samples=(value,) * 5,
+                        rounds=5,
+                        iterations=1,
+                    )
+                    for case_name, value in values.items()
+                )
+            )
+            for _ in range(5)
+        )
+
+    result = compare_benchmark_run_groups(
+        run_group({"improved": 100.0, "equivalent": 100.0, "regressed": 100.0}),
+        run_group({"improved": 90.0, "equivalent": 102.0, "regressed": 110.0}),
+        inference_policy=InferencePolicy(resamples=1_000, random_seed=47),
     )
 
-    result = compare_benchmark_run_groups(baselines, candidates)
-
-    comparison = result.comparisons[0]
-    assert comparison.baseline_value == 101.0
-    assert comparison.candidate_value == 111.0
-    assert comparison.regression == "regressed"
-    assert comparison.improvement_low_percent == pytest.approx(-12.0)
-    assert comparison.improvement_high_percent == pytest.approx(-7.8431372549)
-    assert comparison.baseline_evidence is not None
-    assert comparison.baseline_evidence.rounds == (5, 5)
-    assert comparison.baseline_evidence.iterations == (1, 1)
-    assert comparison.baseline_evidence.sample_count == 10
-    assert comparison.baseline_evidence.iqr == pytest.approx(2.0)
-    assert comparison.baseline_evidence.coefficient_of_variation is not None
-    assert comparison.baseline_evidence.outlier_count == 0
-    assert comparison.baseline_evidence.adequate
-    assert result.baseline_runs == baselines
-    assert result.candidate_runs == candidates
-    assert result.has_regressions
+    by_case = {comparison.case_name: comparison for comparison in result.comparisons}
+    assert by_case["improved"].regression == "improved"
+    assert by_case["equivalent"].regression == "unchanged"
+    assert by_case["regressed"].regression == "regressed"
+    for comparison in result.comparisons:
+        assert comparison.inference is not None
+        assert comparison.inference.family_size == 3
+        assert comparison.inference.adjusted_confidence_level == pytest.approx(1.0 - 0.05 / 3.0)
+        assert comparison.inference.method == "percentile_bootstrap"
+        assert comparison.inference.adequate
+    assert result.passed is False
 
 
-def test_repeated_run_comparison_marks_conflicting_effects_inconclusive() -> None:
+def test_disabling_multiplicity_is_explicitly_marked_exploratory() -> None:
+    rows = tuple(
+        _run(_evidence_row(value, value, value, value, value, value)) for value in (98.0, 99.0, 100.0, 101.0, 102.0)
+    )
+    candidates = tuple(
+        _run(_evidence_row(value, value, value, value, value, value)) for value in (108.0, 109.0, 110.0, 111.0, 112.0)
+    )
+
+    comparison = compare_benchmark_run_groups(
+        rows,
+        candidates,
+        inference_policy=InferencePolicy(
+            resamples=1_000,
+            random_seed=47,
+            multiplicity="none",
+        ),
+    ).comparisons[0]
+
+    assert comparison.inference is not None
+    assert comparison.inference.adjusted_confidence_level == 0.95
+    assert any("exploratory" in warning for warning in comparison.inference.warnings)
+
+
+def test_legacy_consistency_retains_descriptive_pairwise_decision_rule() -> None:
     baselines = (
         _run(_evidence_row(100.0, 98.0, 99.0, 100.0, 101.0, 102.0)),
         _run(_evidence_row(120.0, 118.0, 119.0, 120.0, 121.0, 122.0)),
@@ -624,11 +703,241 @@ def test_repeated_run_comparison_marks_conflicting_effects_inconclusive() -> Non
         _run(_evidence_row(115.0, 113.0, 114.0, 115.0, 116.0, 117.0)),
     )
 
-    comparison = compare_benchmark_run_groups(baselines, candidates).comparisons[0]
+    comparison = compare_benchmark_run_groups(
+        baselines,
+        candidates,
+        evidence_policy=EvidencePolicy(minimum_runs=2),
+        inference_policy=_LEGACY_INFERENCE,
+    ).comparisons[0]
+
+    assert comparison.regression == "inconclusive"
+    assert comparison.inference is None
+    assert comparison.reason is not None
+    assert "pairwise range" in comparison.reason
+
+
+def test_repeated_run_comparison_aggregates_medians_and_consistent_effects() -> None:
+    baselines = tuple(
+        _run(_evidence_row(value, value - 2.0, value - 1.0, value, value + 1.0, value + 2.0))
+        for value in (98.0, 99.0, 100.0, 101.0, 102.0)
+    )
+    candidates = tuple(
+        _run(_evidence_row(value, value - 2.0, value - 1.0, value, value + 1.0, value + 2.0))
+        for value in (113.0, 114.0, 115.0, 116.0, 117.0)
+    )
+
+    result = compare_benchmark_run_groups(
+        baselines,
+        candidates,
+        inference_policy=InferencePolicy(resamples=5_000, random_seed=47),
+    )
+
+    comparison = result.comparisons[0]
+    assert comparison.baseline_value == 100.0
+    assert comparison.candidate_value == 115.0
+    assert comparison.regression == "regressed"
+    assert comparison.improvement_low_percent == pytest.approx(-19.387755102)
+    assert comparison.improvement_high_percent == pytest.approx(-10.784313725)
+    assert comparison.inference is not None
+    assert comparison.inference.estimate_percent == pytest.approx(-15.0)
+    assert comparison.inference.confidence_high_percent is not None
+    assert comparison.inference.confidence_high_percent < -5.0
+    assert comparison.baseline_evidence is not None
+    assert comparison.baseline_evidence.rounds == (5, 5, 5, 5, 5)
+    assert comparison.baseline_evidence.iterations == (1, 1, 1, 1, 1)
+    assert comparison.baseline_evidence.sample_count == 25
+    assert comparison.baseline_evidence.run_iqrs == (2.0, 2.0, 2.0, 2.0, 2.0)
+    assert comparison.baseline_evidence.coefficient_of_variation is not None
+    assert comparison.baseline_evidence.outlier_count == 0
+    assert comparison.baseline_evidence.adequate
+    assert result.baseline_runs == baselines
+    assert result.candidate_runs == candidates
+    assert result.has_regressions
+
+
+def test_paired_comparison_resamples_complete_pairs_and_reports_design() -> None:
+    baseline_values = (80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0)
+    candidate_values = (75.0, 84.0, 93.0, 101.0, 112.0, 119.0, 133.0)
+    baselines = tuple(
+        _run(_evidence_row(value, value * 0.98, value * 0.99, value, value * 1.01, value * 1.02))
+        for value in baseline_values
+    )
+    candidates = tuple(
+        _run(_evidence_row(value, value * 0.98, value * 0.99, value, value * 1.01, value * 1.02))
+        for value in candidate_values
+    )
+
+    paired = compare_paired_benchmark_run_groups(
+        baselines,
+        candidates,
+        inference_policy=InferencePolicy(resamples=2_000, random_seed=47),
+        precision_policy=PrecisionPolicy(target_half_width_percent=5.0),
+    )
+    independent = compare_benchmark_run_groups(
+        baselines,
+        candidates,
+        inference_policy=InferencePolicy(resamples=2_000, random_seed=47),
+    )
+
+    paired_cell = paired.comparisons[0]
+    independent_cell = independent.comparisons[0]
+    assert paired.design == "paired"
+    assert paired_cell.inference is not None
+    assert paired_cell.inference.design == "paired"
+    assert paired_cell.inference.pair_count == 7
+    assert paired_cell.precision is not None
+    assert paired_cell.precision.pilot_pairs == 7
+    assert paired_cell.precision.family_size == 1
+    assert paired_cell.improvement_low_percent == pytest.approx(
+        min(6.25, 6.6666666667, 7.0, 8.1818181818, 6.6666666667, 8.4615384615, 5.0)
+    )
+    assert paired_cell.improvement_high_percent == pytest.approx(8.4615384615)
+    assert independent_cell.inference is not None
+    assert independent_cell.inference.design == "independent"
+    assert independent_cell.inference.pair_count is None
+    assert paired_cell.inference.confidence_low_percent is not None
+    assert paired_cell.inference.confidence_high_percent is not None
+    assert independent_cell.inference.confidence_low_percent is not None
+    assert independent_cell.inference.confidence_high_percent is not None
+    assert (
+        paired_cell.inference.confidence_high_percent - paired_cell.inference.confidence_low_percent
+        < independent_cell.inference.confidence_high_percent - independent_cell.inference.confidence_low_percent
+    )
+
+
+def test_stratified_paired_comparison_neutralizes_a_pure_command_order_effect() -> None:
+    baselines = tuple(
+        _run(_evidence_row(value, value, value, value, value, value))
+        for value in (100.0, 110.0, 100.0, 110.0, 100.0, 110.0)
+    )
+    candidates = tuple(
+        _run(_evidence_row(value, value, value, value, value, value))
+        for value in (110.0, 100.0, 110.0, 100.0, 110.0, 100.0)
+    )
+
+    comparison = compare_paired_benchmark_run_groups(
+        baselines,
+        candidates,
+        pair_strata=("AB", "BA", "AB", "BA", "AB", "BA"),
+        inference_policy=InferencePolicy(resamples=1_000, random_seed=47),
+    ).comparisons[0]
+
+    assert comparison.inference is not None
+    assert comparison.inference.strata_count == 2
+    assert comparison.inference.estimate_percent == pytest.approx(0.0)
+    assert comparison.inference.confidence_low_percent == pytest.approx(0.0)
+    assert comparison.inference.confidence_high_percent == pytest.approx(0.0)
+    assert comparison.regression == "unchanged"
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"pair_strata": ("AB",)}, "one label for every complete pair"),
+        ({"pair_strata": ("AB", "")}, "non-empty strings"),
+        ({"precision_pair_count_multiple": 3}, "even AB/BA allocation"),
+    ],
+)
+def test_paired_comparison_validates_fixed_design_inputs(
+    kwargs: dict[str, Any],
+    message: str,
+) -> None:
+    run = _run(_evidence_row(1.0, 0.98, 0.99, 1.0, 1.01, 1.02))
+
+    with pytest.raises(ValueError, match=message):
+        _ = compare_paired_benchmark_run_groups(
+            (run, run),
+            (run, run),
+            **kwargs,
+        )
+
+
+def test_paired_comparison_rejects_implicit_or_incomplete_pairing() -> None:
+    row = _evidence_row(1.0, 0.98, 0.99, 1.0, 1.01, 1.02)
+    other = _row(
+        "single_call_latency",
+        case_name="other",
+        value=1.0,
+        samples=(1.0,) * 5,
+        rounds=5,
+        iterations=1,
+    )
+
+    with pytest.raises(ValueError, match="same number"):
+        _ = compare_paired_benchmark_run_groups((_run(row),), (_run(row), _run(row)))
+
+    result = compare_paired_benchmark_run_groups(
+        (_run(row), _run(other)),
+        (_run(other), _run(row)),
+        evidence_policy=EvidencePolicy(minimum_runs=1),
+    )
+    comparison = next(cell for cell in result.comparisons if cell.case_name == "small")
+    assert comparison.status == "incompatible"
+    assert comparison.regression == "not_comparable"
+    assert comparison.reason is not None
+    assert "both members of every complete run pair" in comparison.reason
+
+
+def test_precision_planning_requires_explicit_paired_design() -> None:
+    run = _run(_evidence_row(1.0, 0.98, 0.99, 1.0, 1.01, 1.02))
+
+    with pytest.raises(ValueError, match="explicitly paired"):
+        _ = compare_benchmark_run_groups(
+            (run, run),
+            (run, run),
+            precision_policy=PrecisionPolicy(target_half_width_percent=5.0),
+        )
+
+
+def test_paired_precision_planning_is_unavailable_when_compatibility_is_blocked() -> None:
+    baseline_values = (98.0, 99.0, 100.0, 101.0, 102.0)
+    candidate_values = (93.0, 95.0, 94.0, 97.0, 96.0)
+    linux = _environment_metadata(system="Linux")
+    darwin = _environment_metadata(system="Darwin")
+    baselines = tuple(
+        _run(_evidence_row(value, value * 0.98, value * 0.99, value, value * 1.01, value * 1.02), metadata=linux)
+        for value in baseline_values
+    )
+    candidates = tuple(
+        _run(_evidence_row(value, value * 0.98, value * 0.99, value, value * 1.01, value * 1.02), metadata=darwin)
+        for value in candidate_values
+    )
+
+    result = compare_paired_benchmark_run_groups(
+        baselines,
+        candidates,
+        inference_policy=InferencePolicy(resamples=1_000),
+        precision_policy=PrecisionPolicy(target_half_width_percent=5.0),
+    )
+
+    plan = result.comparisons[0].precision
+    assert not result.compatibility.is_compatible
+    assert plan is not None
+    assert not plan.adequate
+    assert plan.required_pairs is None
+    assert plan.additional_pairs is None
+    assert "run-environment compatibility was blocked; precision planning is unavailable" in plan.issues
+
+
+def test_repeated_run_comparison_marks_conflicting_effects_inconclusive() -> None:
+    baselines = tuple(
+        _run(_evidence_row(value, value - 2.0, value - 1.0, value, value + 1.0, value + 2.0))
+        for value in (98.0, 99.0, 100.0, 101.0, 102.0)
+    )
+    candidates = tuple(
+        _run(_evidence_row(value, value - 2.0, value - 1.0, value, value + 1.0, value + 2.0))
+        for value in (102.0, 103.0, 104.0, 105.0, 106.0)
+    )
+
+    comparison = compare_benchmark_run_groups(
+        baselines,
+        candidates,
+        inference_policy=InferencePolicy(resamples=5_000, random_seed=47),
+    ).comparisons[0]
 
     assert comparison.regression == "inconclusive"
     assert comparison.reason is not None
-    assert "pairwise range" in comparison.reason
+    assert "adjusted confidence interval" in comparison.reason
 
 
 def test_repeated_run_comparison_reports_inadequate_evidence() -> None:
@@ -642,8 +951,9 @@ def test_repeated_run_comparison_reports_inadequate_evidence() -> None:
     assert comparison.baseline_evidence is not None
     assert not comparison.baseline_evidence.adequate
     assert comparison.baseline_evidence.issues == (
-        "only 1 run(s) contain the cell; 2 required",
+        "only 1 run(s) contain the cell; 5 required",
         "run 0 has 2 sample(s); 5 required",
+        "run 0 reports 2 round(s); 5 required",
     )
     assert comparison.reason is not None
     assert comparison.reason.startswith("Inadequate evidence:")
@@ -695,6 +1005,108 @@ def test_repeated_run_comparison_requires_cell_in_every_provided_run() -> None:
     assert "cell is missing from 1 provided run(s)" in comparison.baseline_evidence.issues
 
 
+def test_evidence_checks_raw_samples_round_consistency_and_unavailable_diagnostics() -> None:
+    row = _row(
+        "single_call_latency",
+        value=1.0,
+        samples=(),
+        rounds=5,
+        iterations=1,
+    )
+    policy = EvidencePolicy(
+        minimum_runs=1,
+        minimum_samples_per_run=0,
+        maximum_cv=1.0,
+        maximum_outlier_fraction=1.0,
+    )
+
+    evidence = (
+        compare_benchmark_run_groups(
+            (_run(row),),
+            (_run(row),),
+            evidence_policy=policy,
+        )
+        .comparisons[0]
+        .baseline_evidence
+    )
+
+    assert evidence is not None
+    assert evidence.issues == (
+        "run 0 does not contain raw round-duration observations",
+        "run 0 coefficient of variation is unavailable",
+        "run 0 outlier fraction is unavailable",
+    )
+    assert evidence.run_iqrs == (None,)
+    assert evidence.run_coefficients_of_variation == (None,)
+    assert evidence.run_outlier_counts == (None,)
+    assert evidence.run_outlier_fractions == (None,)
+
+
+def test_evidence_requires_reported_rounds_and_iterations() -> None:
+    row = _row(
+        "single_call_latency",
+        value=1.0,
+        samples=(0.9, 1.0, 1.0, 1.0, 1.1),
+    )
+
+    evidence = (
+        compare_benchmark_run_groups(
+            (_run(row),),
+            (_run(row),),
+            evidence_policy=EvidencePolicy(minimum_runs=1),
+        )
+        .comparisons[0]
+        .baseline_evidence
+    )
+
+    assert evidence is not None
+    assert evidence.issues == (
+        "run 0 does not report positive rounds",
+        "run 0 does not report positive iterations",
+    )
+
+
+def test_evidence_rejects_round_sample_count_mismatch() -> None:
+    row = _row(
+        "single_call_latency",
+        value=1.0,
+        samples=(0.9, 1.0, 1.1, 1.0, 1.0),
+        rounds=6,
+        iterations=1,
+    )
+
+    evidence = (
+        compare_benchmark_run_groups(
+            (_run(row),),
+            (_run(row),),
+            evidence_policy=EvidencePolicy(minimum_runs=1),
+        )
+        .comparisons[0]
+        .baseline_evidence
+    )
+
+    assert evidence is not None
+    assert evidence.issues == ("run 0 reports 6 round(s) but contains 5 round-duration observation(s)",)
+
+
+def test_tail_latency_requires_one_hundred_individual_call_samples_per_run() -> None:
+    row = _row(
+        "tail_latency",
+        value=1.0,
+        samples=(1.0,) * 99,
+        rounds=99,
+        iterations=2,
+    )
+    runs = tuple(_run(row) for _ in range(5))
+
+    evidence = compare_benchmark_run_groups(runs, runs).comparisons[0].baseline_evidence
+
+    assert evidence is not None
+    assert not evidence.adequate
+    assert "run 0 has 99 sample(s); 100 required" in evidence.issues
+    assert "run 0 reports 2 iterations; tail latency requires one iteration" in evidence.issues
+
+
 def test_repeated_run_compatibility_checks_every_environment() -> None:
     row = _evidence_row(1.0, 0.9, 1.0, 1.0, 1.0, 1.1)
     linux = _environment_metadata(system="Linux")
@@ -718,9 +1130,21 @@ def test_repeated_run_compatibility_checks_every_environment() -> None:
         ({"minimum_runs": 0}, ValueError, "minimum_runs"),
         ({"minimum_runs": cast(int, "2")}, TypeError, "must be an integer"),
         ({"minimum_samples_per_run": -1}, ValueError, "minimum_samples_per_run"),
+        ({"minimum_samples_per_run": cast(int, "5")}, TypeError, "must be an integer"),
+        ({"minimum_rounds_per_run": -1}, ValueError, "minimum_rounds_per_run"),
+        ({"minimum_rounds_per_run": cast(int, "5")}, TypeError, "must be an integer"),
+        ({"minimum_tail_samples_per_run": -1}, ValueError, "minimum_tail_samples_per_run"),
+        ({"minimum_tail_samples_per_run": True}, TypeError, "must be an integer"),
         ({"maximum_cv": -0.1}, ValueError, "must not be negative"),
         ({"maximum_outlier_fraction": True}, TypeError, "must be numeric"),
         ({"require_rounds": cast(bool, 1)}, TypeError, "must be a boolean"),
+        ({"require_iterations": cast(bool, 1)}, TypeError, "must be a boolean"),
+        (
+            {"require_raw_samples_for_inference": cast(bool, 1)},
+            TypeError,
+            "must be a boolean",
+        ),
+        ({"require_tail_iterations_one": cast(bool, 1)}, TypeError, "must be a boolean"),
     ],
 )
 def test_evidence_policy_rejects_invalid_configuration(
@@ -739,3 +1163,105 @@ def test_repeated_run_comparison_rejects_empty_or_invalid_groups() -> None:
         _ = compare_benchmark_run_groups((), (run,))
     with pytest.raises(TypeError, match=r"candidates\[0\]"):
         _ = compare_benchmark_run_groups((run,), cast(tuple[BenchmarkRun], (object(),)))
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "error_type", "message"),
+    [
+        ({"method": cast(Any, "unknown")}, ValueError, "Unsupported inference method"),
+        ({"confidence_level": True}, TypeError, "must be numeric"),
+        ({"confidence_level": 0.0}, ValueError, "between zero and one"),
+        ({"confidence_level": 1.0}, ValueError, "between zero and one"),
+        ({"resamples": True}, TypeError, "must be an integer"),
+        ({"resamples": 999}, ValueError, "at least 1000"),
+        ({"random_seed": True}, TypeError, "must be an integer"),
+        ({"random_seed": -1}, ValueError, "must be non-negative"),
+        ({"multiplicity": cast(Any, "unknown")}, ValueError, "Unsupported multiplicity"),
+    ],
+)
+def test_inference_policy_rejects_invalid_configuration(
+    kwargs: dict[str, Any],
+    error_type: type[Exception],
+    message: str,
+) -> None:
+    with pytest.raises(error_type, match=message):
+        _ = InferencePolicy(**kwargs)
+
+
+def test_benchmark_inference_validates_completeness_and_exposes_adequacy() -> None:
+    inference = BenchmarkInference(
+        method="bca_bootstrap",
+        estimand="median ratio",
+        design="independent",
+        confidence_level=0.95,
+        adjusted_confidence_level=0.975,
+        multiplicity="bonferroni",
+        family_size=2,
+        resamples=1_000,
+        random_seed=1,
+        estimate_percent=1.0,
+        confidence_low_percent=-1.0,
+        confidence_high_percent=2.0,
+    )
+
+    assert inference.adequate
+    with pytest.raises(ValueError, match="present together"):
+        _ = BenchmarkInference(
+            method="bca_bootstrap",
+            estimand="median ratio",
+            design="independent",
+            confidence_level=0.95,
+            adjusted_confidence_level=0.95,
+            multiplicity="bonferroni",
+            family_size=1,
+            resamples=1_000,
+            random_seed=1,
+            estimate_percent=1.0,
+            confidence_low_percent=None,
+            confidence_high_percent=None,
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "error_type", "message"),
+    [
+        ("method", "unknown", ValueError, "Unsupported interval method"),
+        ("design", "unknown", ValueError, "Unsupported inference design"),
+        ("estimand", "", ValueError, "non-empty string"),
+        ("confidence_level", 0.0, ValueError, "between zero and one"),
+        ("adjusted_confidence_level", 0.90, ValueError, "must not be lower"),
+        ("multiplicity", "unknown", ValueError, "Unsupported multiplicity"),
+        ("family_size", 0, ValueError, "positive integer"),
+        ("resamples", True, TypeError, "must be an integer"),
+        ("resamples", 999, ValueError, "at least 1000"),
+        ("random_seed", True, TypeError, "must be an integer"),
+        ("random_seed", -1, ValueError, "must be non-negative"),
+        ("estimate_percent", float("inf"), ValueError, "must be finite"),
+        ("confidence_low_percent", 3.0, ValueError, "bounds are reversed"),
+        ("warnings", ("",), ValueError, "non-empty strings"),
+    ],
+)
+def test_benchmark_inference_rejects_invalid_fields(
+    field: str,
+    value: object,
+    error_type: type[Exception],
+    message: str,
+) -> None:
+    values: dict[str, object] = {
+        "method": "bca_bootstrap",
+        "estimand": "median ratio",
+        "design": "independent",
+        "confidence_level": 0.95,
+        "adjusted_confidence_level": 0.975,
+        "multiplicity": "bonferroni",
+        "family_size": 2,
+        "resamples": 1_000,
+        "random_seed": 1,
+        "estimate_percent": 1.0,
+        "confidence_low_percent": -1.0,
+        "confidence_high_percent": 2.0,
+    }
+    values[field] = value
+
+    with pytest.raises(error_type, match=message):
+        _ = BenchmarkInference(**cast(Any, values))
