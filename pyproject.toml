@@ -200,6 +200,7 @@ skip_covered = true
 line-length = 120
 src = ["src", "tests", "examples", "scripts", "docs/_scripts"]
 target-version = "py311"
+preview = false
 
 [tool.ruff.lint]
 select = ["B", "C4", "E", "F", "I", "PIE", "PT", "RET", "RUF", "SIM", "UP"]

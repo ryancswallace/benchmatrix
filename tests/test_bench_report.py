@@ -475,15 +475,19 @@ def test_v3_report_round_trip_preserves_formal_inference(tmp_path: Path) -> None
 
 def test_load_golden_v2_report_fixture_upgrades_to_current_model(tmp_path: Path) -> None:
     report = load_comparison_report(V2_FIXTURE)
+    inference = report.comparisons[0].inference
 
     assert report.schema_version == 3
     assert report.design == "independent"
     assert report.precision_policy == PrecisionPolicy()
     assert report.paired_collections == ()
-    assert report.comparisons[0].inference is not None
-    assert report.comparisons[0].inference.pair_count is None
+    assert report.baselines == tuple(f"frozen-v2/baseline-{index}.json" for index in range(1, 6))
+    assert report.candidates == tuple(f"frozen-v2/candidate-{index}.json" for index in range(1, 6))
+    assert inference is not None
+    assert inference.pair_count is None
+    assert inference.confidence_low_percent == pytest.approx(-21.212121212121215)
+    assert inference.confidence_high_percent == pytest.approx(-18.31683168316831)
     assert report.comparisons[0].precision is None
-    assert report == _inference_report(Path("frozen-v2"))
 
     output = tmp_path / "upgraded-v2.json"
     write_comparison_report(report, output)
