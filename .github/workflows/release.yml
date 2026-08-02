@@ -6,8 +6,12 @@ on:
       - published
   workflow_dispatch:
     inputs:
+      tag:
+        description: Existing v* GitHub Release tag whose reviewed assets should be used. Leave empty for a build-only check.
+        required: false
+        type: string
       publish:
-        description: Publish the built distributions to PyPI.
+        description: Publish the validated distributions to PyPI.
         required: true
         default: "false"
         type: choice
@@ -19,7 +23,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.workflow }}-${{ github.ref }}
+  group: release-${{ github.workflow }}-${{ inputs.tag || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -37,6 +41,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
         with:
+          ref: ${{ inputs.tag || github.ref }}
           persist-credentials: false
 
       - name: Set up Python
@@ -54,34 +59,42 @@ jobs:
         run: uv sync --locked
 
       - name: Verify tag and release metadata
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.tag != ''
         shell: bash
         env:
-          RELEASE_REF: ${{ github.ref_name }}
+          RELEASE_REF: ${{ inputs.tag || github.ref_name }}
         run: uv run python scripts/prepare_release.py validate "${RELEASE_REF#v}"
 
       - name: Download reviewed GitHub Release assets
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' || inputs.tag != ''
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
+          case "$RELEASE_TAG" in
+            v*) ;;
+            *)
+              echo "Reviewed release assets require a v* tag; got '$RELEASE_TAG'."
+              exit 1
+              ;;
+          esac
           mkdir -p dist
-          gh release download "$GITHUB_REF_NAME" \
+          gh release download "$RELEASE_TAG" \
             --pattern "benchmatrix-*.tar.gz" \
             --pattern "benchmatrix-*.whl" \
             --pattern "benchmatrix.cdx.json" \
             --dir dist
 
       - name: Build release assets for manual verification
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && inputs.tag == ''
         run: make build
 
       - name: Validate reviewed release assets
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' || inputs.tag != ''
         run: |
-          uv run twine check dist/*
+          make check-dist
           make smoke-dist
           make validate-dist
 
@@ -110,7 +123,7 @@ jobs:
 
   publish:
     name: Publish to PyPI
-    if: (github.event_name == 'release' || inputs.publish == 'true') && startsWith(github.ref, 'refs/tags/v')
+    if: (github.event_name == 'release' || inputs.publish == 'true') && (startsWith(github.ref, 'refs/tags/v') || startsWith(inputs.tag, 'v'))
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -133,7 +146,7 @@ jobs:
 
   verify:
     name: Verify PyPI install
-    if: (github.event_name == 'release' || inputs.publish == 'true') && startsWith(github.ref, 'refs/tags/v')
+    if: (github.event_name == 'release' || inputs.publish == 'true') && (startsWith(github.ref, 'refs/tags/v') || startsWith(inputs.tag, 'v'))
     needs: publish
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -145,7 +158,7 @@ jobs:
         id: version
         shell: bash
         env:
-          RELEASE_REF: ${{ github.ref_name }}
+          RELEASE_REF: ${{ inputs.tag || github.ref_name }}
         run: |
           release_ref="${RELEASE_REF}"
           case "$release_ref" in

@@ -38,7 +38,7 @@ RELEASE_TAG_BASE ?= main
 .PHONY: docs docs-linkcheck serve-docs
 .PHONY: docker-lint docker-ready docker-build docker-build-test docker-test docker-smoke docker-scan docker-check
 .PHONY: lock-check deps secrets security audit
-.PHONY: release-version-check release-preflight prepare-release release-pr-ready release-pr release-tag demo-upload sbom smoke-dist validate-dist build
+.PHONY: release-version-check release-preflight prepare-release release-pr-ready release-pr release-tag demo-upload sbom check-dist smoke-dist validate-dist build
 .PHONY: check check-all ca precommit prepush fresh-precommit
 
 # -----------------------------------------------------------------------------
@@ -104,6 +104,7 @@ help:
 	@echo "  release-tag           Create and push the annotated release tag"
 	@echo "  demo-upload           Upload the demo MP4; set DEMO_RELEASE_TAG=vX.Y.Z"
 	@echo "  sbom                  Generate a CycloneDX runtime dependency SBOM"
+	@echo "  check-dist            Check wheel and source distribution metadata"
 	@echo "  smoke-dist            Install and import-test the built wheel"
 	@echo "  validate-dist         Verify dist contains the expected release artifacts"
 	@echo "  build                 Build, validate, smoke-test, and generate release artifacts"
@@ -373,6 +374,9 @@ sbom: bootstrap
 	uv run cyclonedx-py environment "$$sbom_env/bin/python" --pyproject pyproject.toml --mc-type library \
 		--output-reproducible --spec-version 1.6 --output-format JSON --output-file "$(SBOM_PATH)"
 
+check-dist: bootstrap
+	uv run twine check dist/*.whl dist/*.tar.gz
+
 smoke-dist: bootstrap
 	@smoke_env=$$(mktemp -d); \
 	trap 'rm -rf "$$smoke_env"' 0 1 2 15; \
@@ -412,7 +416,7 @@ validate-dist: bootstrap
 
 build: bootstrap
 	uv build --clear
-	uv run twine check dist/*
+	$(MAKE) check-dist
 	$(MAKE) smoke-dist
 	$(MAKE) sbom
 	$(MAKE) validate-dist

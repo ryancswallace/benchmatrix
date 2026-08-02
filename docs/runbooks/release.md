@@ -156,9 +156,11 @@ after publication rather than racing the publishing job.
 
 `.github/workflows/release.yml` also supports manual dispatch. Use it with
 `publish` set to `false` for a build-only release smoke check. Use
-`publish=true` only for an intentional publication from a tag ref named
-`refs/tags/vX.Y.Z`; the publish job is guarded and will not run from branch refs
-or non-`v` tags.
+`tag=vX.Y.Z` to download and validate an existing GitHub Release's reviewed
+assets, including when recovering from a failed release-event run. Set
+`publish=true` only when intentionally publishing those assets, or when running
+the workflow directly from a tag ref named `refs/tags/vX.Y.Z`; the publish job
+will not run for a branch ref without a valid `v*` tag input.
 
 ## Abort conditions
 
