@@ -1,6 +1,6 @@
 [project]
 name = "benchmatrix"
-version = "1.1.0"
+version = "1.2.0"
 description = "Build trustworthy pytest-benchmark matrices, collect repeated runs, and detect performance regressions."
 readme = "README.md"
 requires-python = ">=3.11,<3.15"
