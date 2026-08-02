@@ -9,6 +9,20 @@ compatibility expectations described in [the release policy](RELEASING.md).
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## 1.2.0 - 2026-08-02
+
+### Added
+
 * Add deterministic run-level BCa bootstrap confidence intervals for the
     direction-aware percentage ratio of median per-run statistics, with a
     reported percentile-bootstrap fallback for degenerate adjustments.
