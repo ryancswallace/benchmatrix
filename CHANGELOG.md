@@ -11,6 +11,8 @@ compatibility expectations described in [the release policy](RELEASING.md).
 
 ### Changed
 
+* Add support for reruns of failed PyPI runs.
+
 ### Deprecated
 
 ### Removed
