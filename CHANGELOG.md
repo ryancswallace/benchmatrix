@@ -11,6 +11,20 @@ compatibility expectations described in [the release policy](RELEASING.md).
 
 ### Changed
 
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## 1.2.1 - 2026-08-02
+
+### Added
+
+### Changed
+
 * Add support for reruns of failed PyPI runs.
 
 ### Deprecated
