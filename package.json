@@ -5,7 +5,7 @@
         "node": ">=22.18.0"
     },
     "devDependencies": {
-        "cspell": "^10.0.1",
+        "cspell": "^10.1.1",
         "dockerfile-utils": "^0.16.3",
         "markdownlint-cli2": "^0.23.2"
     },
