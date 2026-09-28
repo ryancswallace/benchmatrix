@@ -5,9 +5,9 @@
         "node": ">=22.18.0"
     },
     "devDependencies": {
-        "cspell": "^10.3.0",
+        "cspell": "^10.3.4",
         "dockerfile-utils": "^0.16.3",
-        "markdownlint-cli2": "^0.23.2"
+        "markdownlint-cli2": "^0.23.3"
     },
     "overrides": {
         "js-yaml": "4.3.0",
